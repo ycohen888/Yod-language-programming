@@ -49,7 +49,8 @@ go test ./...
 | `yod/internal/stdlib` | ספריות מובנות |
 | `yod/internal/editor` | עורך Windows |
 | `yod/examples` | דוגמאות `.יוד` |
-| `מדריך שפת יוד/` | מדריך למשתמש |
+| `מדריך שפת יוד/` | מדריך למשתמש (מקור; משובץ גם ב־`yod/internal/guide/guide.zip`) |
+| `yod/internal/guide/` | שיבוץ המדריך בבינארי — אחרי עדכון HTML: `go generate ./internal/guide` |
 
 ## רישיון
 

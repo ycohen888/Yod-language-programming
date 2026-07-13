@@ -16,6 +16,7 @@ import (
 	. "github.com/lxn/walk/declarative"
 	"golang.org/x/sys/windows"
 
+	"yod/internal/guide"
 	"yod/internal/version"
 )
 
@@ -26,42 +27,11 @@ var (
 )
 
 func findGuideHTML() string {
-	rel := filepath.Join("מדריך שפת יוד", "מדריך שפת יוד.html")
-	var cands []string
-	if exe, err := os.Executable(); err == nil {
-		if resolved, err := filepath.EvalSymlinks(exe); err == nil {
-			exe = resolved
-		}
-		dir := filepath.Dir(exe)
-		cands = append(cands,
-			filepath.Join(dir, rel),
-			filepath.Join(dir, "..", rel),
-			filepath.Join(dir, "..", "..", rel),
-		)
+	path, err := guide.EnsureIndex()
+	if err != nil || path == "" {
+		return ""
 	}
-	if wd, err := os.Getwd(); err == nil {
-		cands = append(cands,
-			filepath.Join(wd, rel),
-			filepath.Join(wd, "..", rel),
-			filepath.Join(wd, "..", "..", rel),
-		)
-	}
-	seen := map[string]bool{}
-	for _, c := range cands {
-		abs, err := filepath.Abs(c)
-		if err != nil {
-			continue
-		}
-		abs = filepath.Clean(abs)
-		if seen[abs] {
-			continue
-		}
-		seen[abs] = true
-		if fi, err := os.Stat(abs); err == nil && !fi.IsDir() {
-			return abs
-		}
-	}
-	return ""
+	return path
 }
 
 func fileURL(path string) string {
@@ -217,7 +187,7 @@ func showGuideWindow(owner walk.Form) {
 	path := findGuideHTML()
 	if path == "" {
 		walk.MsgBox(owner, "מדריך",
-			"לא נמצא קובץ המדריך.\nחפשו: מדריך שפת יוד/מדריך שפת יוד.html\nליד קובץ ההפעלה או בשורש הריפו.",
+			"לא ניתן לפתוח את המדריך.\nהמדריך משובץ בבינארי; נסו שוב או פתחו את תיקיית מדריך שפת יוד ידנית.",
 			walk.MsgBoxIconWarning)
 		return
 	}
