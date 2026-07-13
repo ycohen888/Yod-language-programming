@@ -948,10 +948,11 @@ func winShow(st *windowState) object.Object {
 	cfg := MainWindow{
 		AssignTo:  &mw,
 		Title:     st.title,
-		MinSize:   Size{Width: st.width, Height: st.height},
-		Size:      Size{Width: st.width, Height: st.height},
-		Layout:    VBox{Margins: Margins{Left: 12, Top: 10, Right: 12, Bottom: 10}, Spacing: 8},
-		Children:  children,
+		// MinSize קטן מ־Size — אחרת חלון גדול עם תוכן גבוה ננעל ולא נכנס למסך
+		MinSize: Size{Width: min(st.width, 720), Height: min(st.height, 480)},
+		Size:     Size{Width: st.width, Height: st.height},
+		Layout:   VBox{Margins: Margins{Left: 10, Top: 8, Right: 10, Bottom: 8}, Spacing: 6},
+		Children: children,
 	}
 	if len(st.menuItems) > 0 {
 		cfg.MenuItems = st.menuItems
