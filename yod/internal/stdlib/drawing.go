@@ -524,34 +524,45 @@ func drawCircleOutline(img *image.RGBA, cx, cy, radius, thickness int, c color.R
 	if thickness < 1 {
 		thickness = 1
 	}
-	for t := 0; t < thickness; t++ {
-		r := radius - t
-		if r < 1 {
-			break
-		}
-		x, y, d := r-1, 0, 1-r
-		for x >= y {
-			plot8(img, cx, cy, x, y, c)
-			y++
-			if d < 0 {
-				d += 2*y + 1
-			} else {
-				x--
-				d += 2*(y-x) + 1
+	// טבעת עם אנטי־אליאסינג: כיסוי לפי מרחק מהיקף
+	rf := float64(radius) - float64(thickness-1)/2
+	half := float64(thickness) / 2
+	pad := int(half) + 2
+	minY := cy - radius - pad
+	maxY := cy + radius + pad
+	minX := cx - radius - pad
+	maxX := cx + radius + pad
+	b := img.Bounds()
+	if minY < b.Min.Y {
+		minY = b.Min.Y
+	}
+	if maxY >= b.Max.Y {
+		maxY = b.Max.Y - 1
+	}
+	if minX < b.Min.X {
+		minX = b.Min.X
+	}
+	if maxX >= b.Max.X {
+		maxX = b.Max.X - 1
+	}
+	fcx := float64(cx)
+	fcy := float64(cy)
+	for py := minY; py <= maxY; py++ {
+		dy := float64(py) - fcy
+		for px := minX; px <= maxX; px++ {
+			dx := float64(px) - fcx
+			d := math.Hypot(dx, dy)
+			dist := math.Abs(d - rf)
+			cov := half + 0.5 - dist
+			if cov <= 0 {
+				continue
 			}
+			if cov > 1 {
+				cov = 1
+			}
+			setPx(img, px, py, alphaScale(c, cov))
 		}
 	}
-}
-
-func plot8(img *image.RGBA, cx, cy, x, y int, c color.RGBA) {
-	setPx(img, cx+x, cy+y, c)
-	setPx(img, cx+y, cy+x, c)
-	setPx(img, cx-y, cy+x, c)
-	setPx(img, cx-x, cy+y, c)
-	setPx(img, cx-x, cy-y, c)
-	setPx(img, cx-y, cy-x, c)
-	setPx(img, cx+y, cy-x, c)
-	setPx(img, cx+x, cy-y, c)
 }
 
 func drawDisk(img *image.RGBA, cx, cy, radius int, c color.RGBA) {
@@ -559,17 +570,66 @@ func drawDisk(img *image.RGBA, cx, cy, radius int, c color.RGBA) {
 		setPx(img, cx, cy, c)
 		return
 	}
-	r2 := radius * radius
-	for y := -radius; y <= radius; y++ {
-		for x := -radius; x <= radius; x++ {
-			if x*x+y*y <= r2 {
-				setPx(img, cx+x, cy+y, c)
+	// דיסק מלא עם שוליים רכים (~1 פיקסל) — בלי שיניים
+	rf := float64(radius)
+	pad := 1
+	minY := cy - radius - pad
+	maxY := cy + radius + pad
+	minX := cx - radius - pad
+	maxX := cx + radius + pad
+	b := img.Bounds()
+	if minY < b.Min.Y {
+		minY = b.Min.Y
+	}
+	if maxY >= b.Max.Y {
+		maxY = b.Max.Y - 1
+	}
+	if minX < b.Min.X {
+		minX = b.Min.X
+	}
+	if maxX >= b.Max.X {
+		maxX = b.Max.X - 1
+	}
+	fcx := float64(cx)
+	fcy := float64(cy)
+	for py := minY; py <= maxY; py++ {
+		dy := float64(py) - fcy
+		for px := minX; px <= maxX; px++ {
+			dx := float64(px) - fcx
+			d := math.Hypot(dx, dy)
+			// כיסוי: 1 בתוך הרדיוס, ירידה חלקה ברוחב ~1px מחוץ לקצה
+			cov := rf + 0.5 - d
+			if cov <= 0 {
+				continue
 			}
+			if cov >= 1 {
+				setPx(img, px, py, c)
+				continue
+			}
+			setPx(img, px, py, alphaScale(c, cov))
 		}
 	}
 }
 
+// alphaScale — משנה שקיפות לפי כיסוי (0..1) לאנטי־אליאסינג.
+func alphaScale(c color.RGBA, cov float64) color.RGBA {
+	if cov >= 1 {
+		return c
+	}
+	if cov <= 0 {
+		return color.RGBA{}
+	}
+	a := float64(c.A) * cov
+	if a > 255 {
+		a = 255
+	}
+	return color.RGBA{R: c.R, G: c.G, B: c.B, A: uint8(a + 0.5)}
+}
+
 func setPx(img *image.RGBA, x, y int, c color.RGBA) {
+	if c.A == 0 {
+		return
+	}
 	if !image.Pt(x, y).In(img.Bounds()) {
 		return
 	}
@@ -598,6 +658,7 @@ func setPx(img *image.RGBA, x, y int, c color.RGBA) {
 	img.Pix[i+2] = uint8((sb + db*da*(1-sa)) / outA)
 	img.Pix[i+3] = uint8(outA * 255)
 }
+
 
 func drawTextOnBoard(st *drawBoard, text string, x, y int) error {
 	face, err := st.ensureFace()
