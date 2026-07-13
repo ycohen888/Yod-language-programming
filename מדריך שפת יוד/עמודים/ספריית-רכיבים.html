@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>רכיבי משטח | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספריית דוגמה · 0.62.0</span><strong>רכיבים</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>רכיבי משטח (Custom Controls)</h1>
+      <p class="lead">
+        ספריית ממשק כתובה כולה ביוד: כפתורים, סליידרים ומתגים מצוירים על
+        <code>חלונות.משטח</code> — בלי כפתורי Win32.
+        מאפשרת עיצוב כהה מלא ומודרני. הקבצים ב־<code>פרוייקט דוגמה/רכיבים/</code>.
+      </p>
+
+      <h2>טעינה</h2>
+      <figure class="example">
+        <span class="example-label">מתוך תיקיית הפרויקט</span>
+        <pre class="code-block">כלול "חלונות"
+כלול "עכבר"
+כלול "רכיבים.יוד"
+
+משתנה לוח = חדש לוח_רכיבים: 480, 360
+משתנה כ = חדש כפתור_משטח: 16, 16, 120, 34, "הרץ"
+כ.בלחיצה = פונקציה ()
+  חלונות.הודעה("שלום", "נלחץ")
+סוף
+לוח.הוסף(כ)
+
+משתנה ח = חלונות.חלון: "רכיבים"
+ח.קבע_כהה()
+ח.הוסף(לוח.משטח_גלוי())
+ח.הצג()</pre>
+      </figure>
+
+      <h2>ארכיטקטורה</h2>
+      <ul>
+        <li><code>לוח_רכיבים</code> — מחזיק משטח, מפזר עכבר, ומצייר את כל הרכיבים</li>
+        <li><code>רכיב</code> — בסיס: מיקום, <code>מכיל</code>, ציור, אירועי עכבר</li>
+        <li>כל רכיב יורש מ־<code>רכיב</code> ומצייר את עצמו על המשטח</li>
+        <li>גרירה מגיעה רק לרכיב שתפס <code>בעכבר_למטה</code> (סליידר)</li>
+      </ul>
+
+      <h2>רכיבים זמינים</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>מחלקה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>כפתור_משטח</code></td><td>כפתור; שדה <code>בלחיצה</code>, <code>קבע_ראשי</code></td></tr>
+          <tr><td><code>סליידר</code></td><td>ערך מספרי בגרירה; <code>בשינוי(ערך)</code></td></tr>
+          <tr><td><code>מספר_מדרגה</code></td><td>כפתורי − / + לערך</td></tr>
+          <tr><td><code>מתג</code></td><td>הפעלה/כיבוי; <code>בשינוי(דלוק)</code></td></tr>
+          <tr><td><code>תיבת_סימון</code></td><td>סימון עם טקסט</td></tr>
+          <tr><td><code>בורר</code> + <code>קבוצת_בורר</code></td><td>בחירה יחידה (רדיו); <code>הצב_נבחר</code></td></tr>
+          <tr><td><code>פס_התקדמות</code></td><td>תצוגת אחוזים</td></tr>
+          <tr><td><code>תווית_ציור</code></td><td>טקסט מצויר</td></tr>
+          <tr><td><code>דגם_צבע_משטח</code></td><td>ריבוע צבע לחיץ</td></tr>
+          <tr><td><code>מפריד</code></td><td>קו אופקי</td></tr>
+          <tr><td><code>מסגרת_ציור</code></td><td>רקע דקורטיבי (לא תופס עכבר)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה מלאה</h2>
+      <p>
+        פתחו את <code>פרוייקט דוגמה/רכיבים/</code> בעורך יוד (הקובץ <code>התחל.יוד</code>) והריצו ב־F5.
+        אפשר להעתיק את הקבצים לפרויקט שלכם ולכלול <code>רכיבים.יוד</code>.
+      </p>
+
+      <h2>הערות</h2>
+      <ul>
+        <li>אין hover בלי לחיצה — אירוע הגרירה נורה רק כשכפתור עכבר לחוץ</li>
+        <li>מטפלי העכבר של המשטח חייבים להיות <code>פונקציה</code> (לא מתודה); הלוח עוטף זאת</li>
+        <li>לציור ישירות על משטח — ראו גם <a href="ספריית-חלונות.html">חלונות.משטח</a></li>
+      </ul>
+
+      <nav class="page-nav">
+        <a href="ספריית-חלונות.html"><span class="dir">הקודם</span><span class="title">ספריית חלונות</span></a>
+        <a href="ספריית-עכבר.html"><span class="dir">הבא</span><span class="title">ספריית עכבר</span></a>
+      </nav>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>
