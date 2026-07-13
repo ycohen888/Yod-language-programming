@@ -21,7 +21,7 @@ import (
 //go:generate go run ../../tools/mkico.go ../../assets/yod-icon-source.png ../../assets/yod.ico
 //go:generate rsrc -arch amd64 -ico ../../assets/yod.ico -manifest yod.exe.manifest -o rsrc_windows_amd64.syso
 
-const version = "0.52.0"
+const version = "0.52.1"
 
 func main() {
 	console.Init()

@@ -4,17 +4,18 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.52.0";
+  var VERSION = "0.52.1";
 
   /** עץ ניווט: פרקים + תת־סעיפים (עמודים) */
   var NAV = [
     {
       id: "start",
       title: "התחלה",
-      keywords: "התקנה הרצה עורך מכונה ארוז",
+      keywords: "התקנה הרצה עורך מכונה ארוז פרויקט",
       children: [
         { title: "מדריך למתחילים", href: "עמודים/מתחילים.html", keywords: "אפס שלום פלט" },
         { title: "התחלה מהירה", href: "עמודים/התחלה.html", keywords: "build exe הרץ" },
+        { title: "קובץ יחיד או פרויקט", href: "עמודים/קובץ-או-פרויקט.html", keywords: "התחל תיקייה כלול קובץ יחיד" },
         { title: "עורך", href: "עמודים/עורך.html", keywords: "IDE השלמה סייר פרויקט התחל" },
         { title: "מכונה", href: "עמודים/מכונה.html", keywords: "bytecode VM" },
         { title: "ארוז", href: "עמודים/ארוז.html", keywords: "exe הפצה" },
