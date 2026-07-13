@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/lxn/walk"
-	"github.com/lxn/win"
 )
 
 // OpenFileTab — מסמך פתוח בטאב עם עורך RichEdit משלו (מעבר טאב = הצגה/הסתרה).
@@ -21,6 +20,8 @@ type OpenFileTab struct {
 	SelStart     int
 	SelEnd       int
 	FirstVisible int
+	ScrollX      int
+	ScrollY      int
 	IsDirty      bool
 	TabBtn       *DocTabBtn
 	edit         *CodeEdit // עורך ייעודי לטאב — לא נטען מחדש במעבר
@@ -196,6 +197,7 @@ func (d *DocTabs) persistActive() {
 	}
 	d.Active.SelStart, d.Active.SelEnd = ed.TextSelection()
 	d.Active.FirstVisible = ed.FirstVisibleLine()
+	d.Active.ScrollX, d.Active.ScrollY = ed.ScrollPos()
 	if d.Active.IsDirty {
 		d.Active.Text = ed.Text()
 	}
@@ -253,25 +255,12 @@ func (d *DocTabs) showEditor(tab *OpenFileTab) {
 	}
 	tab.edit.SetVisible(true)
 	d.Editor = tab.edit
-
-	start, end := tab.SelStart, tab.SelEnd
-	if start < 0 {
-		start = 0
-	}
-	if end < start {
-		end = start
-	}
-	tab.edit.SetTextSelection(start, end)
-	if tab.FirstVisible > 0 {
-		cur := tab.edit.FirstVisibleLine()
-		if delta := tab.FirstVisible - cur; delta != 0 {
-			tab.edit.SendMessage(win.EM_LINESCROLL, 0, uintptr(delta))
-		}
-	}
-	_ = tab.edit.SetFocus()
 	if d.Host != nil {
 		d.Host.RequestLayout()
 	}
+	_ = tab.edit.SetFocus()
+	// אחרי Focus/Layout — משחזרים סקרול (SetTextSelection לבד גולל לסמן)
+	tab.edit.RestoreView(tab.SelStart, tab.SelEnd, tab.FirstVisible, tab.ScrollX, tab.ScrollY)
 	if d.OnEditor != nil {
 		d.OnEditor(tab.edit)
 	}

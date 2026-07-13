@@ -375,6 +375,49 @@ func (ce *CodeEdit) FirstVisibleLine() int {
 	return int(ce.SendMessage(win.EM_GETFIRSTVISIBLELINE, 0, 0))
 }
 
+// Rich Edit: מיקום סקרול בפיקסלים (נשמר בין מעברי טאב).
+const (
+	emGetScrollPos = win.WM_USER + 221
+	emSetScrollPos = win.WM_USER + 222
+)
+
+func (ce *CodeEdit) ScrollPos() (x, y int) {
+	var pt win.POINT
+	ce.SendMessage(emGetScrollPos, 0, uintptr(unsafe.Pointer(&pt)))
+	return int(pt.X), int(pt.Y)
+}
+
+func (ce *CodeEdit) SetScrollPos(x, y int) {
+	pt := win.POINT{X: int32(x), Y: int32(y)}
+	ce.SendMessage(emSetScrollPos, 0, uintptr(unsafe.Pointer(&pt)))
+}
+
+// RestoreView משחזר בחירה + סקרול אחרי SetTextSelection (שגורם לגלילה לסמן).
+func (ce *CodeEdit) RestoreView(selStart, selEnd, firstVisible, scrollX, scrollY int) {
+	if selStart < 0 {
+		selStart = 0
+	}
+	if selEnd < selStart {
+		selEnd = selStart
+	}
+	win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 0, 0)
+	ce.SetTextSelection(selStart, selEnd)
+	// קודם פיקסלים (מדויק), ואז תיקון לפי שורה אם צריך
+	ce.SetScrollPos(scrollX, scrollY)
+	if firstVisible > 0 {
+		cur := ce.FirstVisibleLine()
+		if delta := firstVisible - cur; delta != 0 {
+			ce.SendMessage(win.EM_LINESCROLL, 0, uintptr(delta))
+			// אחרי LINESCROLL — אם יש ScrollY שמור, נעדיף אותו שוב ליציבות
+			if scrollY > 0 {
+				ce.SetScrollPos(scrollX, scrollY)
+			}
+		}
+	}
+	win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 1, 0)
+	win.InvalidateRect(ce.Handle(), nil, true)
+}
+
 func (ce *CodeEdit) LineFromChar(cp int) int {
 	return int(ce.SendMessage(win.EM_LINEFROMCHAR, uintptr(cp), 0))
 }
