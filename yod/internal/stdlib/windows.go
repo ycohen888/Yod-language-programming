@@ -29,6 +29,8 @@ type windowState struct {
 	closed    bool
 	iconPath  string
 	icon      *walk.Icon
+	bgColor   walk.Color
+	hasBg     bool
 }
 
 type windowTimer struct {
@@ -87,6 +89,10 @@ type controlState struct {
 	chartYLabel     string
 	chartShowLegend bool
 	chartShowGrid   bool
+	chartDark       bool
+	// רקע אופציונלי למסגרת
+	bgColor walk.Color
+	hasBg   bool
 }
 
 func NewWindowsModule() *object.Module {
@@ -143,10 +149,31 @@ func winCreateWindow(args ...object.Object) object.Object {
 	w.Attrs["קבע_איקון"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winSetIcon(st, a...)
 	}}
+	w.Attrs["קבע_רקע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetBackground(st, a...)
+	}}
 	w.Attrs["הצג"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winShow(st)
 	}}
 	return w
+}
+
+func winSetBackground(st *windowState, args ...object.Object) object.Object {
+	c, err := parseWalkColor(args...)
+	if err != nil {
+		return errObj("חלון.קבע_רקע: " + err.Error())
+	}
+	st.bgColor = c
+	st.hasBg = true
+	if st.mw != nil {
+		brush, err := walk.NewSolidColorBrush(c)
+		if err != nil {
+			return errObj("חלון.קבע_רקע נכשל: " + err.Error())
+		}
+		st.mw.SetBackground(brush)
+		st.mw.Invalidate()
+	}
+	return object.Nil
 }
 
 func winSetIcon(st *windowState, args ...object.Object) object.Object {
@@ -701,11 +728,14 @@ func winShow(st *windowState) object.Object {
 		Title:     st.title,
 		MinSize:   Size{Width: st.width, Height: st.height},
 		Size:      Size{Width: st.width, Height: st.height},
-		Layout:    VBox{},
+		Layout:    VBox{Margins: Margins{Left: 12, Top: 10, Right: 12, Bottom: 10}, Spacing: 8},
 		Children:  children,
 	}
 	if winIcon != nil {
 		cfg.Icon = winIcon
+	}
+	if st.hasBg {
+		cfg.Background = SolidColorBrush{Color: st.bgColor}
 	}
 	if err := cfg.Create(); err != nil {
 		return errObj("הצגת חלון נכשלה: " + err.Error())

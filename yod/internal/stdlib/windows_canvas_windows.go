@@ -82,6 +82,15 @@ func winCreateFrame(args ...object.Object) object.Object {
 	w.Attrs["הוסף"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return addChildControl(st, a, "מסגרת")
 	}}
+	w.Attrs["קבע_רקע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		c, err := parseWalkColor(a...)
+		if err != nil {
+			return errObj("מסגרת.קבע_רקע: " + err.Error())
+		}
+		st.bgColor = c
+		st.hasBg = true
+		return object.Nil
+	}}
 	return w
 }
 
@@ -677,18 +686,32 @@ func buildControlWidget(ch *controlState) Widget {
 			child := child
 			kids = append(kids, buildControlWidget(child))
 		}
+		bg := SolidColorBrush{Color: walk.RGB(0, 0, 0)}
+		hasBg := ch.hasBg
+		if hasBg {
+			bg = SolidColorBrush{Color: ch.bgColor}
+		}
+		margins := Margins{Left: 10, Top: 8, Right: 10, Bottom: 8}
 		if ch.frameDir == "אופקי" {
-			return Composite{
-				Layout:        HBox{MarginsZero: true, Spacing: 4},
+			comp := Composite{
+				Layout:        HBox{Margins: margins, Spacing: 8},
 				StretchFactor: 1,
 				Children:      kids,
 			}
+			if hasBg {
+				comp.Background = bg
+			}
+			return comp
 		}
-		return Composite{
-			Layout:        VBox{MarginsZero: true, Spacing: 4},
+		comp := Composite{
+			Layout:        VBox{Margins: margins, Spacing: 6},
 			StretchFactor: 1,
 			Children:      kids,
 		}
+		if hasBg {
+			comp.Background = bg
+		}
+		return comp
 	case "משטח":
 		ww, hh := ch.canvasW, ch.canvasH
 		return CustomWidget{

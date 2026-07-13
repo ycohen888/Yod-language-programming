@@ -90,6 +90,9 @@ func newChartWidget(kind string) object.Object {
 	w.Attrs["קבע_רשת"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return chartSetBool(st, &st.chartShowGrid, "קבע_רשת", a...)
 	}}
+	w.Attrs["קבע_כהה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return chartSetBool(st, &st.chartDark, "קבע_כהה", a...)
+	}}
 	w.Attrs["קבע_גובה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		if len(a) != 1 {
 			return errObj("גרף.קבע_גובה מצפה למספר")
@@ -400,7 +403,11 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 	if bounds.Width < 40 || bounds.Height < 40 {
 		return nil
 	}
-	bg, err := walk.NewSolidColorBrush(walk.RGB(248, 250, 252))
+	theme := chartThemeLight()
+	if st.chartDark {
+		theme = chartThemeDark()
+	}
+	bg, err := walk.NewSolidColorBrush(theme.bg)
 	if err != nil {
 		return err
 	}
@@ -409,22 +416,21 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 		return err
 	}
 
-	// מסגרת עדינה
-	border, err := walk.NewCosmeticPen(walk.PenSolid, walk.RGB(226, 232, 240))
+	border, err := walk.NewCosmeticPen(walk.PenSolid, theme.border)
 	if err == nil {
 		defer border.Dispose()
 		_ = canvas.DrawRectangle(border, bounds)
 	}
 
-	pad := 16
+	pad := 14
 	titleH := 0
 	if st.chartTitle != "" {
 		titleH = 28
-		font, err := walk.NewFont("Segoe UI", 13, walk.FontBold)
+		font, err := walk.NewFont("Segoe UI", 12, walk.FontBold)
 		if err == nil {
 			defer font.Dispose()
-			tr := walk.Rectangle{X: bounds.X + pad, Y: bounds.Y + 8, Width: bounds.Width - pad*2, Height: 24}
-			_ = canvas.DrawText(st.chartTitle, font, walk.RGB(15, 23, 42), tr,
+			tr := walk.Rectangle{X: bounds.X + pad, Y: bounds.Y + 6, Width: bounds.Width - pad*2, Height: 24}
+			_ = canvas.DrawText(st.chartTitle, font, theme.title, tr,
 				walk.TextCenter|walk.TextVCenter|walk.TextSingleLine)
 		}
 	}
@@ -438,10 +444,10 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 	}
 
 	plot := walk.Rectangle{
-		X:      bounds.X + pad + 44, // מקום לתוויות ציר Y
+		X:      bounds.X + pad + 44,
 		Y:      bounds.Y + pad + titleH,
 		Width:  bounds.Width - pad*2 - 44 - legendW,
-		Height: bounds.Height - pad*2 - titleH - 36, // מקום לתוויות X
+		Height: bounds.Height - pad*2 - titleH - 36,
 	}
 	if plot.Width < 40 || plot.Height < 40 {
 		return nil
@@ -449,11 +455,45 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 
 	switch st.chartKind {
 	case "עוגה":
-		return paintPieChart(st, canvas, bounds, plot, legendW)
+		return paintPieChart(st, canvas, bounds, plot, legendW, theme)
 	case "קו":
-		return paintXYChart(st, canvas, bounds, plot, legendW, true)
+		return paintXYChart(st, canvas, bounds, plot, legendW, true, theme)
 	default:
-		return paintXYChart(st, canvas, bounds, plot, legendW, false)
+		return paintXYChart(st, canvas, bounds, plot, legendW, false, theme)
+	}
+}
+
+type chartTheme struct {
+	bg, plotBG, border, title, tick, label, grid, axis, hole, holeRing walk.Color
+}
+
+func chartThemeLight() chartTheme {
+	return chartTheme{
+		bg:       walk.RGB(248, 250, 252),
+		plotBG:   walk.RGB(255, 255, 255),
+		border:   walk.RGB(226, 232, 240),
+		title:    walk.RGB(15, 23, 42),
+		tick:     walk.RGB(100, 116, 139),
+		label:    walk.RGB(71, 85, 105),
+		grid:     walk.RGB(241, 245, 249),
+		axis:     walk.RGB(148, 163, 184),
+		hole:     walk.RGB(248, 250, 252),
+		holeRing: walk.RGB(226, 232, 240),
+	}
+}
+
+func chartThemeDark() chartTheme {
+	return chartTheme{
+		bg:       walk.RGB(22, 27, 34),
+		plotBG:   walk.RGB(30, 37, 46),
+		border:   walk.RGB(48, 54, 61),
+		title:    walk.RGB(230, 237, 243),
+		tick:     walk.RGB(139, 148, 158),
+		label:    walk.RGB(177, 186, 196),
+		grid:     walk.RGB(48, 54, 61),
+		axis:     walk.RGB(88, 96, 105),
+		hole:     walk.RGB(22, 27, 34),
+		holeRing: walk.RGB(48, 54, 61),
 	}
 }
 
@@ -492,7 +532,7 @@ func niceCeiling(v float64) float64 {
 	return nf * math.Pow(10, exp)
 }
 
-func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int, isLine bool) error {
+func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int, isLine bool, theme chartTheme) error {
 	maxV := chartMaxValue(st.chartSeries)
 	nCats := len(st.chartLabels)
 	for _, s := range st.chartSeries {
@@ -501,21 +541,20 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 		}
 	}
 	if nCats == 0 {
-		return drawChartEmpty(canvas, plot)
+		return drawChartEmpty(canvas, plot, theme)
 	}
 
-	// רקע אזור הגרף
-	plotBG, _ := walk.NewSolidColorBrush(walk.RGB(255, 255, 255))
+	plotBG, _ := walk.NewSolidColorBrush(theme.plotBG)
 	if plotBG != nil {
 		defer plotBG.Dispose()
 		_ = canvas.FillRectangle(plotBG, plot)
 	}
 
-	axisPen, _ := walk.NewCosmeticPen(walk.PenSolid, walk.RGB(148, 163, 184))
+	axisPen, _ := walk.NewCosmeticPen(walk.PenSolid, theme.axis)
 	if axisPen != nil {
 		defer axisPen.Dispose()
 	}
-	gridPen, _ := walk.NewCosmeticPen(walk.PenSolid, walk.RGB(241, 245, 249))
+	gridPen, _ := walk.NewCosmeticPen(walk.PenSolid, theme.grid)
 	if gridPen != nil {
 		defer gridPen.Dispose()
 	}
@@ -541,7 +580,7 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 			val := maxV * t
 			txt := formatChartNumber(val)
 			tr := walk.Rectangle{X: bounds.X + 4, Y: y - 8, Width: plot.X - bounds.X - 8, Height: 16}
-			_ = canvas.DrawText(txt, tickFont, walk.RGB(100, 116, 139), tr,
+			_ = canvas.DrawText(txt, tickFont, theme.tick, tr,
 				walk.TextRight|walk.TextVCenter|walk.TextSingleLine)
 		}
 	}
@@ -553,14 +592,14 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 
 	if st.chartYLabel != "" && labelFont != nil {
 		tr := walk.Rectangle{X: bounds.X + 2, Y: plot.Y, Width: 40, Height: 18}
-		_ = canvas.DrawText(st.chartYLabel, labelFont, walk.RGB(71, 85, 105), tr,
+		_ = canvas.DrawText(st.chartYLabel, labelFont, theme.label, tr,
 			walk.TextLeft|walk.TextSingleLine)
 	}
 
 	slotW := float64(plot.Width) / float64(nCats)
 	nSeries := len(st.chartSeries)
 	if nSeries == 0 {
-		return drawChartEmpty(canvas, plot)
+		return drawChartEmpty(canvas, plot, theme)
 	}
 
 	if isLine {
@@ -644,20 +683,20 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 			}
 			x := plot.X + int((float64(i)+0.5)*slotW)
 			tr := walk.Rectangle{X: x - int(slotW/2), Y: plot.Y + plot.Height + 4, Width: int(slotW), Height: 20}
-			_ = canvas.DrawText(label, labelFont, walk.RGB(71, 85, 105), tr,
+			_ = canvas.DrawText(label, labelFont, theme.label, tr,
 				walk.TextCenter|walk.TextSingleLine)
 		}
 	}
 	if st.chartXLabel != "" && labelFont != nil {
 		tr := walk.Rectangle{X: plot.X, Y: bounds.Y + bounds.Height - 20, Width: plot.Width, Height: 16}
-		_ = canvas.DrawText(st.chartXLabel, labelFont, walk.RGB(71, 85, 105), tr,
+		_ = canvas.DrawText(st.chartXLabel, labelFont, theme.label, tr,
 			walk.TextCenter|walk.TextSingleLine)
 	}
 
-	return paintChartLegend(st, canvas, bounds, plot, legendW)
+	return paintChartLegend(st, canvas, bounds, plot, legendW, theme)
 }
 
-func paintPieChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int) error {
+func paintPieChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int, theme chartTheme) error {
 	values := make([]float64, 0)
 	colors := make([]walk.Color, 0)
 	names := make([]string, 0)
@@ -696,7 +735,7 @@ func paintPieChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rect
 		sum += v
 	}
 	if sum <= 0 || len(values) == 0 {
-		return drawChartEmpty(canvas, plot)
+		return drawChartEmpty(canvas, plot, theme)
 	}
 
 	size := plot.Width
@@ -729,10 +768,10 @@ func paintPieChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rect
 	// חור דונאט
 	inner := int(float64(r) * 0.45)
 	if inner > 8 {
-		drawDisk(img, cx, cy, inner, color.RGBA{248, 250, 252, 255})
+		drawDisk(img, cx, cy, inner, color.RGBA{theme.hole.R(), theme.hole.G(), theme.hole.B(), 255})
 	}
 	// טבעת חיצונית עדינה
-	drawCircleOutline(img, cx, cy, r, 2, color.RGBA{226, 232, 240, 255})
+	drawCircleOutline(img, cx, cy, r, 2, color.RGBA{theme.holeRing.R(), theme.holeRing.G(), theme.holeRing.B(), 255})
 
 	bmp, err := walk.NewBitmapFromImageForDPI(img, 96)
 	if err != nil {
@@ -760,7 +799,7 @@ func paintPieChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rect
 			if font != nil {
 				txt := fmt.Sprintf("%s  %.0f%%", names[i], pct)
 				tr := walk.Rectangle{X: lx + 18, Y: ly, Width: legendW - 22, Height: 18}
-				_ = canvas.DrawText(txt, font, walk.RGB(51, 65, 85), tr, walk.TextLeft|walk.TextSingleLine)
+				_ = canvas.DrawText(txt, font, theme.label, tr, walk.TextLeft|walk.TextSingleLine)
 			}
 			ly += 22
 		}
@@ -818,7 +857,7 @@ func fillWedgeRGBA(img *image.RGBA, cx, cy, r int, a0, a1 float64, c color.RGBA)
 	}
 }
 
-func paintChartLegend(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int) error {
+func paintChartLegend(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int, theme chartTheme) error {
 	if !st.chartShowLegend || legendW <= 0 || len(st.chartSeries) == 0 {
 		return nil
 	}
@@ -836,19 +875,19 @@ func paintChartLegend(st *controlState, canvas *walk.Canvas, bounds, plot walk.R
 			br.Dispose()
 		}
 		tr := walk.Rectangle{X: lx + 18, Y: ly, Width: legendW - 22, Height: 18}
-		_ = canvas.DrawText(s.name, font, walk.RGB(51, 65, 85), tr, walk.TextLeft|walk.TextSingleLine)
+		_ = canvas.DrawText(s.name, font, theme.label, tr, walk.TextLeft|walk.TextSingleLine)
 		ly += 22
 	}
 	return nil
 }
 
-func drawChartEmpty(canvas *walk.Canvas, plot walk.Rectangle) error {
+func drawChartEmpty(canvas *walk.Canvas, plot walk.Rectangle, theme chartTheme) error {
 	font, err := walk.NewFont("Segoe UI", 11, 0)
 	if err != nil {
 		return nil
 	}
 	defer font.Dispose()
-	return canvas.DrawText("אין נתונים לגרף", font, walk.RGB(148, 163, 184), plot,
+	return canvas.DrawText("אין נתונים לגרף", font, theme.tick, plot,
 		walk.TextCenter|walk.TextVCenter|walk.TextSingleLine)
 }
 
