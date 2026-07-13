@@ -1094,6 +1094,7 @@ func Run(path string) error {
 		walk.MsgBox(mw, "קיצורי מקלדת",
 			"עורך יוד — קיצורי מקלדת\n\n"+
 				"פרויקט: קובץ ← פתח תיקייה (Ctrl+Shift+O)\n"+
+				"או גרירת קובץ .יוד / תיקיית פרויקט לתוך חלון העורך\n"+
 				"הקובץ הראשי הוא תמיד התחל.יוד — ממנו מריצים (F5)\n"+
 				"קבצים אחרים נכללים עם: כלול \"שם.יוד\"\n\n"+
 				"לחיצה כפולה על קובץ — פותחת/ממקדת טאב · × סוגר טאב · ● = לא נשמר\n"+
@@ -1179,6 +1180,46 @@ func Run(path string) error {
 		return fileModel.EntryAt(fileList.CurrentIndex())
 	}
 
+	var openAsProject func(root, preferFile string, ensureMain bool)
+	var openDroppedPath func(path string)
+
+	openAsProject = func(root, preferFile string, ensureMain bool) {
+		abs, err := filepath.Abs(root)
+		if err == nil {
+			root = abs
+		}
+		projectRoot = root
+		projectMode = true
+		setCompleteProjectRoot(projectRoot)
+		var mainPath string
+		if ensureMain {
+			mainPath, err = project.EnsureMain(projectRoot)
+			if err != nil {
+				walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+				return
+			}
+		} else {
+			mainPath = project.MainPath(projectRoot)
+			if _, err := os.Stat(mainPath); err != nil {
+				walk.MsgBox(mw, "שגיאה", "חסר קובץ ראשי:\n"+mainPath, walk.MsgBoxIconError)
+				return
+			}
+		}
+		fileModel.SetRoot(projectRoot)
+		refreshProjectUI()
+		updateTitle()
+		openTarget := preferFile
+		if openTarget == "" {
+			openTarget = mainPath
+		}
+		if err := loadFile(openTarget); err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		selectPathInTree(openTarget)
+		setStatus("פרויקט · " + filepath.Base(projectRoot) + " · " + filepath.Base(openTarget))
+	}
+
 	openFolder := func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -1196,7 +1237,6 @@ func Run(path string) error {
 		path, ok, err := pickFolder(mw, "פתיחת תיקיית פרויקט", initial)
 		if err != nil || !ok || path == "" {
 			if err != nil {
-				// גיבוי: הזנת נתיב מלא (לא promptTextDialog — הוא דוחה \ בנתיב)
 				typed, typedOK := promptPathDialog(mw, "פתיחת תיקייה", "נתיב מלא לתיקייה:", initial)
 				if !typedOK || typed == "" {
 					if err != nil {
@@ -1218,22 +1258,74 @@ func Run(path string) error {
 		if err == nil {
 			path = abs
 		}
-		projectRoot = path
-		projectMode = true
-		setCompleteProjectRoot(projectRoot)
-		mainPath, err := project.EnsureMain(projectRoot)
-		if err != nil {
-			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+		openAsProject(path, "", true)
+	}
+
+	openDroppedPath = func(path string) {
+		path = strings.TrimSpace(path)
+		if path == "" {
 			return
 		}
+		abs, err := filepath.Abs(path)
+		if err == nil {
+			path = abs
+		}
+		fi, err := os.Stat(path)
+		if err != nil {
+			walk.MsgBox(mw, "גרירה", "לא נמצא:\n"+path+"\n"+err.Error(), walk.MsgBoxIconWarning)
+			return
+		}
+		if fi.IsDir() {
+			if _, err := os.Stat(project.MainPath(path)); err == nil {
+				openAsProject(path, "", false)
+				return
+			}
+			walk.MsgBox(mw, "גרירה",
+				"בתיקייה אין "+project.MainFileName+".\n"+
+					"פתחו אותה דרך «קובץ ← פתח תיקייה» כדי ליצור פרויקט,\nאו גררו קובץ .יוד בודד.",
+				walk.MsgBoxIconInformation)
+			return
+		}
+		if !project.IsYodSource(path) {
+			walk.MsgBox(mw, "גרירה", "אפשר לגרור קבצי .יוד (או תיקיית פרויקט).", walk.MsgBoxIconInformation)
+			return
+		}
+		if root := project.FindProjectRoot(path); root != "" {
+			openAsProject(root, path, false)
+			return
+		}
+		projectRoot = filepath.Dir(path)
+		projectMode = false
+		setCompleteProjectRoot(projectRoot)
 		fileModel.SetRoot(projectRoot)
 		refreshProjectUI()
 		updateTitle()
-		if err := loadFile(mainPath); err != nil {
+		if err := openPath(path); err != nil && err.Error() != "בוטל" {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 			return
 		}
-		setStatus("פרויקט · " + filepath.Base(projectRoot) + " · " + project.MainFileName)
+		selectPathInTree(path)
+		setStatus("קובץ · " + filepath.Base(path))
+	}
+
+	onDropFiles := func(files []string) {
+		if len(files) == 0 {
+			return
+		}
+		openDroppedPath(files[0])
+		root := projectRoot
+		for _, f := range files[1:] {
+			if !project.IsYodSource(f) {
+				continue
+			}
+			abs, err := filepath.Abs(f)
+			if err != nil {
+				continue
+			}
+			if root != "" && project.FindProjectRoot(abs) == root {
+				_ = openPath(abs)
+			}
+		}
 	}
 
 	closeFolder := func() {
@@ -1412,6 +1504,7 @@ func Run(path string) error {
 		RightToLeftLayout: true,
 		Background:        SolidColorBrush{Color: colBg},
 		Font:              Font{Family: uiFont, PointSize: 10},
+		OnDropFiles:       onDropFiles,
 		MenuItems: []MenuItem{
 			Menu{
 				Text: "קובץ",
@@ -1567,7 +1660,7 @@ func Run(path string) error {
 							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
 							Label{
 								AssignTo:           &treeEmpty,
-								Text:               "פתחו תיקיית פרויקט\n(קובץ ← פתח תיקייה)\nהקובץ הראשי: התחל.יוד",
+                                Text:               "פתחו תיקיית פרויקט\n(קובץ ← פתח תיקייה)\nאו גררו קובץ .יוד לכאן\nהקובץ הראשי: התחל.יוד",
 								TextColor:          colMuted,
 								Font:               Font{Family: uiFont, PointSize: 9},
 								RightToLeftReading: true,

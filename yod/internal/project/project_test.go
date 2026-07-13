@@ -61,6 +61,40 @@ func TestResolveEntryMissing(t *testing.T) {
 	}
 }
 
+func TestFindProjectRoot(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, MainFileName), []byte("הדפס: 1\n"), 0644)
+	sub := filepath.Join(dir, "תת")
+	_ = os.Mkdir(sub, 0755)
+	nested := filepath.Join(sub, "מודול.יוד")
+	_ = os.WriteFile(nested, []byte("הדפס: 2\n"), 0644)
+
+	if got := FindProjectRoot(nested); got != dir {
+		t.Fatalf("from nested file: got %q want %q", got, dir)
+	}
+	if got := FindProjectRoot(sub); got != dir {
+		t.Fatalf("from subdir: got %q want %q", got, dir)
+	}
+	if got := FindProjectRoot(dir); got != dir {
+		t.Fatalf("from root: got %q want %q", got, dir)
+	}
+	lonely := t.TempDir()
+	loneFile := filepath.Join(lonely, "בודד.יוד")
+	_ = os.WriteFile(loneFile, []byte("הדפס: 3\n"), 0644)
+	if got := FindProjectRoot(loneFile); got != "" {
+		t.Fatalf("lonely file should have no project, got %q", got)
+	}
+}
+
+func TestIsYodSource(t *testing.T) {
+	if !IsYodSource("א.יוד") || !IsYodSource("a.yod") || !IsYodSource("A.YOD") {
+		t.Fatal("expected yod sources")
+	}
+	if IsYodSource("a.txt") || IsYodSource("יוד") {
+		t.Fatal("expected non-yod")
+	}
+}
+
 func TestListYodFiles(t *testing.T) {
 	dir := t.TempDir()
 	_ = os.WriteFile(filepath.Join(dir, MainFileName), []byte("הדפס: 1\n"), 0644)

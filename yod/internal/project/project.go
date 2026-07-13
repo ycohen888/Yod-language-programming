@@ -45,6 +45,39 @@ func EnsureMain(projectRoot string) (string, error) {
 	return main, nil
 }
 
+// FindProjectRoot מחפש כלפי מעלה תיקייה שמכילה התחל.יוד.
+// start יכול להיות קובץ או תיקייה. מחזיר "" אם לא נמצא.
+func FindProjectRoot(start string) string {
+	if start == "" {
+		return ""
+	}
+	abs, err := filepath.Abs(start)
+	if err != nil {
+		abs = start
+	}
+	dir := abs
+	if fi, err := os.Stat(abs); err == nil && !fi.IsDir() {
+		dir = filepath.Dir(abs)
+	}
+	for {
+		main := filepath.Join(dir, MainFileName)
+		if fi, err := os.Stat(main); err == nil && !fi.IsDir() {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+// IsYodSource — האם הנתיב הוא קובץ מקור יוד (.יוד / .yod)
+func IsYodSource(path string) bool {
+	ext := filepath.Ext(path)
+	return ext == ".יוד" || strings.EqualFold(ext, ".yod")
+}
+
 // ResolveEntry — אם path תיקייה, מחזיר את התחל.יוד שבתוכה; אחרת את path עצמו.
 func ResolveEntry(path string) (string, error) {
 	fi, err := os.Stat(path)
