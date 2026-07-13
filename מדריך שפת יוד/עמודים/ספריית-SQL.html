@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית SQL | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.36.0</span><strong>SQL</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>ספריית SQL</h1>
+      <p class="lead">
+        חיבור למסדי נתונים עם פרמטרים (<code>?</code>) — SQLite, MySQL ו־PostgreSQL.
+        טוענים עם <code>כלול "SQL"</code>.
+      </p>
+
+      <h2>פקודות על חיבור</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פעולה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>SQL.התחבר(סוג, מחרוזת)</code></td><td>חיבור; או <code>התחבר(נתיב)</code> ל־SQLite</td></tr>
+          <tr><td><code>מסד.הפעל(שאילתה, …)</code></td><td>CREATE / INSERT / UPDATE / DELETE</td></tr>
+          <tr><td><code>מסד.שלוף(שאילתה, …)</code></td><td>מחזיר רשימת מילונים</td></tr>
+          <tr><td><code>מסד.סגור()</code></td><td>סוגר את החיבור</td></tr>
+          <tr><td><code>מסד.סוג</code></td><td>שם סוג המסד</td></tr>
+        </tbody>
+      </table>
+
+      <h2>SQLite — יצירה ושליפה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "SQL"
+
+משתנה מסד = SQL.התחבר("sqlite", "demo.db")
+מסד.הפעל("CREATE TABLE IF NOT EXISTS משתמשים (מזהה INTEGER, שם TEXT)")
+מסד.הפעל("DELETE FROM משתמשים")
+מסד.הפעל("INSERT INTO משתמשים VALUES (?, ?)", 1, "נועם")
+מסד.הפעל("INSERT INTO משתמשים VALUES (?, ?)", 2, "דני")
+
+משתנה שורות = מסד.שלוף("SELECT * FROM משתמשים ORDER BY מזהה")
+הדפס: "מספר שורות: " + אורך(שורות)
+עבור שורה בתוך שורות
+  הדפס: שורה["מזהה"] + ": " + שורה["שם"]
+סוף
+
+מסד.סגור()</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>מספר שורות: 2
+1: נועם
+2: דני</pre>
+        </div>
+      </figure>
+
+      <h2>פרמטרים ושאילתה מסוננת</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "SQL"
+
+משתנה מסד = SQL.התחבר("demo.db");  // קיצור ל־SQLite
+מסד.הפעל("CREATE TABLE IF NOT EXISTS t (שם TEXT)")
+מסד.הפעל("DELETE FROM t")
+מסד.הפעל("INSERT INTO t VALUES (?)", "נועם")
+מסד.הפעל("INSERT INTO t VALUES (?)", "דני")
+
+משתנה שורות = מסד.שלוף("SELECT * FROM t WHERE שם = ?", "נועם")
+הדפס: שורות[0]["שם"]
+מסד.סגור()</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>נועם</pre>
+        </div>
+      </figure>
+
+      <div class="callout warn">
+        <strong>אבטחה:</strong> תמיד השתמשו ב־<code>?</code> לערכים דינמיים —
+        גם ב־PostgreSQL (יוד ממיר אוטומטית ל־$1, $2). אל תשרשרו קלט משתמש לשאילתה.
+      </div>
+
+      <div class="callout tip">
+        <strong>שרתים:</strong> MySQL —
+        <code>SQL.התחבר("mysql", "user:pass@tcp(127.0.0.1:3306)/dbname")</code>.
+        Postgres —
+        <code>SQL.התחבר("postgres", "postgres://…")</code>.
+        ראו גם <code>examples/sql_servers.יוד</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="ספריית-רשת.html"><span class="dir">הקודם</span><span class="title">ספריית רשת</span></a>
+        <a href="ספריית-חלונות.html"><span class="dir">הבא</span><span class="title">ספריית חלונות</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

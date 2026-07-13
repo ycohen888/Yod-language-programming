@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>בחר | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>בחר</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>בחר / מקרה</h1>
+      <p class="lead">בחירה לפי ערך — חלופה נוחה לשרשרת <code>אם</code> / <code>אחרת_אם</code>.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        <code>בחר</code> בודק ערך אחד ומריץ את הבלוק של ה־<code>מקרה</code> המתאים.
+        אפשר לרשום כמה ערכים באותו מקרה (מופרדים בפסיק),
+        ואופציונלית <code>ברירת_מחדל</code> כששום מקרה לא התאים.
+      </p>
+      <p>
+        הבלוק כולו נסגר ב־<code>סוף</code>. זה קריא יותר משרשרת ארוכה של
+        <code>אחרת_אם</code> כשמשווים לאותו משתנה שוב ושוב.
+      </p>
+
+      <h2>בחירה לפי מספר</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה מצב = 2
+
+בחר מצב
+  מקרה 1
+    הדפס "אחד"
+  מקרה 2, 3
+    הדפס "שניים או שלוש"
+  ברירת_מחדל
+    הדפס "אחר"
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שניים או שלוש</pre>
+        </div>
+      </figure>
+
+      <h2>בחירה לפי מחרוזת</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה יום = "שישי"
+
+בחר יום
+  מקרה "ראשון", "שני", "שלישי", "רביעי", "חמישי"
+    הדפס "יום חול"
+  מקרה "שישי", "שבת"
+    הדפס "סוף שבוע"
+  ברירת_מחדל
+    הדפס "יום לא מוכר"
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>סוף שבוע</pre>
+        </div>
+      </figure>
+
+      <table class="method-table">
+        <thead>
+          <tr><th>חלק</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>בחר ערך</code></td><td>פותח בחירה לפי הביטוי</td></tr>
+          <tr><td><code>מקרה א, ב</code></td><td>רץ אם הערך שווה לאחד מהם</td></tr>
+          <tr><td><code>ברירת_מחדל</code></td><td>אופציונלי — כשאין התאמה</td></tr>
+          <tr><td><code>סוף</code></td><td>סוגר את כל הבלוק</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout ok">
+        <strong>מתי להשתמש:</strong> כשיש ערך אחד וכמה אפשרויות ברורות.
+        לתנאים מורכבים (<code>וגם</code>, טווחים) — העדיפו <a href="אם.html"><code>אם</code></a>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="אם.html">
+          <span class="dir">הקודם</span>
+          <span class="title">אם / אחרת</span>
+        </a>
+        <a href="כל_עוד.html">
+          <span class="dir">הבא</span>
+          <span class="title">כל_עוד</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

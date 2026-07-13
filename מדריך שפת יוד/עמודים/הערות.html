@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>הערות | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">תחביר · 0.36.0</span><strong>הערות</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>הערות</h1>
+      <p class="lead">
+        טקסט שמסביר את הקוד ולא רץ במנוע — מתחיל ב־<code>//</code> ונמשך עד סוף השורה.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        הערות עוזרות לתעד כוונה, להסביר למה (לא רק מה), ולהשבית זמנית שורת קוד.
+        המפרש והמכונה מתעלמים מהן לחלוטין.
+      </p>
+
+      <h2>שורה שלמה ובסוף שורה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">// זה לא ירוץ
+הדפס "זה כן ירוץ"
+
+משתנה א = 5  // הערה בסוף שורה
+הדפס: "א = " + א</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>זה כן ירוץ
+א = 5</pre>
+        </div>
+      </figure>
+
+      <h2>השבתת קוד זמנית</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">הדפס "שלב 1"
+// הדפס "שלב ניסוי — כבוי"
+הדפס "שלב 2"</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלב 1
+שלב 2</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> בעורך יוד הערות נצבעות בירוק — קל להבחין בקוד «חי» מול הסבר.
+      </div>
+
+      <div class="callout warn">
+        <strong>שימו לב:</strong> אין כרגע הערות מרובות־שורות בסגנון <code>/* … */</code>.
+        לכל שורה צריך <code>//</code> משלה.
+      </div>
+
+      <nav class="page-nav">
+        <a href="אופרטורים.html"><span class="dir">הקודם</span><span class="title">אופרטורים</span></a>
+        <a href="זיכרון.html"><span class="dir">הבא</span><span class="title">זיכרון / סגירות</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

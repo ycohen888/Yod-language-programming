@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>אם | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>אם</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>אם / אחרת / אחרת_אם</h1>
+      <p class="lead">מריצים קוד רק כשתנאי מתקיים. השרשרת נסגרת ב־<code>סוף</code>.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        תנאי בודק האם משהו נכון. אם כן — רץ הבלוק של <code>אם</code>.
+        אחרת אפשר להריץ <code>אחרת</code>, או לבדוק תנאי נוסף עם <code>אחרת_אם</code>.
+      </p>
+      <p>
+        סוגריים סביב התנאי אופציונליים: <code>אם ציון &gt;= 90</code>
+        ו־<code>אם (ציון &gt;= 90)</code> שקולים. הבלוק תמיד נסגר ב־<code>סוף</code>.
+      </p>
+
+      <h2>אם / אחרת</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה שם = "דוד"
+
+אם שם == "דוד"
+  הדפס "שלום דוד"
+אחרת
+  הדפס "שלום אורח"
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום דוד</pre>
+        </div>
+      </figure>
+
+      <h2>אחרת_אם — כמה ענפים</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה ציון = 85
+
+אם ציון &gt;= 90
+  הדפס "מעולה"
+אחרת_אם ציון &gt;= 70
+  הדפס "טוב"
+אחרת
+  הדפס "צריך לשפר"
+סוף
+
+אם (ציון &gt; 80) וגם (ציון &lt; 90)
+  הדפס "קרוב מאוד למעולה"
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>טוב
+קרוב מאוד למעולה</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> לשרשרת ארוכה לפי ערך קבוע — העדיפו
+        <a href="בחר.html"><code>בחר</code> / <code>מקרה</code></a>.
+      </div>
+
+      <div class="callout warn">
+        <strong>שימו לב:</strong> כל שרשרת <code>אם</code> חייבת להסתיים ב־<code>סוף</code>.
+        שכחת <code>סוף</code> היא אחת השגיאות הנפוצות למתחילים.
+      </div>
+
+      <nav class="page-nav">
+        <a href="אופרטורים.html">
+          <span class="dir">הקודם</span>
+          <span class="title">אופרטורים</span>
+        </a>
+        <a href="בחר.html">
+          <span class="dir">הבא</span>
+          <span class="title">בחר / מקרה</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

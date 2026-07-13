@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מילון | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">טיפוס · 0.36.0</span><strong>מילון</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>מילון</h1>
+      <p class="lead">
+        מילון הוא אוסף של זוגות <code>מפתח: ערך</code> בסוגריים מסולסלים.
+        המפתחות הם מחרוזות; הגישה ב־<code>מילון.מפתח</code> או במתודות כמו <code>קבל</code>.
+      </p>
+
+      <h2>יצירה וגישה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה אדם = {
+  שם: "נועם",
+  גיל: 30
+}
+
+הדפס(אדם.שם)
+הדפס(אדם.קבל("עיר", "לא ידוע"))
+הדפס(אדם.יש("שם"))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>נועם
+לא ידוע
+אמת</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> <code>קבל(מפתח, ברירת_מחדל)</code> בטוח כשהמפתח עלול להיות חסר — במקום שגיאה מתקבל הערך החלופי.
+      </div>
+
+      <h2>מתודות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>מתודה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>שמות()</code> / <code>מפתחות()</code></td><td>רשימת כל המפתחות</td></tr>
+          <tr><td><code>ערכים()</code></td><td>רשימת כל הערכים</td></tr>
+          <tr><td><code>יש(מפתח)</code></td><td>האם המפתח קיים</td></tr>
+          <tr><td><code>יש_ערך(ערך)</code></td><td>האם הערך מופיע במילון</td></tr>
+          <tr><td><code>קבל(מפתח [, ברירת_מחדל])</code></td><td>קריאה בטוחה</td></tr>
+          <tr><td><code>הגדר(מפתח, ערך)</code></td><td>הוספה או עדכון</td></tr>
+          <tr><td><code>הדפס_הכל()</code></td><td>מדפיס <code>מפתח: ערך</code> לכל זוג</td></tr>
+          <tr><td><code>מפה(פונקציה)</code></td><td>מילון חדש אחרי המרת ערכים</td></tr>
+          <tr><td><code>סנן(פונקציה)</code></td><td>מילון חדש לפי תנאי על מפתח/ערך</td></tr>
+          <tr><td><code>גודל()</code> / <code>ריק()</code></td><td>מספר זוגות / האם ריק</td></tr>
+          <tr><td><code>עדכן(מילון)</code></td><td>ממזג מפתחות ממילון אחר</td></tr>
+        </tbody>
+      </table>
+
+      <h2>הדפסה ומפתחות</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה ציונים = {
+  מתמטיקה: 95,
+  אנגלית: 88
+}
+
+ציונים.הדפס_הכל()
+הדפס("מפתחות: " + ציונים.שמות().הצטרף(", "))
+הדפס(ציונים.יש_ערך(95))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>אנגלית: 88
+מתמטיקה: 95
+מפתחות: אנגלית, מתמטיקה
+אמת</pre>
+        </div>
+      </figure>
+
+      <div class="callout warn">
+        <strong>סדר מפתחות:</strong> <code>שמות()</code> ו־<code>הדפס_הכל()</code> מחזירים מפתחות ממוינים לפי שם — לא לפי סדר הכתיבה.
+      </div>
+
+      <div class="callout ok">
+        <strong>JSON:</strong> מילונים משתלבים טבעית עם <code>JSON.פרסר</code> / <code>JSON.מחרוזת</code> — ראו ספריית JSON.
+      </div>
+
+      <nav class="page-nav">
+        <a href="רשימה.html"><span class="dir">הקודם</span><span class="title">רשימה</span></a>
+        <a href="ספריית-בסיס.html"><span class="dir">הבא</span><span class="title">ספריית בסיס</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

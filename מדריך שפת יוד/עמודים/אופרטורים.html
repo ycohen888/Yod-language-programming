@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>אופרטורים | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">תחביר · 0.36.0</span><strong>אופרטורים</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>אופרטורים</h1>
+      <p class="lead">חשבון, השוואה, לוגיקה, השמה מורכבת, חזקה ו־<code>??</code>.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        אופרטורים הם הסימנים שמחברים ערכים: חיבור, השוואה, וגם/או, ועוד.
+        ביוד אפשר לכתוב לוגיקה בעברית (<code>וגם</code> <code>או</code> <code>לא</code>)
+        או בסימנים המוכרים (<code>&amp;&amp;</code> <code>||</code> <code>!</code>).
+      </p>
+      <p>
+        בנוסף יש השמה מורכבת (<code>+=</code>), חזקה (<code>**</code>),
+        וערך־אם־ריק (<code>??</code>).
+      </p>
+
+      <h2>חשבון והשוואה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">הדפס: 10 + 3
+הדפס: 10 - 3
+הדפס: 10 * 3
+הדפס: 10 / 4
+הדפס: 10 % 3
+הדפס: 2 ** 10
+
+הדפס: 5 == 5
+הדפס: 5 != 3
+הדפס: 5 &lt; 10
+הדפס: 5 &gt;= 6</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>13
+7
+30
+2.5
+1
+1024
+אמת
+אמת
+אמת
+שקר</pre>
+        </div>
+      </figure>
+
+      <h2>לוגיקה, השמה ו־??</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">הדפס: אמת וגם שקר
+הדפס: שקר או אמת
+הדפס: לא שקר
+הדפס: !אמת
+
+משתנה א = 10
+א += 5
+א *= 2
+הדפס: א
+
+הדפס: ריק ?? "ברירת מחדל"
+הדפס: "שלום " + "עולם"</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שקר
+אמת
+אמת
+שקר
+30
+ברירת מחדל
+שלום עולם</pre>
+        </div>
+      </figure>
+
+      <h2>טבלת סיכום</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>קבוצה</th><th>אופרטורים</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>חשבון</td><td><code>+</code> <code>-</code> <code>*</code> <code>/</code> <code>%</code> <code>**</code></td></tr>
+          <tr><td>השוואה</td><td><code>==</code> <code>!=</code> <code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td></tr>
+          <tr><td>לוגיקה</td><td><code>וגם</code> <code>או</code> <code>לא</code> · <code>&amp;&amp;</code> <code>||</code> <code>!</code></td></tr>
+          <tr><td>השמה</td><td><code>=</code> <code>+=</code> <code>-=</code> <code>*=</code> <code>/=</code> <code>%=</code></td></tr>
+          <tr><td>ריק</td><td><code>??</code> — ערך ימני אם השמאלי הוא <code>ריק</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> <code>וגם</code> ו־<code>או</code> הם קצר־מעגל —
+        אם התוצאה כבר ידועה, הצד הימני לא מחושב.
+      </div>
+
+      <nav class="page-nav">
+        <a href="אמת-שקר-ריק.html">
+          <span class="dir">הקודם</span>
+          <span class="title">אמת / שקר / ריק</span>
+        </a>
+        <a href="אם.html">
+          <span class="dir">הבא</span>
+          <span class="title">אם / אחרת</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

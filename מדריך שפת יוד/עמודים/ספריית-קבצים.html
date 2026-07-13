@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית קבצים | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.49.0</span><strong>קבצים</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית קבצים</h1>
+      <p class="lead">
+        קריאה וכתיבה של קבצים, תיקיות, בדיקות קיום — ואריזה/חילוץ של ארכיונים.
+        טוענים עם <code>כלול "קבצים"</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>קבצים.קרא(נתיב)</code></td><td>קורא את כל תוכן הקובץ כמחרוזת</td></tr>
+          <tr><td><code>קבצים.כתוב(נתיב, תוכן)</code></td><td>כותב (דורס) קובץ</td></tr>
+          <tr><td><code>קבצים.הוסף_לקובץ(נתיב, תוכן)</code></td><td>מוסיף לסוף קובץ קיים או יוצר חדש</td></tr>
+          <tr><td><code>קבצים.קיים(נתיב)</code></td><td><code>אמת</code> אם הקובץ/תיקייה קיימים</td></tr>
+          <tr><td><code>קבצים.מחק(נתיב)</code></td><td>מוחק קובץ</td></tr>
+          <tr><td><code>קבצים.צור_תיקייה(נתיב)</code></td><td>יוצר תיקייה (כולל הורים אם צריך)</td></tr>
+          <tr><td><code>קבצים.רשימת_קבצים(נתיב)</code></td><td>רשימת שמות בתיקייה</td></tr>
+          <tr><td><code>קבצים.האם_תיקייה(נתיב)</code></td><td>בדיקה אם הנתיב הוא תיקייה</td></tr>
+          <tr><td><code>קבצים.גודל(נתיב)</code></td><td>גודל קובץ בבתים</td></tr>
+          <tr><td><code>קבצים.העתק(מקור, יעד)</code></td><td>מעתיק קובץ</td></tr>
+          <tr><td><code>קבצים.העבר(מקור, יעד)</code></td><td>מעביר קובץ (גם בין כוננים)</td></tr>
+          <tr><td><code>קבצים.שנה_שם(ישן, חדש)</code></td><td>משנה שם / מעביר באותו כונן</td></tr>
+          <tr><td><code>קבצים.צרף(חלק…)</code></td><td>מחבר חלקי נתיב בצורה בטוחה למערכת</td></tr>
+          <tr><td><code>קבצים.ארוז(מקור, ארכיון)</code></td><td>אורז קובץ/תיקייה/רשימה לארכיון (<code>.zip</code> או <code>.rar</code>)</td></tr>
+          <tr><td><code>קבצים.חלץ(ארכיון, יעד)</code></td><td>מחלץ ארכיון ZIP או RAR לתיקייה</td></tr>
+          <tr><td><code>קבצים.תוכן_ארכיון(ארכיון)</code></td><td>מדפיס טבלת קבצים בארכיון: שם, גודל, דחוס, סוג</td></tr>
+        </tbody>
+      </table>
+
+      <h2>אריזה וחילוץ</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "קבצים"
+
+קבצים.צור_תיקייה("גיבוי_מקור")
+קבצים.כתוב("גיבוי_מקור/הערה.txt", "שלום")
+
+משתנה ארכיון = קבצים.ארוז("גיבוי_מקור", "גיבוי.zip")
+הדפס(ארכיון)
+
+קבצים.תוכן_ארכיון("גיבוי.zip")
+
+קבצים.חלץ("גיבוי.zip", "חולץ")
+הדפס(קבצים.קרא("חולץ/גיבוי_מקור/הערה.txt"))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>גיבוי.zip
+שלום</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>ZIP ו־RAR:</strong>
+        אריזה ל־ZIP תמיד זמינה. אריזה ל־<code>.rar</code> דורשת WinRAR מותקן.
+        חילוץ עובד גם ל־ZIP וגם ל־RAR בלי תוכנה חיצונית.
+      </div>
+
+      <div class="callout ok">
+        <strong>רשימת קבצים:</strong>
+        <code>קבצים.ארוז(["א.txt", "ב.txt"], "שניים.zip")</code> — אפשר גם רשימת נתיבים.
+      </div>
+
+      <h2>כתיבה וקריאה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "קבצים"
+
+קבצים.כתוב("הערה.txt", "שלום")
+הדפס(קבצים.קרא("הערה.txt"))
+הדפס(קבצים.קיים("הערה.txt"))
+הדפס("גודל: " + קבצים.גודל("הערה.txt"))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום
+אמת
+גודל: 8</pre>
+        </div>
+      </figure>
+
+      <h2>תיקיות והוספה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "קבצים"
+
+קבצים.צור_תיקייה("נתונים")
+משתנה נתיב = קבצים.צרף("נתונים", "יומן.txt")
+קבצים.כתוב(נתיב, "שורה 1\n")
+קבצים.הוסף_לקובץ(נתיב, "שורה 2\n")
+
+עבור שם בתוך קבצים.רשימת_קבצים("נתונים")
+  הדפס(שם)
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>יומן.txt</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> העדיפו <code>קבצים.צרף</code> על שרשור ידני של <code>/</code> — כך הנתיב נכון גם ב־Windows.
+      </div>
+
+      <div class="callout warn">
+        <strong>שים לב:</strong> <code>כתוב</code> דורס תוכן קיים. לעדכון מצטבר השתמשו ב־<code>הוסף_לקובץ</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="ספריית-בסיס.html"><span class="dir">הקודם</span><span class="title">ספריית בסיס</span></a>
+        <a href="ספריית-JSON.html"><span class="dir">הבא</span><span class="title">ספריית JSON</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

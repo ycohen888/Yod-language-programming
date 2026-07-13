@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית חלונות | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.36.0</span><strong>חלונות</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>ספריית חלונות</h1>
+      <p class="lead">
+        ממשק גרפי בסיסי ל־Windows: חלון, כפתור, תווית, שדה טקסט והודעות.
+        טוענים עם <code>כלול "חלונות"</code>.
+      </p>
+
+      <h2>רכיבים ומתודות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>יצירה / פעולה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>חלונות.חלון(כותרת)</code></td><td>חלון ראשי</td></tr>
+          <tr><td><code>חלונות.כפתור(טקסט)</code></td><td>כפתור לחיץ</td></tr>
+          <tr><td><code>חלונות.תווית(טקסט)</code></td><td>טקסט לתצוגה</td></tr>
+          <tr><td><code>חלונות.שדה(טקסט)</code></td><td>שדה קלט</td></tr>
+          <tr><td><code>חלונות.נורית()</code></td><td>לד סטטוס: <code>הדלק()</code> ירוק / <code>כבה()</code> אדום</td></tr>
+          <tr><td><code>תווית.קבע_צבע</code></td><td>שם צבע (ירוק/אדום…) או RGB</td></tr>
+          <tr><td><code>חלונות.הודעה(כותרת, טקסט)</code></td><td>תיבת הודעה מהירה</td></tr>
+          <tr><td><code>חלון.הוסף</code> / <code>קבע_גודל</code> / <code>הצג</code></td><td>סידור והצגה</td></tr>
+          <tr><td><code>כפתור.בלחיצה(פונקציה)</code></td><td>אירוע לחיצה</td></tr>
+          <tr><td><code>קבע_טקסט</code> / <code>קרא_טקסט</code></td><td>על תווית / שדה / כפתור</td></tr>
+        </tbody>
+      </table>
+
+      <p>לציור צורות ותמונות — ראו <a href="ספריית-ציור.html">ספריית ציור</a>.</p>
+
+      <h2>חלון עם כפתור</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "חלונות"
+
+משתנה ח = חלונות.חלון: "שלום מיוד"
+ח.קבע_גודל: 360, 220
+
+משתנה תווית = חלונות.תווית: "לחצו על הכפתור"
+משתנה כפתור = חלונות.כפתור: "שלום"
+
+כפתור.בלחיצה: פונקציה ()
+  תווית.קבע_טקסט("נלחץ!")
+סוף
+
+
+ח.הוסף: תווית
+ח.הוסף: כפתור
+הדפס "החלון מוכן להצגה"
+// ח.הצג:;  // פותח חלון וחוסם עד סגירה</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>החלון מוכן להצגה
+(אחרי ח.הצג — חלון Windows עם תווית וכפתור)</pre>
+        </div>
+      </figure>
+
+      <h2>שדה קלט וברכה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "חלונות"
+
+משתנה ח = חלונות.חלון: "ברכה"
+ח.קבע_גודל: 360, 220
+
+משתנה תווית = חלונות.תווית: "הזינו שם"
+משתנה שדה = חלונות.שדה: ""
+משתנה כפתור = חלונות.כפתור: "שלום"
+
+כפתור.בלחיצה: פונקציה ()
+  משתנה שם = שדה.קרא_טקסט()
+  אם שם == ""
+    תווית.קבע_טקסט("נא להזין שם")
+  אחרת
+    תווית.קבע_טקסט("שלום, " + שם + "!")
+  סוף
+סוף
+
+
+ח.הוסף: תווית
+ח.הוסף: שדה
+ח.הוסף: כפתור
+הדפס "מוכן — הזינו שם ולחצו שלום"
+// ח.הצג:</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>מוכן — הזינו שם ולחצו שלום
+(בממשק: אחרי לחיצה עם "נועם" → "שלום, נועם!")</pre>
+        </div>
+      </figure>
+
+      <div class="callout warn">
+        <strong>Windows בלבד:</strong> הספרייה דורשת מערכת Windows.
+        ודאו ש־<code>yod.exe.manifest</code> ליד <code>yod.exe</code> (Common Controls 6).
+      </div>
+
+      <div class="callout ok">
+        <strong>דוגמה מלאה:</strong> <code>examples/halonot.יוד</code> —
+        וגם שרת עם ממשק: <code>examples/server_gui.יוד</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="ספריית-SQL.html"><span class="dir">הקודם</span><span class="title">ספריית SQL</span></a>
+        <a href="ספריית-ציור.html"><span class="dir">הבא</span><span class="title">ספריית ציור</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

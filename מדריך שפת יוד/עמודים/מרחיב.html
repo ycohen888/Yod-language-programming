@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מרחיב | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>מרחיב / הורה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>מרחיב / הורה</h1>
+      <p class="lead">
+        ירושה בין מחלקות — הילד מקבל שדות ומתודות מההורה, ויכול לדרוס או להרחיב.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        אחרי שם המחלקה כותבים <code>מרחיב שם_הורה</code>.
+        בתוך בנאי הילד קוראים ל־<code>הורה(…)</code> כדי להריץ את בנאי ההורה.
+        כדי לקרוא לגרסת ההורה של מתודה שנדרסה: <code>הורה.שםמתודה()</code>.
+      </p>
+
+      <h2>חיה וכלב</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">מחלקה חיה
+  משתנה רעב = אמת
+
+  פונקציה בנאי שם
+    זה.שם = שם
+  סוף
+
+  פונקציה הצג
+    הדפס: "חיה: " + זה.שם
+  סוף
+
+  פונקציה האכל
+    זה.רעב = שקר
+    הדפס: זה.שם + " אכל"
+  סוף
+סוף
+
+מחלקה כלב מרחיב חיה
+  פונקציה בנאי שם, גזע
+    הורה(שם)
+    זה.גזע = גזע
+  סוף
+
+  פונקציה הצג
+    הורה.הצג()
+    הדפס: "גזע: " + זה.גזע
+  סוף
+
+  פונקציה נבח
+    הדפס: זה.שם + ": הב הב!"
+  סוף
+סוף
+
+משתנה כלבון = חדש כלב: "רקס", "לברדור"
+כלבון.הצג()
+כלבון.נבח()
+כלבון.האכל()
+הדפס: "רעב אחרי האכלה: " + כלבון.רעב</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>חיה: רקס
+גזע: לברדור
+רקס: הב הב!
+רקס אכל
+רעב אחרי האכלה: שקר</pre>
+        </div>
+      </figure>
+
+      <h2>דריסה פשוטה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">מחלקה צורה
+  פונקציה תיאור
+    החזר "צורה"
+  סוף
+סוף
+
+מחלקה עיגול מרחיב צורה
+  פונקציה תיאור
+    החזר "עיגול"
+  סוף
+סוף
+
+משתנה ע = חדש עיגול()
+הדפס(ע.תיאור())</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>עיגול</pre>
+        </div>
+      </figure>
+
+      <table class="method-table">
+        <thead>
+          <tr><th>חלק</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>מחלקה ב מרחיב א</code></td><td>ב יורש מ־א</td></tr>
+          <tr><td><code>הורה(…)</code></td><td>קריאה לבנאי ההורה</td></tr>
+          <tr><td><code>הורה.מתודה()</code></td><td>גרסת ההורה של מתודה</td></tr>
+          <tr><td>שדות/מתודות מההורה</td><td>זמינים אוטומטית על המופע</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> אם לילד אין בנאי — נקרא בנאי ההורה אוטומטית כשיוצרים עם <code>חדש</code>.
+      </div>
+
+      <div class="callout ok">
+        <strong>דוגמה בפרויקט:</strong> <code>examples/yerusha.יוד</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="מחלקה.html"><span class="dir">הקודם</span><span class="title">מחלקה / חדש / זה</span></a>
+        <a href="פרטי-ציבורי.html"><span class="dir">הבא</span><span class="title">פרטי / ציבורי</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>כל_עוד | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>כל_עוד</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>כל_עוד</h1>
+      <p class="lead">לולאה שחוזרת על בלוק קוד כל עוד התנאי נכון.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        <code>כל_עוד</code> בודק תנאי: כל עוד הוא מתקיים — הגוף רץ שוב.
+        כשהתנאי הופך ל־שקר, הלולאה נגמרת וממשיכים אחרי <code>סוף</code>.
+      </p>
+      <p>
+        חשוב לעדכן משהו בתוך הלולאה (למשל להגדיל מונה) —
+        אחרת התנאי יישאר נכון לנצח (לולאה אינסופית).
+      </p>
+
+      <h2>ספירה פשוטה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה א = 1
+כל_עוד א &lt;= 5
+  הדפס: "ספירה: " + א
+  א += 1
+סוף
+הדפס "סיימנו"</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>ספירה: 1
+ספירה: 2
+ספירה: 3
+ספירה: 4
+ספירה: 5
+סיימנו</pre>
+        </div>
+      </figure>
+
+      <h2>תנאי עם לוגיקה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה n = 1
+משתנה סכום = 0
+
+כל_עוד n &lt;= 4
+  סכום += n
+  הדפס: "סכום ביניים:", סכום
+  n += 1
+סוף
+הדפס: "סך הכל:", סכום</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>סכום ביניים: 1
+סכום ביניים: 3
+סכום ביניים: 6
+סכום ביניים: 10
+סך הכל: 10</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> לסיבוב על רשימה מוכנה — העדיפו
+        <a href="עבור.html"><code>עבור … בתוך</code></a>.
+        ליציאה מוקדמת או דילוג — ראו
+        <a href="עצור-המשך.html"><code>עצור</code> / <code>המשך</code></a>.
+      </div>
+
+      <div class="callout warn">
+        <strong>לולאה אינסופית:</strong> אם שכחתם <code>א += 1;</code>
+        (או שינוי אחר בתנאי), התוכנית לא תעצור.
+      </div>
+
+      <nav class="page-nav">
+        <a href="בחר.html">
+          <span class="dir">הקודם</span>
+          <span class="title">בחר / מקרה</span>
+        </a>
+        <a href="עבור.html">
+          <span class="dir">הבא</span>
+          <span class="title">עבור / בתוך</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>זיכרון וסגירות | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מודל · 0.36.0</span><strong>זיכרון</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>זיכרון, הפניות וסגירות</h1>
+      <p class="lead">
+        איך ערכים חיים בזמן ריצה, מה משותף בהשמה, ואיך פונקציות תופסות משתנים.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        ערכי יוד מנוהלים על ידי ה־GC של Go — אין <code>free</code> ידני בשפה.
+        רשימות, מילונים ומופעי מחלקה הם <strong>הפניות</strong>: השמה מעתיקה הפניה לאותו אובייקט.
+        מספרים, מחרוזות, <code>אמת</code>/<code>שקר</code>/<code>ריק</code> הם ערכים בלתי־משתנים בהעתקה.
+      </p>
+      <p>
+        משאבים חיצוניים (חיבור SQL, קובץ פתוח וכו') — סגרו במפורש עם <code>סגור</code> כשיש.
+      </p>
+
+      <h2>הפניה לרשימה ולמופע</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה א = [1, 2]
+משתנה ב = א
+ב[0] = 99
+הדפס: "א[0] = " + א[0]
+
+מחלקה קופסה
+  משתנה ערך = 0
+  פונקציה בנאי v
+    זה.ערך = v
+  סוף
+סוף
+
+משתנה ק1 = חדש קופסה: 1
+משתנה ק2 = ק1
+ק2.ערך = 7
+הדפס: "ק1.ערך = " + ק1.ערך</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>א[0] = 99
+ק1.ערך = 7</pre>
+        </div>
+      </figure>
+
+      <h2>סגירות — מונה ומוסיף</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">פונקציה צור_מונה(התחלה)
+  משתנה נ = התחלה
+  פונקציה הבא()
+    נ = נ + 1
+    החזר נ
+  סוף
+  החזר הבא
+סוף
+
+משתנה מונה = צור_מונה(10)
+הדפס(מונה())
+הדפס(מונה())
+הדפס(מונה())
+
+פונקציה צור_מוסיף(כמה)
+  פונקציה הוסף(x)
+    החזר x + כמה
+  סוף
+  החזר הוסף
+סוף
+
+משתנה פלוס5 = צור_מוסיף(5)
+הדפס("7+5 = " + פלוס5(7))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>11
+12
+13
+7+5 = 12</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> כמה סגירות יכולות לחלוק אותו משתנה חיצוני —
+        ראו <code>examples/sgira.יוד</code> (זוג הגדל/קרא).
+      </div>
+
+      <div class="callout ok">
+        <strong>עובד גם במכונה:</strong> סגירות והפניות נתמכות ב־
+        <code>yod הרץ</code> וב־<code>yod מכונה</code>.
+        דוגמאות: <code>sgira.יוד</code>, <code>reference.יוד</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="הערות.html"><span class="dir">הקודם</span><span class="title">הערות</span></a>
+        <a href="משתנה.html"><span class="dir">הבא</span><span class="title">משתנה</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

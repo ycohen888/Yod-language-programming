@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>עצור והמשך | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>עצור / המשך</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>עצור / המשך</h1>
+      <p class="lead">שולטים בלולאה: יוצאים ממנה לגמרי, או מדלגים לסיבוב הבא.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        בתוך <code>כל_עוד</code> או <code>עבור</code> אפשר לשנות את הזרימה:
+        <code>עצור</code> מפסיק את הלולאה מיד וממשיך אחרי <code>סוף</code>.
+        <code>המשך</code> מדלג על שאר הגוף בסיבוב הנוכחי ועובר לסיבוב הבא.
+      </p>
+      <p>
+        שניהם שימושיים כשלא רוצים להריץ את כל האיברים,
+        או כשמוצאים מה שחיפשתם ואין צורך להמשיך.
+      </p>
+
+      <h2>עצור — יציאה מוקדמת</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה א = 1
+כל_עוד א &lt; 100
+  אם א == 5
+    עצור
+  סוף
+  הדפס: א
+  א += 1
+סוף
+הדפס "יצאנו"</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>1
+2
+3
+4
+יצאנו</pre>
+        </div>
+      </figure>
+
+      <h2>המשך — דילוג על סיבוב</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה א = 0
+כל_עוד א &lt; 5
+  א += 1
+  אם א == 3
+    המשך
+  סוף
+  הדפס: א
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>1
+2
+4
+5</pre>
+        </div>
+      </figure>
+
+      <h3>גם ב־עבור</h3>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה שמות = ["נועם", "דני", "מיכל", "רות"]
+
+עבור שם בתוך שמות
+  אם שם == "דני"
+    המשך
+  סוף
+  אם שם == "מיכל"
+    עצור
+  סוף
+  הדפס: שם
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>נועם</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> <code>עצור</code> ו־<code>המשך</code> תקפים רק בתוך לולאה.
+        מחוץ ללולאה — שגיאה בעברית.
+      </div>
+
+      <nav class="page-nav">
+        <a href="עבור.html">
+          <span class="dir">הקודם</span>
+          <span class="title">עבור / בתוך</span>
+        </a>
+        <a href="פונקציה.html">
+          <span class="dir">הבא</span>
+          <span class="title">פונקציה / החזר</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

@@ -1,0 +1,40 @@
+# Binaries & build
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.syso
+yod/yod
+yod/cmd/yod/yod
+
+# Go
+yod/vendor/
+
+# Local / temp
+*.log
+led_err.txt
+*.tmp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# SQLite / local DBs (demo data)
+*.db
+*.db-journal
+*.sqlite
+
+# Archive / extract scratch
+yod/examples/archive_out/
+yod/examples/temp_*
+**/__debug_bin*
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# Cursor local (keep .cursorrules)
+.cursor/

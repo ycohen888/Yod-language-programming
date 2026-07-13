@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית רשת | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.36.0</span><strong>רשת</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>ספריית רשת</h1>
+      <p class="lead">
+        בקשות HTTP בשמות עבריים. התשובה היא מילון עם קוד, גוף וכותרות.
+        טוענים עם <code>כלול "רשת"</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>רשת.גש(כתובת)</code></td><td>בקשת GET</td></tr>
+          <tr><td><code>רשת.פרסם(כתובת, גוף)</code></td><td>בקשת POST</td></tr>
+          <tr><td><code>רשת.בקשה(שיטה, כתובת [, גוף [, כותרות]])</code></td><td>בקשה כללית</td></tr>
+          <tr><td><code>רשת.שרת(פורט)</code></td><td>שרת HTTP מקומי</td></tr>
+          <tr><td><code>שרת.מסלול / הפעל / הפעל_ברקע / עצור / פועל</code></td><td>ניהול שרת (ברקע = לא חוסם את החלון)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>GET עם נסה/תפוס</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "רשת"
+
+נסה
+  משתנה תשובה = רשת.גש("https://example.com")
+  הדפס: "קוד: " + תשובה.קוד
+  אם תשובה.קוד == 200
+    הדפס: "התקבל גוף באורך: " + אורך(תשובה.גוף)
+  סוף
+תפוס שגיאה
+  הדפס: "שגיאת רשת: " + שגיאה
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>קוד: 200
+התקבל גוף באורך: … (תלוי בתשובת השרת)</pre>
+        </div>
+      </figure>
+
+      <h2>שרת HTTP מקומי</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "רשת"
+
+משתנה שרת = רשת.שרת(8080)
+שרת.מסלול("/", פונקציה(בקשה)
+  החזר: "שלום משרת יוד! שיטה=" + בקשה["שיטה"]
+סוף
+)
+שרת.מסלול("/בריאות", פונקציה(בקשה)
+  החזר: { "קוד": 200, "גוף": "תקין" }
+סוף
+)
+
+הדפס: "שרת רץ על " + שרת.כתובת
+הדפס "עצרו עם Ctrl+C"
+// שרת.הפעל();  // חוסם עד עצירה</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שרת רץ על http://127.0.0.1:8080
+עצרו עם Ctrl+C</pre>
+        </div>
+      </figure>
+
+      <div class="callout ok">
+        <strong>עם חלון:</strong> השתמשו ב־<code>הפעל_ברקע()</code> במקום <code>הפעל()</code>
+        כדי שהממשק לא ייחסם. ראו <code>examples/server_gui.יוד</code>.
+      </div>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> מטפל מסלול מקבל מילון בקשה (<code>שיטה</code>, <code>נתיב</code>, <code>גוף</code>)
+        ומחזיר מחרוזת או מילון עם <code>קוד</code> / <code>גוף</code> / <code>כותרות</code>.
+      </div>
+
+      <div class="callout warn">
+        <strong>מגבלות:</strong> גוף עד כ־8MB · פסק זמן כ־30 שניות.
+        תמיד עטפו קריאות חיצוניות ב־<a href="נסה-תפוס.html"><code>נסה</code></a>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="ספריית-מערכת.html"><span class="dir">הקודם</span><span class="title">ספריית מערכת</span></a>
+        <a href="ספריית-SQL.html"><span class="dir">הבא</span><span class="title">ספריית SQL</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מדריך למתחילים | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מדריך · 0.38.0</span><strong>מתחילים</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>מדריך למתחילים</h1>
+      <p class="lead">מ־אפס לתוכנית ראשונה בעברית — בלי אנגלית בתחביר.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        יוד היא שפת תכנות בעברית. כותבים קובץ עם סיומת <code>.יוד</code>, מריצים עם המנוע
+        <code>yod</code>, ורואים פלט בקונסול. מילות המפתח, השגיאות והמדריך — בעברית.
+      </p>
+      <p>
+        בעמוד הזה תבנו את המנוע, תכתבו תוכנית קצרה, ותלמדו את כללי הבסיס:
+        פקודה אחת לשורה, ובלוקים שנסגרים ב־<code>סוף</code>.
+      </p>
+
+      <h2>1. בניית המנוע</h2>
+      <p>היכנסו לתיקיית <code>yod</code> (שם נמצא <code>go.mod</code>) ובנו את ה־exe:</p>
+      <figure class="example">
+        <span class="example-label">פקודות</span>
+        <pre class="code-block">cd yod
+go build -o yod.exe ./cmd/yod
+yod.exe גרסה</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>יוד 0.38.0</pre>
+        </div>
+      </figure>
+
+      <h2>2. קובץ ראשון</h2>
+      <p>צרו קובץ <code>שלום.יוד</code>. כל פקודה בשורה נפרדת (בלי <code>;</code>):</p>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">הדפס "שלום עולם"
+משתנה שם = "נועם"
+הדפס: "ברוך הבא, " + שם</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום עולם
+ברוך הבא, נועם</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> אפשר לכתוב <code>הדפס "טקסט"</code> או <code>הדפס: ערך</code> —
+        שתיהן תקינות. כמה ערכים: <code>הדפס: א, ב</code>.
+        רוצים כמה פקודות באותה שורה? אפשר עם <code>;</code> ביניהן — אחרת פקודה אחת לשורה.
+      </div>
+
+      <h2>3. הרצה</h2>
+      <figure class="example">
+        <span class="example-label">פקודות</span>
+        <pre class="code-block">yod.exe הרץ שלום.יוד
+yod.exe עורך שלום.יוד</pre>
+        <div class="output">
+          <span class="output-label">פלט (הרץ)</span>
+          <pre>שלום עולם
+ברוך הבא, נועם</pre>
+        </div>
+      </figure>
+
+      <h2>4. בלוק ראשון</h2>
+      <p>תנאים ולולאות נסגרים ב־<code>סוף</code> — לא חובה סוגרים מסולסלים:</p>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה א = 1
+כל_עוד א &lt;= 3
+  הדפס: "ספירה: " + א
+  א += 1
+סוף
+
+אם א &gt; 3
+  הדפס "הלולאה הסתיימה"
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>ספירה: 1
+ספירה: 2
+ספירה: 3
+הלולאה הסתיימה</pre>
+        </div>
+      </figure>
+
+      <div class="callout ok">
+        <strong>הצעד הבא:</strong>
+        <a href="התחלה.html">התחלה מהירה</a> ·
+        <a href="משתנה.html">משתנה</a> ·
+        <a href="אם.html">אם</a> ·
+        <a href="פונקציה.html">פונקציה</a>
+      </div>
+
+      <nav class="page-nav">
+        <a href="../מדריך שפת יוד.html">
+          <span class="dir">הקודם</span>
+          <span class="title">מדריך ראשי</span>
+        </a>
+        <a href="התחלה.html">
+          <span class="dir">הבא</span>
+          <span class="title">התחלה מהירה</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

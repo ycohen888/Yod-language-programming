@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>משתנה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.39.0</span><strong>משתנה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>משתנה</h1>
+      <p class="lead">שומרים ערך בשם, ומשתמשים בו שוב בקוד.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        משתנה הוא שם שמחזיק ערך: מספר, מחרוזת, <code>אמת</code>/<code>שקר</code>, רשימה ועוד.
+        ביוד הטיפוס דינמי — אין צורך להצהיר מראש אם זה מספר או טקסט.
+      </p>
+      <p>
+        יוצרים עם <code>משתנה שם = ערך</code>, או רק <code>משתנה שם</code> (מתחיל כ־<code>ריק</code>),
+        ואפשר להשים מחדש בכל רגע: <code>שם = "חדש"</code>.
+      </p>
+
+      <h2>יצירה והדפסה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה שם = "נועם"
+משתנה גיל = 20
+הדפס: "שלום " + שם
+הדפס: "גיל: " + גיל</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום נועם
+גיל: 20</pre>
+        </div>
+      </figure>
+
+      <h2>בלי ערך התחלתי</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה תשובה
+הדפס: תשובה
+תשובה = "מוכן"
+הדפס: תשובה</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>ריק
+מוכן</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> שימושי כשמגדירים שדה במחלקה או משתנה שיקבל ערך אחר כך
+        (קלט, תנאי, לולאה). הערך ההתחלתי הוא <code>ריק</code>.
+      </div>
+
+      <h2>השמה מחדש</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה שם = "נועם"
+הדפס: שם
+שם = "דני"
+הדפס: שם
+
+משתנה סכום = 10
+סכום += 5
+הדפס: סכום</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>נועם
+דני
+15</pre>
+        </div>
+      </figure>
+
+      <h2>תחביר</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>צורה</th><th>משמעות</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>משתנה שם = ערך</code></td><td>יצירה עם ערך</td></tr>
+          <tr><td><code>משתנה שם</code></td><td>יצירה בלי ערך (מתחיל כ־<code>ריק</code>)</td></tr>
+          <tr><td><code>שם = ערך</code></td><td>השמה (יוצר אם עדיין לא קיים)</td></tr>
+          <tr><td><code>שם += 1</code></td><td>השמה מורכבת (<code>-=</code> <code>*=</code> <code>/=</code> <code>%=</code>)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> שמות יכולים להיות בעברית או באנגלית.
+        שימוש בשם שלא הוגדר יגרום לשגיאה בעברית עם מספר שורה.
+      </div>
+
+      <nav class="page-nav">
+        <a href="מתחילים.html"><span class="dir">הקודם</span><span class="title">מתחילים</span></a>
+        <a href="אם.html"><span class="dir">הבא</span><span class="title">אם</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

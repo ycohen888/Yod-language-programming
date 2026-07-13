@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>נסה / תפוס / זרוק | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>נסה / תפוס / זרוק</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>נסה / תפוס / זרוק</h1>
+      <p class="lead">
+        טיפול בשגיאות בזמן ריצה — תופסים שגיאה וממשיכים, או זורקים שגיאה בעצמכם.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        בלוק <code>נסה</code> מריץ קוד שעלול להיכשל.
+        אם נזרקת שגיאה (או נכשלת פעולת runtime), הביצוע עובר ל־<code>תפוס שם</code>
+        — והמשתנה <code>שם</code> מכיל את הודעת השגיאה (מחרוזת).
+        השרשרת נסגרת ב־<code>סוף</code>.
+      </p>
+      <p>
+        <code>זרוק "הודעה"</code> עוצר את הביצוע בבלוק הנוכחי ועובר ל־<code>תפוס</code>
+        הקרוב. אם אין תפיסה — התוכנית נעצרת עם ההודעה בעברית.
+      </p>
+
+      <h2>זרוק ותפיסה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">נסה
+  הדפס "לפני השגיאה"
+  זרוק "משהו השתבש"
+  הדפס "לא אמור להגיע לכאן"
+תפוס שגיאה
+  הדפס: "נתפס: " + שגיאה
+סוף
+
+הדפס "המשך רגיל אחרי תפיסה"</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>לפני השגיאה
+נתפס: משהו השתבש
+המשך רגיל אחרי תפיסה</pre>
+        </div>
+      </figure>
+
+      <h2>שגיאת runtime — חילוק באפס</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">נסה
+  משתנה x = 10 / 0
+  הדפס: x
+תפוס שגיאה
+  הדפס: "חילוק באפס נתפס: " + שגיאה
+סוף
+
+הדפס "התוכנית ממשיכה"</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>חילוק באפס נתפס: … (הודעה בעברית)
+התוכנית ממשיכה</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> עטפו פעולות קבצים, רשת ו־SQL ב־<code>נסה</code> —
+        כך כשל רשת או קובץ חסר לא מפיל את כל התוכנית.
+      </div>
+
+      <div class="callout warn">
+        <strong>שימו לב:</strong> אחרי <code>זרוק</code> הקוד שמתחתיו באותו בלוק לא רץ.
+        ודאו ש־<code>תפוס</code> ו־<code>סוף</code> קיימים.
+      </div>
+
+      <nav class="page-nav">
+        <a href="כלול.html"><span class="dir">הקודם</span><span class="title">כלול</span></a>
+        <a href="מחרוזת.html"><span class="dir">הבא</span><span class="title">מחרוזת</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית JSON | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.36.0</span><strong>JSON</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית JSON</h1>
+      <p class="lead">
+        המרה בין מחרוזת JSON לערכי יוד (מילון, רשימה, מספר, מחרוזת, בוליאני, ריק) ובחזרה.
+        חובה לטעון עם <code>כלול "JSON"</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>JSON.פרסר(מחרוזת)</code></td><td>מפרסר JSON לערך יוד</td></tr>
+          <tr><td><code>JSON.מחרוזת(ערך [, ייפוי])</code></td><td>ממיר ערך יוד למחרוזת JSON; <code>אמת</code> לייפוי עם הזחות</td></tr>
+        </tbody>
+      </table>
+
+      <h2>פרסור</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "JSON"
+
+משתנה נתונים = JSON.פרסר("{\"שם\":\"יוד\",\"גרסה\":0.36}")
+הדפס(נתונים.שם)
+הדפס(נתונים.גרסה)
+הדפס(סוג(נתונים))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>יוד
+0.36
+מילון</pre>
+        </div>
+      </figure>
+
+      <h2>המרה למחרוזת</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "JSON"
+
+משתנה אדם = {
+  שם: "נועם",
+  גיל: 30
+}
+
+הדפס(JSON.מחרוזת(אדם))
+הדפס(JSON.מחרוזת([1, 2, 3]))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>{"גיל":30,"שם":"נועם"}
+[1,2,3]</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> אובייקט JSON הופך למילון יוד; מערך JSON הופך לרשימה. אפשר לגשת לשדות עם נקודה: <code>נתונים.שם</code>.
+      </div>
+
+      <div class="callout warn">
+        <strong>שים לב:</strong> בתוך מחרוזת יוד, מרכאות JSON דורשות בריחה: <code>"{\"מפתח\":1}"</code>. אפשר גם לקרוא קובץ עם <code>קבצים.קרא</code> ואז לפרסר.
+      </div>
+
+      <div class="callout ok">
+        <strong>ייפוי:</strong> <code>JSON.מחרוזת(ערך, אמת)</code> מחזיר JSON קריא עם שורות והזחות.
+      </div>
+
+      <nav class="page-nav">
+        <a href="ספריית-קבצים.html"><span class="dir">הקודם</span><span class="title">ספריית קבצים</span></a>
+        <a href="ספריית-זמן.html"><span class="dir">הבא</span><span class="title">ספריית זמן</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

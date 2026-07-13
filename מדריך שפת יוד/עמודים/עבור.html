@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>עבור | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>עבור</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>עבור / בתוך</h1>
+      <p class="lead">מעבר על כל האיברים ברשימה, מילון או מחרוזת.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        <code>עבור שם בתוך אוסף</code> מריץ את הגוף פעם אחת לכל איבר.
+        בכל סיבוב המשתנה <code>שם</code> מקבל את הערך הנוכחי.
+        הלולאה נסגרת ב־<code>סוף</code>.
+      </p>
+      <p>
+        אפשר לעבור על רשימה <code>[…]</code>, על מילון <code>{…}</code>,
+        או על תווי מחרוזת. למספרים רצופים נוח לשלב עם <code>טווח(…)</code>.
+      </p>
+
+      <h2>רשימה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה שמות = ["נועם", "דני", "מיכל"]
+
+עבור שם בתוך שמות
+  הדפס: "שלום " + שם
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום נועם
+שלום דני
+שלום מיכל</pre>
+        </div>
+      </figure>
+
+      <h2>טווח ומחרוזת</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">עבור i בתוך טווח(3)
+  הדפס: "מספר:", i
+סוף
+
+עבור אות בתוך "יוד"
+  הדפס: אות
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>מספר: 0
+מספר: 1
+מספר: 2
+י
+ו
+ד</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> בתוך הלולאה אפשר
+        <a href="עצור-המשך.html"><code>עצור</code></a> (יציאה) או
+        <code>המשך</code> (דילוג לסיבוב הבא).
+        לפרטים על רשימות — <a href="רשימה.html">רשימה</a>.
+      </div>
+
+      <div class="callout ok">
+        <strong>מילון:</strong> <code>עבור מפתח בתוך מילון</code> עובר על המפתחות.
+        לראו גם <a href="מילון.html">מילון</a>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="כל_עוד.html">
+          <span class="dir">הקודם</span>
+          <span class="title">כל_עוד</span>
+        </a>
+        <a href="עצור-המשך.html">
+          <span class="dir">הבא</span>
+          <span class="title">עצור / המשך</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

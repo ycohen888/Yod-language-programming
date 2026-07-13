@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מחרוזת | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">טיפוס · 0.36.0</span><strong>מחרוזת</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>מחרוזת</h1>
+      <p class="lead">
+        מחרוזת היא טקסט במרכאות כפולות. אפשר לשרשר עם <code>+</code>, לגשת למתודות ב־<code>ערך.מתודה()</code>,
+        ולהמיר למספר כשצריך.
+      </p>
+
+      <h2>יצירה ושרשור</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה שם = "נועם"
+הדפס("שלום " + שם)
+הדפס("אורך: " + שם.אורך())</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום נועם
+אורך: 4</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> <code>אורך()</code> ו־<code>גודל()</code> זהים — סופרים תווים (כולל עברית) לפי יוניקוד.
+      </div>
+
+      <h2>מתודות נפוצות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>מתודה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>אורך()</code> / <code>גודל()</code></td><td>מספר התווים</td></tr>
+          <tr><td><code>גזום()</code></td><td>מסיר רווחים בתחילה ובסוף</td></tr>
+          <tr><td><code>גזום_התחלה()</code> / <code>גזום_סוף()</code></td><td>גזימה מצד אחד</td></tr>
+          <tr><td><code>אינדקס_של(טקסט)</code> / <code>אינדקס_אחרון(טקסט)</code></td><td>מיקום הופעה ראשונה/אחרונה (−1 אם אין)</td></tr>
+          <tr><td><code>מלא_משמאל / מימין / במרכז(אורך, [תו])</code></td><td>ריפוד עד לאורך נתון</td></tr>
+          <tr><td><code>פצל(מפריד)</code></td><td>מפצל לרשימת מחרוזות</td></tr>
+          <tr><td><code>פורמט(ארג…)</code></td><td>מחליף <code>{0}</code>, <code>{1}</code>… בערכים</td></tr>
+          <tr><td><code>התאם(תבנית)</code></td><td><code>אמת</code> אם הביטוי הרגולרי מופיע</td></tr>
+          <tr><td><code>מכיל(טקסט)</code></td><td>בדיקת תת־מחרוזת</td></tr>
+          <tr><td><code>ספור_הופעות(טקסט)</code></td><td>כמה פעמים מופיע הטקסט</td></tr>
+          <tr><td><code>קוד_תו(אינדקס)</code></td><td>קוד יוניקוד של תו במיקום</td></tr>
+          <tr><td><code>שם_קובץ()</code> / <code>תיקייה()</code> / <code>סיומת()</code></td><td>פירוק נתיב קובץ</td></tr>
+          <tr><td><code>החלף(ישן, חדש)</code></td><td>החלפת כל ההופעות</td></tr>
+          <tr><td><code>אותיות_גדולות()</code> / <code>אותיות_קטנות()</code></td><td>שינוי רישיות (לטינית)</td></tr>
+          <tr><td><code>למספר()</code></td><td>המרה למספר (או שגיאה אם לא תקין)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>עיבוד ופורמט</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה ט = "  שלום  "
+הדפס("[" + ט.גזום() + "]")
+הדפס("א,ב,ג".פצל(",").הצטרף(" | "))
+הדפס("שלום {0}, גיל {1}".פורמט("נועם", 30))
+הדפס("abc123".התאם("\\d+"))
+הדפס("תיקיה/קובץ.יוד".שם_קובץ())</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>[שלום]
+א | ב | ג
+שלום נועם, גיל 30
+אמת
+קובץ.יוד</pre>
+        </div>
+      </figure>
+
+      <div class="callout ok">
+        <strong>זכרו:</strong> אחרי <code>פצל</code> מתקבלת רשימה — אפשר להמשיך עם מתודות רשימה כמו <code>הצטרף</code>.
+      </div>
+
+      <div class="callout warn">
+        <strong>שים לב:</strong> ב־<code>התאם</code> / <code>חפש</code> התבנית היא ביטוי רגולרי. בתוך מחרוזת יוד יש לברוח לוכסן כפול: <code>"\\d+"</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="אמת-שקר-ריק.html"><span class="dir">הקודם</span><span class="title">אמת / שקר / ריק</span></a>
+        <a href="מספר.html"><span class="dir">הבא</span><span class="title">מספר</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

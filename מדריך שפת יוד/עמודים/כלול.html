@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>כלול | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>כלול</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>כלול</h1>
+      <p class="lead">
+        טוען ספרייה מובנית או קובץ <code>.יוד</code> אחר לתוכנית — בלי לתרגם לאנגלית.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        <code>כלול "שם"</code> מכניס מודול לסביבה.
+        ספרייה מובנית (למשל <code>קבצים</code>, <code>SQL</code>, <code>רשת</code>)
+        נכנסת כאובייקט בשם שלה.
+        קובץ משתמש רץ באותה סביבה — הפונקציות והמחלקות שלו זמינות אחרי ההכללה.
+      </p>
+      <p>
+        הנתיב לקובץ יחסי לתיקיית הקובץ שמריצים.
+        אותו קובץ לא ייכלל פעמיים (הגנה מפני לולאות).
+      </p>
+
+      <h2>ספרייה מובנית</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "מתמטיקה"
+
+הדפס(מתמטיקה.פי)
+הדפס(מתמטיקה.חזקה(2, 8))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>3.141592653589793
+256</pre>
+        </div>
+      </figure>
+
+      <h2>קובץ משתמש</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">// בקובץ ezra.יוד:
+// פונקציה כפול x
+//   החזר x * 2
+// סוף
+
+כלול "ezra.יוד"
+הדפס(כפול(21))
+הדפס(כפול(7))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>42
+14</pre>
+        </div>
+      </figure>
+
+      <table class="method-table">
+        <thead>
+          <tr><th>צורת שימוש</th><th>תוצאה</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>כלול "קבצים"</code></td><td>מודול <code>קבצים</code> עם פונקציות הקבצים</td></tr>
+          <tr><td><code>כלול "SQL"</code></td><td>מודול <code>SQL</code> לחיבורי מסד</td></tr>
+          <tr><td><code>כלול "עזר.יוד"</code></td><td>מריץ את הקובץ ומחשוף את הגדרותיו</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> פיצלו לוגיקה לקבצים קצרים וכללו אותם —
+        קל יותר לתחזק מאשר קובץ ענק אחד.
+      </div>
+
+      <div class="callout ok">
+        <strong>דוגמאות:</strong> <code>examples/include_file.יוד</code>,
+        <code>examples/files.יוד</code>, <code>examples/net.יוד</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="פרטי-ציבורי.html"><span class="dir">הקודם</span><span class="title">פרטי / ציבורי</span></a>
+        <a href="נסה-תפוס.html"><span class="dir">הבא</span><span class="title">נסה / תפוס / זרוק</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

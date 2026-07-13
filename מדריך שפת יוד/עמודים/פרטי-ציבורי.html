@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>פרטי / ציבורי | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>פרטי / ציבורי</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>פרטי / ציבורי</h1>
+      <p class="lead">
+        שליטה בגישה לשדות ומתודות במחלקה. ברירת המחדל היא ציבורי.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        <code>ציבורי</code> — נגיש מכל מקום (גם אם לא כותבים כלום).
+        <code>פרטי</code> — נגיש רק מתוך מתודות של <strong>אותה מחלקה</strong>
+        שהגדירה את השדה או המתודה. גישה מבחוץ לשדה פרטי גורמת לשגיאת זמן־ריצה בעברית.
+      </p>
+
+      <h2>חשבון עם יתרה פרטית</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">מחלקה חשבון
+  פרטי משתנה יתרה = 0
+
+  ציבורי פונקציה בנאי(סכום)
+    זה.יתרה = סכום
+  סוף
+
+  ציבורי פונקציה הפקד(סכום)
+    זה.יתרה = זה.יתרה + סכום
+  סוף
+
+  ציבורי פונקציה יתרה_נוכחית()
+    החזר זה.יתרה
+  סוף
+
+  פרטי פונקציה לוג()
+    הדפס("לוג פנימי: " + זה.יתרה)
+  סוף
+
+  ציבורי פונקציה הדפס_לוג()
+    זה.לוג()
+  סוף
+סוף
+
+משתנה ח = חדש חשבון(100)
+ח.הפקד(50)
+הדפס("יתרה: " + ח.יתרה_נוכחית())
+ח.הדפס_לוג()</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>יתרה: 150
+לוג פנימי: 150</pre>
+        </div>
+      </figure>
+
+      <h2>גישה אסורה מבחוץ</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">מחלקה חשבון
+  פרטי משתנה יתרה = 0
+
+  ציבורי פונקציה בנאי(סכום)
+    זה.יתרה = סכום
+  סוף
+
+  ציבורי פונקציה יתרה_נוכחית()
+    החזר זה.יתרה
+  סוף
+סוף
+
+משתנה ח = חדש חשבון(100)
+הדפס("דרך מתודה: " + ח.יתרה_נוכחית())
+
+נסה
+  הדפס(ח.יתרה)
+תפוס שגיאה
+  הדפס("גישה נחסמה: " + שגיאה)
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>דרך מתודה: 100
+גישה נחסמה: … (הודעה בעברית על שדה פרטי)</pre>
+        </div>
+      </figure>
+
+      <div class="callout warn">
+        <strong>שימו לב:</strong> <code>פרטי</code> מגן רק בתוך אותה מחלקה — לא «מוריש» גישה למחלקת ילד.
+        לגישה מבוקרת חשפו מתודות <code>ציבורי</code> (getters/setters).
+      </div>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> עטפו ניסיונות גישה רגישים ב־
+        <a href="נסה-תפוס.html"><code>נסה</code> / <code>תפוס</code></a>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="מרחיב.html"><span class="dir">הקודם</span><span class="title">מרחיב / הורה</span></a>
+        <a href="כלול.html"><span class="dir">הבא</span><span class="title">כלול</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>עורך | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">כלי · 0.47.8</span><strong>עורך</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>עורך יוד (IDE)</h1>
+      <p class="lead">
+        סביבת פיתוח Windows בעברית: RTL, צביעת תחביר חיה, השלמת קוד,
+        חיפוש/החלפה, הרצה ופאנל שגיאות עם סימון בשוליים.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        העורך נפתח מתוך המנוע עצמו — בלי להתקין IDE חיצוני.
+        אזור הקוד RTL; גופן עם תמיכה בעברית; פקודה אחת לשורה (בלי חובת <code>;</code>);
+        בלוקים עם <code>סוף</code>.
+      </p>
+
+      <h2>עריכה וניווט</h2>
+      <p>
+        תפריט <strong>עריכה</strong>: בטל/בצע שוב, חיפוש והחלפה, מעבר לשורה,
+        הערה בשורה, ושכפול שורה. Enter מעתיק הזחה (ומוסיף רמה אחרי פתיחת בלוק).
+        אחרי הרצה — שורות שגיאה מסומנות ב־● בשוליים; לחיצה על המספר קופצת לשורה.
+      </p>
+
+      <h2>השלמת קוד</h2>
+      <p>
+        השלמה לפי הקשר: מילות מפתח ופונקציות מובנות תוך כדי הקלדה,
+        אחרי <code>כלול "</code> — רשימת ספריות מובנות,
+        ואחרי נקודה <code>.</code> — מתודות לפי הטיפוס המשוער של המשתנה
+        (מחרוזת / מספר / רשימה / מילון…) או מאפייני מודול (<code>JSON.</code>).
+      </p>
+      <figure class="example">
+        <span class="example-label">דוגמה — ספריות</span>
+        <pre class="code-block">כלול "</pre>
+        <div class="output">
+          <span class="output-label">השלמה</span>
+          <pre>בסיס · קבצים · JSON · זמן · …</pre>
+        </div>
+      </figure>
+      <figure class="example">
+        <span class="example-label">דוגמה — מתודות</span>
+        <pre class="code-block">משתנה טקסט = "אאא"
+טקסט.
+
+משתנה מספר = 1
+מספר.</pre>
+        <div class="output">
+          <span class="output-label">השלמה</span>
+          <pre>טקסט. → אורך · גזום · … (מחרוזת)
+מספר. → למחרוזת · … (מספר)</pre>
+        </div>
+      </figure>
+      <div class="callout tip">
+        <strong>ניווט:</strong> חצים למעלה/מטה, <code>Tab</code> או <code>Enter</code> לאישור,
+        <code>Esc</code> לסגירה, <code>Ctrl+Space</code> לפתיחה ידנית.
+        <code>Tab</code> מאשר השלמה כשהתפריט פתוח; אחרת מזיח את הקוד בשני רווחים.
+        <code>Shift+Tab</code> מחזיר הזחה (מסיר רווחים מתחילת השורה).
+        כשאין השלמה פתוחה — <code>Tab</code> מכניס שני רווחים.
+      </div>
+
+      <h2>הפצה</h2>
+      <p>
+        כפתור <strong>ארוז</strong>, תפריט <strong>הרצה → ארוז ל־EXE</strong>,
+        או <code>Ctrl+Shift+P</code> — שומר ויוצר קובץ <code>.exe</code> בודד ליד התוכנית.
+        לחיצה כפולה מריצה אותה (מנוע יוד מוטמע בתוך ה־EXE).
+      </p>
+
+      <h2>הפעלה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">yod.exe
+yod.exe עורך
+yod.exe עורך examples\shalom.יוד</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>(נפתח חלון העורך — גם בלחיצה כפולה על yod.exe)</pre>
+        </div>
+      </figure>
+
+      <h2>קיצורים</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>קיצור</th><th>פעולה</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>F5</code> / <code>F6</code> / <code>F7</code></td><td>הרץ / מכונה / בדוק</td></tr>
+          <tr><td colspan="2" style="font-size:.9em;color:var(--text-muted)">
+            תוכניות עם <code>כלול "חלונות"</code> רצות ב־F5 כחלון נפרד — העורך נשאר פתוח.
+          </td></tr>
+          <tr><td><code>Ctrl+Shift+P</code></td><td>ארוז ל־EXE</td></tr>
+          <tr><td><code>Ctrl+Space</code></td><td>השלמת קוד</td></tr>
+          <tr><td><code>Ctrl+F</code> / <code>Ctrl+H</code></td><td>חיפוש / החלפה</td></tr>
+          <tr><td><code>Ctrl+G</code></td><td>מעבר לשורה</td></tr>
+          <tr><td><code>Ctrl+Z</code> / <code>Ctrl+Y</code></td><td>בטל / בצע שוב</td></tr>
+          <tr><td><code>Ctrl+/</code></td><td>הערה / ביטול הערה</td></tr>
+          <tr><td><code>Ctrl+Shift+D</code></td><td>שכפול שורה</td></tr>
+          <tr><td><code>Tab</code> / <code>Shift+Tab</code></td><td>הזחה / החזרת הזחה</td></tr>
+          <tr><td><code>Ctrl+Shift+F</code></td><td>סדר קוד</td></tr>
+          <tr><td><code>Ctrl+N / O / S</code></td><td>חדש / פתח / שמור</td></tr>
+          <tr><td><code>Ctrl+±</code></td><td>גודל גופן</td></tr>
+        </tbody>
+      </table>
+
+      <nav class="page-nav">
+        <a href="התחלה.html"><span class="dir">הקודם</span><span class="title">התחלה מהירה</span></a>
+        <a href="מכונה.html"><span class="dir">הבא</span><span class="title">מכונה</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

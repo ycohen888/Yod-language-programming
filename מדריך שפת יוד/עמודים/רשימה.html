@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>רשימה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">טיפוס · 0.36.0</span><strong>רשימה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>רשימה</h1>
+      <p class="lead">
+        רשימה היא אוסף מסודר של ערכים בסוגריים מרובעים:
+        <code>[1, 2, 3]</code>. אפשר לעבור עליה ב־<code>עבור</code>, לשנות אותה במקום, ולבנות ממנה רשימות חדשות.
+      </p>
+
+      <h2>יצירה והוספה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה שמות = ["נועם", "דנה"]
+שמות.הוסף("יוסי")
+הדפס(שמות.הצטרף(", "))
+הדפס(שמות.גודל())</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>נועם, דנה, יוסי
+3</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> <code>הוסף</code> משנה את הרשימה עצמה ומחזיר אותה. גם הפונקציה הגלובלית <code>הוסף(רשימה, ערך)</code> זמינה.
+      </div>
+
+      <h2>מתודות מרכזיות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>מתודה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>הוסף(ערך…)</code></td><td>מוסיף איבר(ים) לסוף</td></tr>
+          <tr><td><code>מפה(פונקציה)</code></td><td>רשימה חדשה אחרי המרה לכל איבר</td></tr>
+          <tr><td><code>סנן(פונקציה)</code></td><td>רשימה חדשה רק עם איברים שעוברים תנאי</td></tr>
+          <tr><td><code>פצל_לפי(פונקציה)</code></td><td>מחזיר <code>[מתאימים, לא_מתאימים]</code></td></tr>
+          <tr><td><code>אינדקס_של(ערך)</code> / <code>אינדקס_אחרון(ערך)</code></td><td>מיקום הופעה (−1 אם אין)</td></tr>
+          <tr><td><code>צמצם(התחלה, פונקציה)</code></td><td>צמצום לערך יחיד (מצטבר + איבר)</td></tr>
+          <tr><td><code>מיין()</code></td><td>מיון במקום; אם כולם מספרים — מיון מספרי</td></tr>
+          <tr><td><code>לקח(n)</code> / <code>השמט(n)</code></td><td>n ראשונים / בלי n ראשונים</td></tr>
+          <tr><td><code>חלק(גודל)</code></td><td>פיצול לרשימות־משנה</td></tr>
+          <tr><td><code>הצטרף(מפריד)</code></td><td>מחרוזת אחת מכל האיברים</td></tr>
+          <tr><td><code>סכום()</code> / <code>ממוצע()</code></td><td>חישוב על רשימת מספרים</td></tr>
+          <tr><td><code>הדפס_הכל()</code></td><td>מדפיס כל איבר בשורה נפרדת</td></tr>
+          <tr><td><code>ייחודי()</code> / <code>שטח()</code></td><td>הסרת כפילויות / יישור רשימות מקוננות</td></tr>
+        </tbody>
+      </table>
+
+      <h2>מיון, מפה וסנן</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה מספרים = [10, 2, 30, 2]
+מספרים.מיין()
+הדפס("ממוין: " + מספרים.הצטרף(", "))
+
+משתנה כפולים = מספרים.מפה(פונקציה(x)
+  החזר x * 2
+סוף)
+הדפס("מפה: " + כפולים.הצטרף(", "))
+
+משתנה גדולים = מספרים.סנן(פונקציה(x)
+  החזר x >= 10
+סוף)
+הדפס("סנן: " + גדולים.הצטרף(", "))
+הדפס("סכום: " + [90, 80, 100].סכום())</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>ממוין: 2, 2, 10, 30
+מפה: 4, 4, 20, 60
+סנן: 10, 30
+סכום: 270</pre>
+        </div>
+      </figure>
+
+      <div class="callout warn">
+        <strong>שים לב:</strong> <code>מיין()</code> משנה את הרשימה המקורית. אם צריך עותק — השתמשו קודם ב־<code>העתק()</code>.
+      </div>
+
+      <div class="callout ok">
+        <strong>לולאה:</strong> <code>עבור פריט בתוך רשימה … סוף</code> עוברת על כל האיברים לפי הסדר.
+      </div>
+
+      <nav class="page-nav">
+        <a href="מספר.html"><span class="dir">הקודם</span><span class="title">מספר</span></a>
+        <a href="מילון.html"><span class="dir">הבא</span><span class="title">מילון</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

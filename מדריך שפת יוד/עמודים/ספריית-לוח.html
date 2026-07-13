@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית לוח | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.49.0</span><strong>לוח</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית לוח</h1>
+      <p class="lead">
+        קריאה וכתיבה ללוח ההעתקה של Windows.
+        טוענים עם <code>כלול "לוח"</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>לוח.קרא()</code></td><td>מחזיר את הטקסט מהלוח (מחרוזת ריקה אם אין טקסט)</td></tr>
+          <tr><td><code>לוח.כתוב(טקסט)</code></td><td>כותב טקסט ללוח</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "לוח"
+
+לוח.כתוב("הועתק מיוד")
+הדפס(לוח.קרא())</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>הועתק מיוד</pre>
+        </div>
+      </figure>
+
+      <div class="callout warn">
+        <strong>Windows בלבד:</strong> מחוץ ל־Windows הפונקציות מחזירות שגיאה בעברית.
+      </div>
+    </article>
+  </div>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ארוז | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">CLI · 0.47.2</span><strong>ארוז</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>ארוז — קובץ EXE להפצה</h1>
+      <p class="lead">
+        יוצר קובץ <code>.exe</code> בודד שאפשר להעתיק למחשב אחר ולהריץ בלחיצה כפולה —
+        בלי Go ובלי תיקיית עזר.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        <code>yod ארוז תוכנית.יוד</code> בונה EXE שמכיל את מנוע יוד ואת קוד המקור בפנים.
+        לחיצה כפולה מריצה את התוכנית. זה לא קומפילציה ל־native —
+        אבל למשתמש הסופי זה מרגיש כמו תוכנית רגילה.
+      </p>
+
+      <h2>אריזה ל־EXE</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">// תוכן examples\shalom.יוד (מקוצר):
+הדפס "שלום מיוד!"
+
+// אריזה:
+// yod.exe ארוז examples\shalom.יוד</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>נוצר קובץ EXE: examples\shalom.exe
+לחיצה כפולה מריצה את התוכנית.</pre>
+        </div>
+      </figure>
+
+      <h2>שם יעד מותאם</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">// yod.exe ארוז תוכנית.יוד משחק.exe</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>נוצר קובץ EXE: משחק.exe</pre>
+        </div>
+      </figure>
+
+      <h2>תיקיית הפצה (ישן)</h2>
+      <p>
+        אם צריך עדיין תיקייה עם <code>yod.exe</code> + <code>הרץ.bat</code>:
+      </p>
+      <pre class="code-block">yod.exe ארוז תוכנית.יוד --תיקייה</pre>
+
+      <table class="method-table">
+        <thead>
+          <tr><th>פקודה</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>yod ארוז קובץ.יוד</code></td><td>יוצר <code>שם.exe</code> בלי חלון CMD</td></tr>
+          <tr><td><code>yod ארוז קובץ.יוד יעד.exe</code></td><td>שם/נתיב מותאם ל־EXE</td></tr>
+          <tr><td><code>yod ארוז קובץ.יוד --קונסול</code></td><td>EXE עם חלון CMD (להדפסות)</td></tr>
+          <tr><td><code>yod ארוז קובץ.יוד --תיקייה</code></td><td>תיקיית הפצה (במקום EXE בודד)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong>בלי CMD:</strong> ברירת המחדל היא EXE בלי חלון קונסול.
+        אם התוכנית רק מדפיסה לטרמינל — ארוז עם <code>--קונסול</code>.
+        האיקון של יוד (אות י׳) מועבר אוטומטית לקובץ ה־EXE.
+      </div>
+
+      <div class="callout tip">
+        <strong>מהעורך:</strong> כפתור «ארוז», תפריט הרצה, או <code>Ctrl+Shift+P</code> —
+        יוצרים EXE בלי טרמינל.
+      </div>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> נוצר גם <code>שם.exe.manifest</code> ליד ה־EXE
+        (Common Controls 6 / DPI) — העתיקו אותו יחד אם משתמשים ב־<code>חלונות</code>.
+      </div>
+
+      <div class="callout warn">
+        <strong>שימו לב:</strong> גודל ה־EXE ≈ גודל מנוע יוד + הקוד.
+        אחרי שדרוג יוד — ארוז מחדש כדי שהמשתמשים יקבלו את העדכון.
+      </div>
+
+      <nav class="page-nav">
+        <a href="מכונה.html"><span class="dir">הקודם</span><span class="title">מכונה</span></a>
+        <a href="אופרטורים.html"><span class="dir">הבא</span><span class="title">אופרטורים</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

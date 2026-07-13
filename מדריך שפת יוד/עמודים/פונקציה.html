@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>פונקציה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>פונקציה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>פונקציה / החזר</h1>
+      <p class="lead">ארגז קוד עם שם — קוראים לו שוב ושוב, עם פרמטרים ותוצאה.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        פונקציה מגדירה פעולה בשם: מקבלת ארגומנטים, מריצה גוף עד <code>סוף</code>,
+        ויכולה להחזיר ערך עם <code>החזר</code>. אחרי ההגדרה קוראים לה
+        ב־<code>שם: ארג1, ארג2</code> או ב־<code>שם()</code> בלי ארגומנטים.
+      </p>
+      <p>
+        משתנים בתוך הפונקציה הם מקומיים. מספר הארגומנטים בקריאה
+        חייב להתאים למספר הפרמטרים בהגדרה.
+      </p>
+
+      <h2>הגדרה וקריאה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">פונקציה כפל x, y
+  החזר x * y
+סוף
+
+פונקציה ברכה שם
+  החזר: "שלום " + שם
+סוף
+
+הדפס: כפל: 2, 7
+הדפס: ברכה: "נועם"</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>14
+שלום נועם</pre>
+        </div>
+      </figure>
+
+      <h2>בלי פרמטרים ובתוך לולאה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">פונקציה שלום
+  הדפס "היי מיוד!"
+סוף
+
+שלום()
+
+פונקציה ריבוע n
+  החזר n * n
+סוף
+
+עבור i בתוך טווח(1, 4)
+  הדפס: "ריבוע של", i, "=", ריבוע: i
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>היי מיוד!
+ריבוע של 1 = 1
+ריבוע של 2 = 4
+ריבוע של 3 = 9</pre>
+        </div>
+      </figure>
+
+      <table class="method-table">
+        <thead>
+          <tr><th>חלק</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>פונקציה שם x, y</code></td><td>הגדרה עם פרמטרים</td></tr>
+          <tr><td><code>החזר ערך;</code></td><td>מסיים ומחזיר תוצאה</td></tr>
+          <tr><td><code>שם: א, ב</code></td><td>קריאה עם ארגומנטים</td></tr>
+          <tr><td><code>שם()</code></td><td>קריאה בלי ארגומנטים</td></tr>
+          <tr><td><code>סוף</code></td><td>סוגר את גוף הפונקציה</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> פונקציה פנימית יכולה לסגור על משתנים חיצוניים —
+        ראו <a href="זיכרון.html">זיכרון וסגירות</a>.
+        לשלב הבא בתכנות מונחה עצמים: <a href="מחלקה.html">מחלקה</a>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="עצור-המשך.html">
+          <span class="dir">הקודם</span>
+          <span class="title">עצור / המשך</span>
+        </a>
+        <a href="מחלקה.html">
+          <span class="dir">הבא</span>
+          <span class="title">מחלקה / חדש / זה</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

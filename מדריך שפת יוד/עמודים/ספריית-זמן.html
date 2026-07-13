@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית זמן | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.49.0</span><strong>זמן</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית זמן</h1>
+      <p class="lead">
+        שעון מערכת, תאריך, השהיה ופורמט. טוענים עם <code>כלול "זמן"</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>זמן.עכשיו()</code></td><td>תאריך ושעה: <code>2006-01-02 15:04:05</code></td></tr>
+          <tr><td><code>זמן.תאריך()</code></td><td>תאריך בלבד: <code>2006-01-02</code></td></tr>
+          <tr><td><code>זמן.שעה()</code></td><td>שעה בלבד: <code>15:04:05</code></td></tr>
+          <tr><td><code>זמן.חותמת()</code></td><td>חותמת יוניקס (שניות מאז 1970)</td></tr>
+          <tr><td><code>זמן.המתן(שניות)</code></td><td>השהיית התוכנית (גם שבריר שנייה)</td></tr>
+          <tr><td><code>זמן.פורמט(תבנית)</code></td><td>פורמט של הזמן הנוכחי</td></tr>
+          <tr><td><code>זמן.פורמט(חותמת, תבנית)</code></td><td>פורמט של חותמת נתונה</td></tr>
+          <tr><td><code>זמן.פרסר(מחרוזת, [פורמט])</code></td><td>ממיר מחרוזת לתאריך לחותמת יוניקס</td></tr>
+          <tr><td><code>זמן.הוסף(חותמת, שניות)</code></td><td>מוסיף שניות לחותמת</td></tr>
+          <tr><td><code>זמן.הפרש(א, ב)</code></td><td>הפרש בשניות בין שתי חותמות</td></tr>
+          <tr><td><code>זמן.יום_בשבוע(חותמת)</code></td><td>שם יום בעברית (ראשון…שבת)</td></tr>
+          <tr><td><code>זמן.שנה / חודש / יום(חותמת)</code></td><td>רכיבי תאריך ממספר</td></tr>
+          <tr><td><code>זמן.שעה_מספר / דקה / שנייה(חותמת)</code></td><td>רכיבי שעון ממספר</td></tr>
+        </tbody>
+      </table>
+
+      <h2>קריאה בסיסית</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "זמן"
+
+הדפס(זמן.תאריך())
+הדפס(זמן.שעה())
+הדפס("חותמת: " + זמן.חותמת())</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>2026-07-12
+18:44:01
+חותמת: 1783869841</pre>
+        </div>
+      </figure>
+
+      <h2>המתנה ופורמט</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "זמן"
+
+הדפס("לפני")
+זמן.המתן(0.1)
+הדפס("אחרי")
+הדפס(זמן.פורמט("02/01/2006"))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>לפני
+אחרי
+12/07/2026</pre>
+        </div>
+      </figure>
+
+      <h2>פרסור והפרשים</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "זמן"
+
+ח = זמן.פרסר("2026-07-13 12:00:00")
+הדפס(זמן.יום_בשבוע(ח))
+הדפס(זמן.שנה(ח))
+הדפס(זמן.הפרש(זמן.הוסף(ח, 3600), ח))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שני
+2026
+3600</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>תבנית פורמט:</strong> יוד משתמשת בפריסת Go —
+        השנה לדוגמה היא <code>2006</code>, החודש <code>01</code>, היום <code>02</code>, השעה <code>15</code>.
+      </div>
+
+      <div class="callout warn">
+        <strong>שים לב:</strong> הפלט של <code>עכשיו</code> / <code>תאריך</code> / <code>חותמת</code> תלוי בשעון המחשב — בדוגמאות מוצגים ערכים לדוגמה.
+      </div>
+
+      <div class="callout ok">
+        <strong>שימוש נפוץ:</strong> שמירת <code>זמן.חותמת()</code> בבסיס נתונים, והצגה למשתמש עם <code>זמן.פורמט</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="ספריית-JSON.html"><span class="dir">הקודם</span><span class="title">ספריית JSON</span></a>
+        <a href="ספריית-מתמטיקה.html"><span class="dir">הבא</span><span class="title">ספריית מתמטיקה</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

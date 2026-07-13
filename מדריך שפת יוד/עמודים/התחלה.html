@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>התחלה מהירה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מדריך · 0.36.0</span><strong>התחלה מהירה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>התחלה מהירה</h1>
+      <p class="lead">איך בונים את מנוע יוד ומריצים תוכנית ראשונה ב־Windows.</p>
+
+      <h2>מה זה</h2>
+      <p>
+        לפני שכותבים תוכניות — צריך את הקובץ <code>yod.exe</code>.
+        הוא נבנה מפרויקט Go בתיקיית <code>yod</code> בפקודה אחת: <code>go build</code>.
+      </p>
+      <p>
+        אחרי הבנייה אפשר להריץ קבצי <code>.יוד</code>, לפתוח את העורך, ולבדוק גרסה.
+        אין צורך ב־Visual Studio.
+      </p>
+
+      <h2>מה צריך</h2>
+      <ul>
+        <li>Go מותקן (למשל ב־<code>C:\Program Files\Go</code>)</li>
+        <li>תיקיית הפרויקט <code>yod</code> עם <code>go.mod</code></li>
+      </ul>
+
+      <h2>בניית המקמפל</h2>
+      <div class="callout warn">
+        <strong>חשוב:</strong> היכנסו לתיקיית <code>yod</code> עצמה.
+        אל תבנו משורש הפרויקט עם נתיב שגוי.
+      </div>
+      <figure class="example">
+        <span class="example-label">פקודות</span>
+        <pre class="code-block">cd yod
+go build -o yod.exe ./cmd/yod
+yod.exe גרסה</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>יוד 0.36.0</pre>
+        </div>
+      </figure>
+
+      <h2>תוכנית ראשונה</h2>
+      <p>צרו <code>שלום.יוד</code> והריצו:</p>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">הדפס "שלום עולם מיוד!"
+הדפס: 2 + 2</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום עולם מיוד!
+4</pre>
+        </div>
+      </figure>
+
+      <figure class="example">
+        <span class="example-label">הרצה</span>
+        <pre class="code-block">yod.exe הרץ שלום.יוד
+yod.exe הרץ examples\shalom.יוד</pre>
+        <div class="output">
+          <span class="output-label">פלט (shalom.יוד — קטע)</span>
+          <pre>שלום עולם מיוד!
+שלום נועם
+ספירה: 1
+ספירה: 2
+ספירה: 3
+...</pre>
+        </div>
+      </figure>
+
+      <h2>פקודות CLI</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פקודה</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>yod הרץ קובץ.יוד</code></td><td>מריץ תוכנית</td></tr>
+          <tr><td><code>yod</code> / <code>yod עורך [קובץ]</code></td><td>פותח עורך RTL (ברירת מחדל)</td></tr>
+          <tr><td><code>yod גרסה</code></td><td>מציג גרסה</td></tr>
+          <tr><td><code>yod עזרה</code></td><td>מדפיס עזרה</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong>עברית בקונסול:</strong> יוד מגדיר UTF-8 אוטומטית.
+        מומלץ Windows Terminal. אם מופיעים ריבועים — בחרו גופן כמו Courier New,
+        או השתמשו ב־<code>יוד.bat</code> עם <code>chcp 65001</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="מתחילים.html">
+          <span class="dir">הקודם</span>
+          <span class="title">מדריך למתחילים</span>
+        </a>
+        <a href="משתנה.html">
+          <span class="dir">הבא</span>
+          <span class="title">משתנה</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

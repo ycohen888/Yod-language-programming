@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מכונה וירטואלית | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מנוע · 0.36.0</span><strong>מכונה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+    <article class="article">
+      <h1>מכונה וירטואלית (Bytecode)</h1>
+      <p class="lead">
+        בנוסף למפרש (<code>yod הרץ</code>) אפשר לקמפל ל־bytecode ולהריץ על מכונה וירטואלית פנימית.
+      </p>
+
+      <h2>מה זה</h2>
+      <p>
+        <code>yod מכונה קובץ.יוד</code> מקמפל את התוכנית לבייטקוד ומריץ אותה על ה־VM.
+        רוב שפת יוד נתמכת גם במכונה (משתנים, תנאים, לולאות, פונקציות, מחלקות,
+        <code>נסה</code>/<code>תפוס</code>, <code>כלול</code>, סגירות ועוד).
+        הרצה ישירה של קובץ (<code>yod תוכנית.יוד</code>) מנסה מכונה ונופלת אוטומטית למפרש אם צריך.
+      </p>
+
+      <h2>הרצה במכונה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">// בקובץ demo.יוד:
+משתנה סכום = 0
+עבור i בתוך טווח(1, 6)
+  סכום = סכום + i
+סוף
+הדפס: "סכום = " + סכום
+
+// בשורת הפקודה:
+// yod.exe מכונה demo.יוד</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>סכום = 15</pre>
+        </div>
+      </figure>
+
+      <h2>פונקציה במכונה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">פונקציה כפל x, y
+  החזר x * y
+סוף
+
+הדפס: כפל: 6, 7
+הדפס: כפל: 3, 3</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>42
+9</pre>
+        </div>
+      </figure>
+
+      <table class="method-table">
+        <thead>
+          <tr><th>פקודה</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>yod הרץ קובץ.יוד</code></td><td>מפרש (AST)</td></tr>
+          <tr><td><code>yod מכונה קובץ.יוד</code></td><td>קומפילציה + VM</td></tr>
+          <tr><td><code>yod הרץ --מכונה קובץ.יוד</code></td><td>העדפת מכונה עם נפילה חכמה</td></tr>
+          <tr><td><code>yod קובץ.יוד</code></td><td>מכונה תחילה, אחר כך מפרש</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> דוגמאות ייעודיות בתיקייה
+        <code>examples/vm*.יוד</code> — מחלקות, ירושה, נסה, קבצים ועוד.
+      </div>
+
+      <div class="callout ok">
+        <strong>גרסה 0.36:</strong> כמעט כל הפיצ׳רים היומיומיים רצים גם במכונה.
+        אם קומפילציה נכשלת — השתמשו ב־<code>yod הרץ</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="עורך.html"><span class="dir">הקודם</span><span class="title">עורך</span></a>
+        <a href="ארוז.html"><span class="dir">הבא</span><span class="title">ארוז</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

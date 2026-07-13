@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית מערכת | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.49.0</span><strong>מערכת</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית מערכת</h1>
+      <p class="lead">
+        ארגומנטי שורת פקודה, משתני סביבה, תיקיית עבודה, יציאה מבוקרת —
+        ומידע ממערכת ההפעלה: זיכרון, מעבד, שם מחשב, IP ועוד.
+        טוענים עם <code>כלול "מערכת"</code>.
+      </p>
+
+      <h2>פונקציות — תהליך וסביבה</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>מערכת.ארגומנטים()</code></td><td>רשימת ארגומנטים אחרי שם הקובץ</td></tr>
+          <tr><td><code>מערכת.סביבה(שם)</code></td><td>ערך משתנה סביבה (מחרוזת; ריקה אם לא קיים)</td></tr>
+          <tr><td><code>מערכת.תיקייה()</code></td><td>נתיב תיקיית העבודה הנוכחית</td></tr>
+          <tr><td><code>מערכת.שנה_תיקייה(נתיב)</code></td><td>משנה את תיקיית העבודה</td></tr>
+          <tr><td><code>מערכת.צא([קוד])</code></td><td>מסיים את התוכנית; ברירת מחדל קוד 0</td></tr>
+          <tr><td><code>מערכת.הפעל(פקודה, [ארגומנטים…])</code></td><td>מריץ תהליך ומחזיר מילון: <code>קוד</code>, <code>פלט</code>, <code>שגיאה</code></td></tr>
+          <tr><td><code>מערכת.הפעל_ברקע(פקודה, …)</code></td><td>מפעיל בלי לחכות לסיום</td></tr>
+        </tbody>
+      </table>
+
+      <h2>פונקציות — מידע מערכת הפעלה</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>מערכת.שם_מחשב()</code></td><td>שם המחשב ברשת (hostname)</td></tr>
+          <tr><td><code>מערכת.מערכת_הפעלה()</code></td><td>סוג מערכת: Windows / Linux / macOS</td></tr>
+          <tr><td><code>מערכת.גרסת_הפעלה()</code></td><td>גרסה מפורטת (למשל Windows 11 Pro + מספר build)</td></tr>
+          <tr><td><code>מערכת.ארכיטקטורה()</code></td><td>ארכיטקטורת מעבד (amd64, arm64…)</td></tr>
+          <tr><td><code>מערכת.ליבות()</code></td><td>מספר ליבות לוגיות</td></tr>
+          <tr><td><code>מערכת.מעבד()</code></td><td>מילון: <code>שם</code>, <code>ליבות</code>, <code>ארכיטקטורה</code></td></tr>
+          <tr><td><code>מערכת.זיכרון()</code></td><td>מילון: <code>סהכ_מגה</code>, <code>פנוי_מגה</code>, <code>בשימוש_מגה</code> (+ גרסאות בבתים)</td></tr>
+          <tr><td><code>מערכת.איפי()</code></td><td>רשימת כתובות IP של המחשב (בלי loopback)</td></tr>
+          <tr><td><code>מערכת.משתמש()</code></td><td>שם המשתמש המחובר</td></tr>
+          <tr><td><code>מערכת.בית()</code></td><td>נתיב תיקיית הבית</td></tr>
+          <tr><td><code>מערכת.מידע()</code></td><td>מילון מרוכז עם כל השדות למעלה</td></tr>
+        </tbody>
+      </table>
+
+      <h2>הפעלת תהליך</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "מערכת"
+
+תוצאה = מערכת.הפעל("cmd", "/c", "echo שלום")
+הדפס(תוצאה["קוד"])
+הדפס(תוצאה["פלט"])</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>0
+שלום</pre>
+        </div>
+      </figure>
+
+      <h2>מידע מחשב</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "מערכת"
+
+הדפס: "מחשב: " + מערכת.שם_מחשב()
+הדפס: מערכת.מערכת_הפעלה() + " — " + מערכת.גרסת_הפעלה()
+
+משתנה ז = מערכת.זיכרון()
+הדפס: "זיכרון: " + ז["בשימוש_מגה"] + " / " + ז["סהכ_מגה"] + " מגה"
+
+עבור איפי בתוך מערכת.איפי()
+  הדפס: איפי
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט (דוגמה)</span>
+          <pre>מחשב: DESKTOP-ABC123
+Windows — Windows 11 Pro (10.0.26100)
+זיכרון: 12480 / 32687 מגה
+192.168.1.42</pre>
+        </div>
+      </figure>
+
+      <h2>ארגומנטים ותיקייה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "מערכת"
+
+// הרצה: יוד הרץ תוכנית.יוד שלום עולם
+עבור א בתוך מערכת.ארגומנטים()
+  הדפס(א)
+סוף
+
+הדפס("תיקייה: " + מערכת.תיקייה())</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום
+עולם
+תיקייה: F:\programming\site-programing\yod</pre>
+        </div>
+      </figure>
+
+      <h2>סביבה ויציאה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "מערכת"
+
+משתנה משתמש = מערכת.משתמש()
+אם משתמש != ""
+  הדפס("שלום " + משתמש)
+אחרת
+  הדפס("אין משתמש")
+סוף
+
+// מערכת.צא(0);   // מסיים בהצלחה
+// מערכת.צא(1);   // מסיים עם קוד שגיאה</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום ycohe</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> <code>מערכת.מידע()</code> מחזיר הכול בבת אחת — נוח לדיבוג או ללוג התחלה.
+      </div>
+
+      <div class="callout warn">
+        <strong>זהירות:</strong> <code>מערכת.צא</code> עוצר מיד את התהליך. שימו אחרי ניקוי משאבים אם צריך.
+      </div>
+
+      <div class="callout ok">
+        <strong>דוגמה:</strong> ראו גם <code>yod/examples/maarechet.יוד</code>.
+      </div>
+
+      <nav class="page-nav">
+        <a href="ספריית-מתמטיקה.html"><span class="dir">הקודם</span><span class="title">ספריית מתמטיקה</span></a>
+        <a href="ספריית-רשת.html"><span class="dir">הבא</span><span class="title">ספריית רשת</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

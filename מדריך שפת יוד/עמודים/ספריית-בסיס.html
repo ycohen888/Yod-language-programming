@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית בסיס | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.36.0</span><strong>בסיס</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית בסיס</h1>
+      <p class="lead">
+        פונקציות ליבה שזמינות תמיד — בלי <code>כלול</code>.
+        המודול <code>כלול "בסיס"</code> קיים בעיקר לתיעוד וגרסה; ההדפסה, ההמרות והטווח כבר גלובליים.
+      </p>
+
+      <h2>פונקציות גלובליות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>הדפס(ערך)</code></td><td>מדפיס לקונסול ומוסיף שורה חדשה</td></tr>
+          <tr><td><code>קלט([הודעה])</code></td><td>קורא מחרוזת מהמשתמש</td></tr>
+          <tr><td><code>אורך(ערך)</code></td><td>אורך של מחרוזת, רשימה או מילון</td></tr>
+          <tr><td><code>למספר(ערך)</code></td><td>המרה למספר</td></tr>
+          <tr><td><code>למחרוזת(ערך)</code></td><td>המרה לטקסט</td></tr>
+          <tr><td><code>סוג(ערך)</code></td><td>שם הטיפוס בעברית (<code>מספר</code>, <code>מחרוזת</code>…)</td></tr>
+          <tr><td><code>טווח(n)</code> / <code>טווח(א, ב [, צעד])</code></td><td>רשימת מספרים ללולאות</td></tr>
+          <tr><td><code>אקראי()</code></td><td>מספר ממשי באקראי בין 0 ל־1</td></tr>
+          <tr><td><code>אקראי_בין(א, ב)</code></td><td>מספר שלם אקראי בטווח כולל</td></tr>
+          <tr><td><code>הוסף(רשימה, ערך…)</code></td><td>מוסיף איברים לרשימה</td></tr>
+        </tbody>
+      </table>
+
+      <h2>טווח והמרות</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">עבור i בתוך טווח(3)
+  הדפס("מספר " + i)
+סוף
+
+הדפס(למספר("42") + 1)
+הדפס(סוג([1, 2]))
+הדפס(אורך("יוד"))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>מספר 0
+מספר 1
+מספר 2
+43
+רשימה
+3</pre>
+        </div>
+      </figure>
+
+      <h2>אקראי</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה קוביה = אקראי_בין(1, 6)
+הדפס("הטלה: " + קוביה)
+
+משתנה רשימה = []
+הוסף(רשימה, "א", "ב")
+הדפס(רשימה.הצטרף("-"))</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>הטלה: 4
+א-ב</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> <code>טווח(5)</code> נותן <code>0…4</code>. <code>טווח(2, 5)</code> נותן <code>2, 3, 4</code> (הסוף לא כלול).
+      </div>
+
+      <div class="callout warn">
+        <strong>אקראי:</strong> הפלט של <code>אקראי_בין</code> משתנה בכל הרצה — בדוגמה למעלה מוצג ערך אפשרי לדוגמה.
+      </div>
+
+      <div class="callout ok">
+        <strong>גרסה:</strong> אחרי <code>כלול "בסיס"</code> אפשר לקרוא <code>בסיס.גרסה</code> (כרגע <code>0.36.0</code>).
+      </div>
+
+      <nav class="page-nav">
+        <a href="מילון.html"><span class="dir">הקודם</span><span class="title">מילון</span></a>
+        <a href="ספריית-קבצים.html"><span class="dir">הבא</span><span class="title">ספריית קבצים</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>

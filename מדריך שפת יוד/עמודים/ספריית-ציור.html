@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית ציור | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.48.0</span><strong>ציור</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית ציור</h1>
+      <p class="lead">
+        לוח ציור לצורות, צבעים, טקסט ותמונות (PNG / JPG / GIF / BMP).
+        טוענים עם <code>כלול "ציור"</code>. אפשר לשמור לקובץ או להציג בחלון Windows.
+      </p>
+
+      <h2>יצירה וצבעים</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>ציור.לוח(רוחב, גובה)</code></td><td>יוצר לוח לבן לציור</td></tr>
+          <tr><td><code>ציור.טען_תמונה(נתיב)</code></td><td>טוען PNG/JPG/GIF/BMP</td></tr>
+          <tr><td><code>ציור.צבע(…)</code></td><td>יוצר צבע משם או מ־RGB</td></tr>
+          <tr><td><code>לוח.קבע_צבע</code></td><td>צבע קו / טקסט (שם או RGB)</td></tr>
+          <tr><td><code>לוח.קבע_מילוי</code></td><td>צבע מילוי לצורות מלאות</td></tr>
+          <tr><td><code>לוח.קבע_עובי(n)</code></td><td>עובי קו בפיקסלים</td></tr>
+          <tr><td><code>לוח.קבע_גודל_גופן(n)</code></td><td>גודל טקסט</td></tr>
+          <tr><td><code>לוח.נקה([צבע])</code></td><td>מנקה את הלוח (ברירת מחדל לבן)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>צורות ותמונות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>נקודה(x, y)</code></td><td>נקודה</td></tr>
+          <tr><td><code>קו(x1, y1, x2, y2)</code></td><td>קו</td></tr>
+          <tr><td><code>מלבן(x, y, רוחב, גובה)</code></td><td>מסגרת מלבן</td></tr>
+          <tr><td><code>מלבן_מלא(…)</code></td><td>מלבן מלא</td></tr>
+          <tr><td><code>עיגול(x, y, רדיוס)</code></td><td>מסגרת עיגול (מרכז + רדיוס)</td></tr>
+          <tr><td><code>עיגול_מלא(…)</code></td><td>עיגול מלא</td></tr>
+          <tr><td><code>טקסט(מחרוזת, x, y)</code></td><td>טקסט (עברית נתמכת ב־Windows)</td></tr>
+          <tr><td><code>תמונה(נתיב|תמונה, x, y [, w, h])</code></td><td>מצייר תמונה על הלוח</td></tr>
+          <tr><td><code>שמור(נתיב)</code></td><td>שומר PNG / JPG / GIF</td></tr>
+          <tr><td><code>הצג([כותרת])</code></td><td>מציג בחלון (Windows)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה</h2>
+      <figure class="example">
+        <span class="example-label">צורות ושמירה</span>
+        <pre class="code-block">כלול "ציור"
+
+משתנה ל = ציור.לוח: 400, 260
+ל.קבע_מילוי: "תכלת"
+ל.מלבן_מלא: 20, 20, 360, 220
+
+ל.קבע_מילוי: "צהוב"
+ל.עיגול_מלא: 200, 130, 50
+
+ל.קבע_צבע: "אדום"
+ל.קבע_עובי: 4
+ל.עיגול: 200, 130, 70
+
+ל.קבע_צבע: "שחור"
+ל.טקסט: "יוד", 180, 40
+
+ל.שמור: "פלט.png"
+ל.הצג: "הציור שלי"</pre>
+      </figure>
+
+      <h2>צבעים בשם</h2>
+      <p>
+        <code>שחור</code>, <code>לבן</code>, <code>אדום</code>, <code>ירוק</code>, <code>כחול</code>,
+        <code>צהוב</code>, <code>כתום</code>, <code>סגול</code>, <code>ורוד</code>,
+        <code>אפור</code>, <code>תכלת</code>, <code>חום</code> —
+        או <code>קבע_צבע: 30, 144, 255</code>.
+      </p>
+
+      <nav class="page-nav">
+        <a href="ספריית-חלונות.html"><span class="dir">הקודם</span><span class="title">ספריית חלונות</span></a>
+        <a href="../מדריך שפת יוד.html"><span class="dir">הבא</span><span class="title">מדריך ראשי</span></a>
+      </nav>
+    </article>
+  </div>
+</body>
+</html>
