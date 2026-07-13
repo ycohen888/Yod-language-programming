@@ -3,9 +3,12 @@
 package editor
 
 import (
+	"syscall"
+
 	"yod/MaterialIcons"
 
 	"github.com/lxn/walk"
+	"github.com/lxn/win"
 )
 
 var (
@@ -105,11 +108,11 @@ func (b *DarkBtn) Mount(parent walk.Container, tip string) error {
 	b.tip = tip
 	materialicons.Ensure()
 
-	dpi := 96
+	hwnd := win.HWND(0)
 	if parent != nil {
-		dpi = parent.DPI()
+		hwnd = parent.Handle()
 	}
-	minW := b.calcWidth(dpi)
+	minW := b.calcWidth(hwnd)
 	b.minW = minW
 
 	cw, err := walk.NewCustomWidgetPixels(parent, 0, b.paint)
@@ -166,7 +169,7 @@ func (b *DarkBtn) Mount(parent walk.Container, tip string) error {
 
 const btnPadX = 5
 
-func (b *DarkBtn) calcWidth(dpi int) int {
+func (b *DarkBtn) calcWidth(hwnd win.HWND) int {
 	w := btnPadX * 2
 	if b.icon != iconNone {
 		w += btnIconPt + 4
@@ -177,31 +180,56 @@ func (b *DarkBtn) calcWidth(dpi int) int {
 		}
 		return w
 	}
+	tw := measureTextPx(hwnd, b.text, btnFontPt)
+	if tw <= 0 {
+		tw = len([]rune(b.text)) * 8
+	}
+	return w + tw
+}
+
+// measureTextPx — מדידת רוחב בלי walk.Canvas/Bitmap (גרם לתקיעה ב־message loop).
+func measureTextPx(hwnd win.HWND, text string, pointSize int) int {
+	hdc := win.GetDC(hwnd)
+	if hdc == 0 {
+		return 0
+	}
+	defer win.ReleaseDC(hwnd, hdc)
+
+	dpi := int(win.GetDeviceCaps(hdc, win.LOGPIXELSY))
 	if dpi < 1 {
 		dpi = 96
 	}
-	bmp, err := walk.NewBitmapForDPI(walk.Size{Width: 8, Height: 8}, dpi)
+	var lf win.LOGFONT
+	lf.LfHeight = -win.MulDiv(int32(pointSize), int32(dpi), 72)
+	lf.LfWeight = win.FW_NORMAL
+	lf.LfCharSet = win.DEFAULT_CHARSET
+	lf.LfOutPrecision = win.OUT_DEFAULT_PRECIS
+	lf.LfClipPrecision = win.CLIP_DEFAULT_PRECIS
+	lf.LfQuality = win.DEFAULT_QUALITY
+	lf.LfPitchAndFamily = win.DEFAULT_PITCH | win.FF_DONTCARE
+	face, err := syscall.UTF16FromString(uiFont)
 	if err != nil {
-		return w + len([]rune(b.text))*7
+		return 0
 	}
-	defer bmp.Dispose()
-	canvas, err := walk.NewCanvasFromImage(bmp)
-	if err != nil {
-		return w + len([]rune(b.text))*7
+	copy(lf.LfFaceName[:], face)
+
+	hf := win.CreateFontIndirect(&lf)
+	if hf == 0 {
+		return 0
 	}
-	defer canvas.Dispose()
-	font, err := walk.NewFont(uiFont, btnFontPt, 0)
-	if err != nil {
-		return w + len([]rune(b.text))*7
+	defer win.DeleteObject(win.HGDIOBJ(hf))
+	old := win.SelectObject(hdc, win.HGDIOBJ(hf))
+	defer win.SelectObject(hdc, old)
+
+	utf16, err := syscall.UTF16FromString(text)
+	if err != nil || len(utf16) < 2 {
+		return 0
 	}
-	defer font.Dispose()
-	br, _, err := canvas.MeasureTextPixels(b.text, font,
-		walk.Rectangle{Width: 4000, Height: 100},
-		walk.TextSingleLine|walk.TextRTLReading)
-	if err != nil {
-		return w + len([]rune(b.text))*7
+	var sz win.SIZE
+	if !win.GetTextExtentPoint32(hdc, &utf16[0], int32(len(utf16)-1), &sz) {
+		return 0
 	}
-	return w + br.Width
+	return int(sz.CX)
 }
 
 func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
