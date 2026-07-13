@@ -160,7 +160,7 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 	}
 }
 
-// layoutEditors ממלא את המארח בעורך הפעיל בלבד (בלי רווחים מטאבים מוסתרים).
+// layoutEditors ממלא את המארח בעורך הפעיל בלבד (מיקום ידני — בלי RequestLayout שדורס).
 func (d *DocTabs) layoutEditors() {
 	if d == nil || d.EditorsHost == nil {
 		return
@@ -179,9 +179,9 @@ func (d *DocTabs) layoutEditors() {
 			}
 		} else {
 			t.Editor.SetVisible(false)
+			_ = t.Editor.SetBoundsPixels(walk.Rectangle{})
 		}
 	}
-	d.EditorsHost.RequestLayout()
 }
 
 func (d *DocTabs) refreshBar() {
