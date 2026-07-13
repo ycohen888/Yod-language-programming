@@ -40,3 +40,6 @@ yod/examples/temp_*
 
 # Cursor local (keep .cursorrules)
 .cursor/
+
+# Local build artifacts for Releases (uploaded via GitHub Release, not committed)
+dist/

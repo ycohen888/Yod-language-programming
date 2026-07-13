@@ -19,6 +19,13 @@
 
 ## התקנה ובנייה
 
+### אפשרות א׳ — הורדה מוכנה (Windows)
+
+ב־[Releases](https://github.com/ycohen888/Yod-language-programming/releases) יש `yod.exe` מוכן להורדה.
+אין צורך ב־Go: מורידים, מריצים, ומתחילים.
+
+### אפשרות ב׳ — בנייה מקוד המקור
+
 דרוש [Go](https://go.dev/dl/) 1.22+ (הפרויקט משתמש ב־Go 1.26).
 
 ```powershell
@@ -125,15 +132,22 @@ yod/
 
 ## רישיון
 
-הריפו כרגע ללא קובץ LICENSE מפורש. אם תרצו קוד פתוח רשמי — הוסיפו רישיון (למשל MIT / Apache-2.0).
+הפרויקט מופץ תחת [MIT License](LICENSE).
+
+- מותר להשתמש, להעתיק, לשנות ולהפיץ **בחופשיות**
+- חובה לשמור על הודעת הזכויות ועל הרישיון
+- **המקור הרשמי:** [ycohen888/Yod-language-programming](https://github.com/ycohen888/Yod-language-programming) — יוד / ycohen888
 
 ---
 
 ## תרומה / פיתוח
 
+שמחים לעזרה! אפשר לפתוח [Issue](https://github.com/ycohen888/Yod-language-programming/issues) או Pull Request.
+
 1. שינויים בקוד → בדיקות: `go test ./...` מתוך `yod/`
-2. עדכון גרסה ב־`cmd/yod/main.go` וב־`בסיס.גרסה`
+2. עדכון גרסה ב־`cmd/yod/main.go` וב־`בסיס.גרסה` כשמשחררים גרסה
 3. תיעוד במדריך וב־`info_program.html` כשמוסיפים יכולת משמעותית
+4. תיאור ברור ב־commit / PR — מה השתנה ולמה
 
 ---
 
