@@ -104,7 +104,11 @@ func (d *DocTabs) SetActiveDirty(v bool) {
 		return
 	}
 	d.Active.IsDirty = v
-	d.refreshBar()
+	if d.Active.TabBtn != nil {
+		d.Active.TabBtn.SetDirty(v)
+	} else {
+		d.rebuildBar()
+	}
 }
 
 func (d *DocTabs) MarkPath(path string) {
@@ -122,7 +126,12 @@ func (d *DocTabs) MarkPath(path string) {
 	d.Active.FilePath = path
 	d.Active.Title = d.tabTitle(path, d.Active.Title)
 	d.Active.IsDirty = false
-	d.refreshBar()
+	if d.Active.TabBtn != nil {
+		d.Active.TabBtn.SetTitle(d.Active.Title)
+		d.Active.TabBtn.SetDirty(false)
+	} else {
+		d.rebuildBar()
+	}
 }
 
 func (d *DocTabs) AnyDirty() bool {
@@ -178,7 +187,7 @@ func (d *DocTabs) loadIntoEditor(tab *OpenFileTab) {
 		return
 	}
 	d.swapping = true
-	_ = d.Editor.SetText(tab.Text)
+	_ = d.Editor.SetTextForSwap(tab.Text)
 	start, end := tab.SelStart, tab.SelEnd
 	if start < 0 {
 		start = 0
@@ -202,7 +211,7 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 		return
 	}
 	if d.Active == tab {
-		d.refreshBar()
+		d.paintActiveChrome()
 		if d.Editor != nil {
 			d.Editor.SetFocus()
 		}
@@ -211,19 +220,45 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 		}
 		return
 	}
+	prev := d.Active
 	d.persistActive()
 	d.Active = tab
 	d.loadIntoEditor(tab)
 	if d.Editor != nil {
 		d.Editor.SetFocus()
 	}
-	d.refreshBar()
+	// עדכון ויזואלי בלבד — בלי לפרק ולבנות מחדש את כל סרגל הטאבים
+	if prev != nil && prev.TabBtn != nil {
+		prev.TabBtn.SetActive(false)
+	}
+	if tab.TabBtn != nil {
+		tab.TabBtn.SetActive(true)
+		tab.TabBtn.SetDirty(tab.IsDirty)
+	} else {
+		d.rebuildBar()
+	}
 	if d.OnActivate != nil {
 		d.OnActivate(tab)
 	}
 }
 
+// refreshBar — alias לתאימות; בונה מחדש רק כשסדר הטאבים השתנה.
 func (d *DocTabs) refreshBar() {
+	d.rebuildBar()
+}
+
+func (d *DocTabs) paintActiveChrome() {
+	for _, t := range d.Order {
+		if t.TabBtn == nil {
+			d.rebuildBar()
+			return
+		}
+		t.TabBtn.SetActive(t == d.Active)
+		t.TabBtn.SetDirty(t.IsDirty)
+	}
+}
+
+func (d *DocTabs) rebuildBar() {
 	if d.Bar == nil {
 		return
 	}
@@ -295,7 +330,16 @@ func (d *DocTabs) OpenPath(path string) (*OpenFileTab, error) {
 	}
 	d.ByKey[key] = tab
 	d.Order = append(d.Order, tab)
-	d.Activate(tab)
+	d.persistActive()
+	d.Active = tab
+	d.loadIntoEditor(tab)
+	if d.Editor != nil {
+		d.Editor.SetFocus()
+	}
+	d.rebuildBar()
+	if d.OnActivate != nil {
+		d.OnActivate(tab)
+	}
 	return tab, nil
 }
 
@@ -314,7 +358,16 @@ func (d *DocTabs) OpenUntitled(content, title string) (*OpenFileTab, error) {
 	}
 	d.ByKey[key] = tab
 	d.Order = append(d.Order, tab)
-	d.Activate(tab)
+	d.persistActive()
+	d.Active = tab
+	d.loadIntoEditor(tab)
+	if d.Editor != nil {
+		d.Editor.SetFocus()
+	}
+	d.rebuildBar()
+	if d.OnActivate != nil {
+		d.OnActivate(tab)
+	}
 	return tab, nil
 }
 
@@ -346,15 +399,25 @@ func (d *DocTabs) Close(tab *OpenFileTab) bool {
 	}
 	if wasActive {
 		if len(d.Order) > 0 {
-			d.Activate(d.Order[len(d.Order)-1])
+			// סדר השתנה — בונים מחדש, ואז טוענים את הטאב הפעיל
+			next := d.Order[len(d.Order)-1]
+			d.Active = next
+			d.loadIntoEditor(next)
+			if d.Editor != nil {
+				d.Editor.SetFocus()
+			}
+			d.rebuildBar()
+			if d.OnActivate != nil {
+				d.OnActivate(next)
+			}
 		} else {
-			d.refreshBar()
+			d.rebuildBar()
 			if d.OnActivate != nil {
 				d.OnActivate(nil)
 			}
 		}
 	} else {
-		d.refreshBar()
+		d.rebuildBar()
 	}
 	return true
 }

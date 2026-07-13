@@ -321,6 +321,11 @@ func Run(path string) error {
 		if fileTree == nil || projectRoot == "" || p == "" {
 			return
 		}
+		// אם כבר גלוי — רק סימון, בלי סריקת דיסק / Expand
+		if idx := fileModel.IndexOfPath(p); idx >= 0 {
+			fileTree.SetSelectedIndex(idx)
+			return
+		}
 		fileTree.SelectPath(p)
 	}
 
@@ -472,12 +477,15 @@ func Run(path string) error {
 				fmt.Fprintf(&b, " %*d", width, i)
 			}
 		}
+		win.SendMessage(lineEdit.Handle(), win.WM_SETREDRAW, 0, 0)
 		lineEdit.SetText(b.String())
 		if len(errLineSet) > 0 {
 			lineEdit.SetTextColor(colErrText)
 		} else {
 			lineEdit.SetTextColor(colLineNum)
 		}
+		win.SendMessage(lineEdit.Handle(), win.WM_SETREDRAW, 1, 0)
+		win.InvalidateRect(lineEdit.Handle(), nil, true)
 		updateCaretStatus()
 	}
 
@@ -543,11 +551,13 @@ func Run(path string) error {
 		}
 		if tab != nil {
 			tab.IsDirty = false
+			if tab.TabBtn != nil {
+				tab.TabBtn.SetDirty(false)
+			}
 		}
 		syncFromActiveTab()
 		dirty = false
 		updateTitle()
-		docs.refreshBar()
 		clearPanels()
 		setPanelText(errEdit, "אין שגיאות")
 		setPanelText(outEdit, "(אין פלט)")
@@ -1925,7 +1935,6 @@ func Run(path string) error {
 		} else {
 			setStatus("אין קבצים פתוחים")
 		}
-		applyCodeZoom(codeFontSize)
 	}
 	docs.ConfirmClose = confirmDiscardTab
 	docs.OnClosed = func(tab *OpenFileTab) {

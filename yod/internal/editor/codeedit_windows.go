@@ -176,6 +176,55 @@ func (ce *CodeEdit) SetText(text string) error {
 	return nil
 }
 
+// SetTextForSwap — החלפת קובץ בין טאבים: בלי צביעה סינכרונית כבדה.
+// מציג טקסט מיד, ומריץ הדגשת תחביר אחרי שהממשק הספיק לצייר.
+func (ce *CodeEdit) SetTextForSwap(text string) error {
+	ce.suppress = true
+	win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 0, 0)
+	clean := stripBidiMarks(text)
+	ptr := syscall.StringToUTF16Ptr(clean)
+	ok := ce.SendMessage(win.WM_SETTEXT, 0, uintptr(unsafe.Pointer(ptr)))
+	if ok == win.TRUE {
+		ce.applyDefaultFormat()
+		ce.setCodePara()
+	}
+	win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 1, 0)
+	win.InvalidateRect(ce.Handle(), nil, true)
+	ce.clearHistory()
+	ce.fullHLOnce = true
+	ce.lastTextLen = len(clean)
+	ce.suppress = false
+	if ok != win.TRUE {
+		return syscall.EINVAL
+	}
+	// צביעה אסינכרונית קצרה — לא חוסמת את מעבר הטאב
+	gen := atomic.AddUint64(&ce.hlGen, 1)
+	if ce.debounce != nil {
+		ce.debounce.Stop()
+	}
+	ce.debounce = time.AfterFunc(30*time.Millisecond, func() {
+		ce.Synchronize(func() {
+			if ce.suppress || atomic.LoadUint64(&ce.hlGen) != gen {
+				return
+			}
+			text := ce.Text()
+			start, end := ce.TextSelection()
+			ce.lastTextLen = len(text)
+			ce.fullHLOnce = false
+			go func(myGen uint64, src string, selStart, selEnd int) {
+				spans := highlight.SpansRichEdit(src)
+				ce.Synchronize(func() {
+					if ce.suppress || atomic.LoadUint64(&ce.hlGen) != myGen {
+						return
+					}
+					ce.applyHighlightFull(spans, selStart, selEnd)
+				})
+			}(gen, text, start, end)
+		})
+	})
+	return nil
+}
+
 func (ce *CodeEdit) TextChanged() *walk.Event {
 	return ce.textChangedPublisher.Event()
 }
