@@ -1783,7 +1783,6 @@ func Run(path string) error {
 						Layout:     VBox{MarginsZero: true, Spacing: 0},
 						Background: SolidColorBrush{Color: colToolbar},
 						MinSize:    Size{Width: 100},
-						MaxSize:    Size{Width: 400},
 						Children: []Widget{
 							Composite{
 								Layout:     HBox{Margins: Margins{Left: 8, Right: 6, Top: 6, Bottom: 4}, Spacing: 6},
@@ -2147,33 +2146,28 @@ func Run(path string) error {
 		}
 		if gripHost != nil {
 			clearLayoutRTL(gripHost.Handle())
-			dragStartW := 0
 			grip := &splitGrip{}
-			if err := grip.Mount(gripHost, func(totalDX int) {
-				sign := 1
-				if !treeLeftOfGrip(treePane, gripHost) {
-					sign = -1
+			// LTR במארח: סייר | ידית | עורך — X של העכבר בלקוח = רוחב הסייר
+			if err := grip.Mount(gripHost, splitHost, func(clientX int) {
+				const gripW = 6
+				w := clientX - gripW/2
+				if w < 100 {
+					w = 100
 				}
-				if dragStartW <= 0 {
-					dragStartW = treePaneW
+				hostW := splitHost.ClientBoundsPixels().Width
+				maxTree := hostW - gripW - 280
+				if maxTree < 100 {
+					maxTree = 100
 				}
-				treePaneW = dragStartW + sign*totalDX
+				if w > maxTree {
+					w = maxTree
+				}
+				treePaneW = w
 				treeSized = true
 				applyTreeWidth()
 			}); err != nil {
 				return err
 			}
-			grip.CustomWidget.MouseDown().Attach(func(x, y int, button walk.MouseButton) {
-				_ = x
-				_ = y
-				if button != walk.LeftButton || treePane == nil {
-					return
-				}
-				dragStartW = treePane.BoundsPixels().Width
-				if dragStartW < 80 {
-					dragStartW = treePaneW
-				}
-			})
 		}
 		treePaneW = 0
 		treeSized = false
