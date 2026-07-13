@@ -110,21 +110,29 @@ func Run(path string) error {
 		busy         bool
 	)
 
-	treePaneW := 220 // רוחב סייר בפיקסלים — נשלט ע״י גרירת הידית
+	treePaneW := 0 // יוגדר ל־~20% מרוחב החלון אחרי Create
 	var applyTreeWidth func()
 	applyTreeWidth = func() {
 		if treePane == nil {
 			return
 		}
+		hostW := 0
+		if splitHost != nil {
+			hostW = splitHost.ClientBoundsPixels().Width
+		}
+		if hostW < 80 && mw != nil {
+			hostW = mw.ClientBoundsPixels().Width
+		}
 		w := treePaneW
-		if w < 140 {
-			w = 140
+		if w <= 0 && hostW > 0 {
+			w = hostW * 20 / 100
+		}
+		if w < 120 {
+			w = 120
 		}
 		maxW := 560
-		if splitHost != nil {
-			hostW := splitHost.ClientBoundsPixels().Width
-			// מקום מינימלי לעורך + ידית
-			if room := hostW - 6 - 240; room > 140 && room < maxW {
+		if hostW > 0 {
+			if room := hostW - 6 - 280; room > 120 {
 				maxW = room
 			}
 		}
@@ -1776,8 +1784,7 @@ func Run(path string) error {
 						AssignTo:   &treePane,
 						Layout:     VBox{MarginsZero: true, Spacing: 0},
 						Background: SolidColorBrush{Color: colToolbar},
-						MinSize:    Size{Width: 140},
-						MaxSize:    Size{Width: 560},
+						MinSize:    Size{Width: 100},
 						Children: []Widget{
 							Composite{
 								Layout:     HBox{Margins: Margins{Left: 8, Right: 6, Top: 6, Bottom: 4}, Spacing: 6},
@@ -1849,7 +1856,7 @@ func Run(path string) error {
 												Background:    SolidColorBrush{Color: colGutter},
 												Font:          Font{Family: codeFace, PointSize: 14},
 												MinSize:       Size{Width: 48, Height: 180},
-												MaxSize:       Size{Width: 56},
+												MaxSize:       Size{Width: 48},
 												OnMouseDown: func(x, y int, button walk.MouseButton) {
 													if button != walk.LeftButton || codeEdit == nil || lineEdit == nil {
 														return
@@ -2144,12 +2151,28 @@ func Run(path string) error {
 					return
 				}
 				dragStartW = treePane.BoundsPixels().Width
-				if dragStartW < 140 {
+				if dragStartW < 120 {
 					dragStartW = treePaneW
 				}
 			})
 		}
+		// רוחב סייר ≈ 20% מרוחב אזור הסייר+עורך
+		treePaneW = 0
 		applyTreeWidth()
+		if mw != nil {
+			var once bool
+			mw.SizeChanged().Attach(func() {
+				if once || splitHost == nil {
+					return
+				}
+				if splitHost.ClientBoundsPixels().Width < 80 {
+					return
+				}
+				once = true
+				treePaneW = 0
+				applyTreeWidth()
+			})
+		}
 	}
 	// כפיית RTL על אזור הקוד: gutter (ילד ראשון) מופיע מימין
 	if codeHost != nil {
@@ -2361,12 +2384,12 @@ func applyGutterMetrics(te *walk.TextEdit) {
 	pf.DySpaceAfter = 40
 	win.SendMessage(hwnd, win.EM_SETPARAFORMAT, 0, uintptr(unsafe.Pointer(&pf)))
 
-	// שוליים אופקיים קטנים — כמו העורך
+	// בלי שוליים אופקיים — יישור מול עורך הקוד
 	const (
 		ecLeftMargin  = 0x0001
 		ecRightMargin = 0x0002
 	)
-	win.SendMessage(hwnd, win.EM_SETMARGINS, ecLeftMargin|ecRightMargin, uintptr(4|(4<<16)))
+	win.SendMessage(hwnd, win.EM_SETMARGINS, ecLeftMargin|ecRightMargin, 0)
 }
 
 // fixCodeEdit — קוד בעברית: קריאה RTL (בלוקים עם סוף, בלי {})
