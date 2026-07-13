@@ -29,6 +29,7 @@ func NewDrawingModule() *object.Module {
 	m.Attrs["לוח"] = &object.Builtin{Fn: drawCreateBoard}
 	m.Attrs["טען_תמונה"] = &object.Builtin{Fn: drawLoadImage}
 	m.Attrs["צבע"] = &object.Builtin{Fn: drawMakeColor}
+	m.Attrs["עורך"] = &object.Builtin{Fn: drawOpenEditor}
 	return m
 }
 
