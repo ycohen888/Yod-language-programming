@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.52.5</span><strong>חלונות</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.52.6</span><strong>חלונות</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
@@ -53,28 +53,21 @@
       <p>לציור צורות ותמונות — ראו <a href="ספריית-ציור.html">ספריית ציור</a>.</p>
 
       <h2>דפדפן בתוך חלון</h2>
+      <p>
+        כשנותנים כתובת ב־<code>חלונות.דפדפן(כתובת)</code> — האתר נטען <strong>מיד</strong> עם <code>הצג</code>, בלי כפתורים.
+      </p>
       <figure class="example">
         <span class="example-label">דוגמה</span>
         <pre class="code-block">כלול "חלונות"
 
 משתנה ח = חלונות.חלון: "דפדפן יוד"
 ח.קבע_גודל: 960, 640
-
-משתנה שדה = חלונות.שדה: "example.com"
-משתנה לך = חלונות.כפתור: "עבור"
 משתנה דף = חלונות.דפדפן: "https://example.com"
-
-לך.בלחיצה: פונקציה ()
-  דף.נווט(שדה.קרא_טקסט())
-סוף
-
-ח.הוסף: שדה
-ח.הוסף: לך
 ח.הוסף: דף
 ח.הצג:</pre>
         <div class="output">
           <span class="output-label">פלט</span>
-          <pre>(חלון עם שדה כתובת + דפדפן WebView2)</pre>
+          <pre>(חלון שנפתח ישר על example.com)</pre>
         </div>
       </figure>
 

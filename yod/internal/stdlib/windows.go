@@ -514,6 +514,15 @@ func winShow(st *windowState) object.Object {
 		}
 	})
 
+	// אחרי שהחלון מוצג — טעינה מחדש של הכתובת הראשונית (בלי כפתורים)
+	mw.Starting().Attach(func() {
+		for _, ch := range st.children {
+			if ch.kind == "דפדפן" {
+				browserLoadInitial(ch)
+			}
+		}
+	})
+
 	mw.Run()
 	return &object.Null{}
 }

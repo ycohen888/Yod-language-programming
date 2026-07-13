@@ -76,10 +76,25 @@ func attachWebView2(host walk.Window, initialURL, initialHTML string) (*edge.Chr
 	cr.Resize()
 	_ = cr.Show()
 
-	if strings.TrimSpace(initialHTML) != "" {
-		cr.NavigateToString(initialHTML)
-	} else if u := normalizeNavURL(initialURL); u != "" {
-		cr.Navigate(u)
+	load := func() {
+		cr.Resize()
+		_ = cr.Show()
+		_ = cr.NotifyParentWindowPositionChanged()
+		if strings.TrimSpace(initialHTML) != "" {
+			cr.NavigateToString(initialHTML)
+			return
+		}
+		if u := normalizeNavURL(initialURL); u != "" && u != "about:blank" {
+			cr.Navigate(u)
+		}
+	}
+	load()
+
+	// אחרי ניווט — לרענן גבולות (WebView2 לפעמים נשאר ריק עד Resize)
+	cr.NavigationCompletedCallback = func(_ *edge.ICoreWebView2, _ *edge.ICoreWebView2NavigationCompletedEventArgs) {
+		cr.Resize()
+		_ = cr.Show()
+		_ = cr.NotifyParentWindowPositionChanged()
 	}
 
 	host.SizeChanged().Attach(func() {
@@ -87,6 +102,24 @@ func attachWebView2(host walk.Window, initialURL, initialHTML string) (*edge.Chr
 		_ = cr.NotifyParentWindowPositionChanged()
 	})
 	return cr, nil
+}
+
+// browserLoadInitial טוען את הכתובת/HTML שנשמרו — נקרא אחרי שהחלון מוצג
+func browserLoadInitial(st *controlState) {
+	if st == nil || st.browser == nil {
+		return
+	}
+	st.browser.Resize()
+	_ = st.browser.Show()
+	_ = st.browser.NotifyParentWindowPositionChanged()
+	if strings.TrimSpace(st.html) != "" {
+		st.browser.NavigateToString(st.html)
+		return
+	}
+	u := normalizeNavURL(st.url)
+	if u != "" && u != "about:blank" {
+		st.browser.Navigate(u)
+	}
 }
 
 func browserNavigate(st *controlState, raw string) {
