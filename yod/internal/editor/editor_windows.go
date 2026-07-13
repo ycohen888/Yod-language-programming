@@ -83,6 +83,7 @@ func Run(path string) error {
 	var (
 		mw           *walk.MainWindow
 		codeHost     *walk.Composite
+		editStack    *walk.Composite // עורכי קוד ממלאים את כל השטח
 		docTabBar    *walk.Composite
 		codeEdit     *CodeEdit
 		lineEdit     *walk.TextEdit
@@ -110,44 +111,55 @@ func Run(path string) error {
 		busy         bool
 	)
 
-	treePaneW := 0 // יוגדר ל־~20% מרוחב החלון אחרי Create
-	var applyTreeWidth func()
-	applyTreeWidth = func() {
-		if treePane == nil {
+	treePaneW := 0 // יוגדר ל־~20% בפריסה הידנית של splitHost
+	treeSized := false
+	var layoutSplit func()
+	var fillEditStack func()
+	layoutSplit = func() {
+		if splitHost == nil || treePane == nil || gripHost == nil || editorSplit == nil {
 			return
 		}
-		hostW := 0
-		if splitHost != nil {
-			hostW = splitHost.ClientBoundsPixels().Width
+		cb := splitHost.ClientBoundsPixels()
+		if cb.Width < 200 || cb.Height < 40 {
+			return
 		}
-		if hostW < 80 && mw != nil {
-			hostW = mw.ClientBoundsPixels().Width
-		}
-		w := treePaneW
-		if w <= 0 && hostW > 0 {
-			w = hostW * 20 / 100
-		}
-		if w < 120 {
-			w = 120
-		}
-		maxW := 560
-		if hostW > 0 {
-			if room := hostW - 6 - 280; room > 120 {
-				maxW = room
+		const gripW = 6
+		const editorMin = 280
+		maxTree := cb.Width - gripW - editorMin
+		if maxTree < 100 {
+			maxTree = cb.Width / 3
+			if maxTree < 100 {
+				maxTree = 100
 			}
 		}
-		if w > maxW {
-			w = maxW
+		if !treeSized || treePaneW <= 0 {
+			treePaneW = cb.Width * 20 / 100
+			treeSized = true
 		}
-		treePaneW = w
-		_ = treePane.SetMinMaxSizePixels(
-			walk.Size{Width: w, Height: 80},
-			walk.Size{Width: w, Height: 8000},
-		)
-		if splitHost != nil {
-			splitHost.RequestLayout()
-		} else if mw != nil {
-			mw.RequestLayout()
+		if treePaneW < 100 {
+			treePaneW = 100
+		}
+		if treePaneW > maxTree {
+			treePaneW = maxTree
+		}
+		tw := treePaneW
+		_ = treePane.SetBoundsPixels(walk.Rectangle{X: 0, Y: 0, Width: tw, Height: cb.Height})
+		_ = gripHost.SetBoundsPixels(walk.Rectangle{X: tw, Y: 0, Width: gripW, Height: cb.Height})
+		_ = editorSplit.SetBoundsPixels(walk.Rectangle{
+			X: tw + gripW, Y: 0, Width: cb.Width - tw - gripW, Height: cb.Height,
+		})
+	}
+	fillEditStack = func() {
+		if editStack == nil {
+			return
+		}
+		b := editStack.ClientBoundsPixels()
+		if b.Width < 1 || b.Height < 1 {
+			return
+		}
+		ch := editStack.Children()
+		for i := 0; i < ch.Len(); i++ {
+			_ = ch.At(i).SetBoundsPixels(b)
 		}
 	}
 
@@ -1842,34 +1854,48 @@ func Run(path string) error {
 									Composite{
 										AssignTo:      &codeHost,
 										Layout:        HBox{MarginsZero: true, Spacing: 0},
-										Background:    SolidColorBrush{Color: colPanel},
+										Background:    SolidColorBrush{Color: colBg},
 										StretchFactor: 1,
 										MinSize:       Size{Height: 180},
 										Children: []Widget{
-											// RTL של החלון: gutter ראשון → מופיע מימין ליד תחילת השורה
-											TextEdit{
-												AssignTo:      &lineEdit,
-												ReadOnly:      true,
-												VScroll:       false,
-												TextAlignment: AlignFar,
-												TextColor:     colLineNum,
-												Background:    SolidColorBrush{Color: colGutter},
-												Font:          Font{Family: codeFace, PointSize: 14},
-												MinSize:       Size{Width: 48, Height: 180},
-												MaxSize:       Size{Width: 48},
-												OnMouseDown: func(x, y int, button walk.MouseButton) {
-													if button != walk.LeftButton || codeEdit == nil || lineEdit == nil {
-														return
-													}
-													var pt win.POINT
-													pt.X = int32(x)
-													pt.Y = int32(y)
-													r := lineEdit.SendMessage(win.EM_CHARFROMPOS, 0, uintptr(unsafe.Pointer(&pt)))
-													cp := int(win.LOWORD(uint32(r)))
-													ln := int(lineEdit.SendMessage(win.EM_LINEFROMCHAR, uintptr(cp), 0)) + 1
-													if ln >= 1 {
-														gotoLine(ln)
-													}
+											// LTR: עורך ממלא, מספור שורות מימין (ליד תחילת שורת RTL)
+											Composite{
+												AssignTo:      &editStack,
+												Layout:        VBox{MarginsZero: true, Spacing: 0},
+												Background:    SolidColorBrush{Color: colBg},
+												StretchFactor: 1,
+												MinSize:       Size{Width: 100, Height: 180},
+											},
+											Composite{
+												Layout:     VBox{MarginsZero: true, Spacing: 0},
+												MinSize:    Size{Width: 44},
+												MaxSize:    Size{Width: 44},
+												Background: SolidColorBrush{Color: colGutter},
+												Children: []Widget{
+													TextEdit{
+														AssignTo:      &lineEdit,
+														ReadOnly:      true,
+														VScroll:       false,
+														TextAlignment: AlignFar,
+														TextColor:     colLineNum,
+														Background:    SolidColorBrush{Color: colGutter},
+														Font:          Font{Family: codeFace, PointSize: 14},
+														StretchFactor: 1,
+														OnMouseDown: func(x, y int, button walk.MouseButton) {
+															if button != walk.LeftButton || codeEdit == nil || lineEdit == nil {
+																return
+															}
+															var pt win.POINT
+															pt.X = int32(x)
+															pt.Y = int32(y)
+															r := lineEdit.SendMessage(win.EM_CHARFROMPOS, 0, uintptr(unsafe.Pointer(&pt)))
+															cp := int(win.LOWORD(uint32(r)))
+															ln := int(lineEdit.SendMessage(win.EM_LINEFROMCHAR, uintptr(cp), 0)) + 1
+															if ln >= 1 {
+																gotoLine(ln)
+															}
+														},
+													},
 												},
 											},
 										},
@@ -2007,7 +2033,10 @@ func Run(path string) error {
 	}
 
 	var cerr error
-	codeEdit, cerr = NewCodeEdit(codeHost)
+	if editStack == nil {
+		return fmt.Errorf("אין אזור עורך")
+	}
+	codeEdit, cerr = NewCodeEdit(editStack)
 	if cerr != nil {
 		return fmt.Errorf("עורך קוד: %w", cerr)
 	}
@@ -2039,9 +2068,10 @@ func Run(path string) error {
 	}
 	wireCodeEdit(codeEdit)
 
-	docs = NewDocTabs(docTabBar, codeHost, codeEdit, wireCodeEdit)
+	docs = NewDocTabs(docTabBar, editStack, codeEdit, wireCodeEdit)
 	docs.OnEditor = func(ed *CodeEdit) {
 		codeEdit = ed // כל הסגירות הישנות ב־main מצביעות על העורך הגלוי
+		fillEditStack()
 	}
 
 	docs.OnActivate = func(tab *OpenFileTab) {
@@ -2088,7 +2118,6 @@ func Run(path string) error {
 			}
 		})
 	}
-	// codeHost נשאר RTL (ירושה מהחלון): gutter מימין ליד תחילת השורה
 	disableWordWrap(lineEdit)
 	fixHebrewEdit(errEdit)
 	fixHebrewEdit(outEdit)
@@ -2119,8 +2148,9 @@ func Run(path string) error {
 	}
 
 	if splitHost != nil {
-		// LTR קבוע לאזור הסייר+עורך — סייר משמאל, עורך מימין
+		// פריסה ידנית — רוחב סייר קבוע (~20%), בלי HBox/RTL שמרחיבים אותו
 		clearLayoutRTL(splitHost.Handle())
+		_ = splitHost.SetLayout(nil)
 		if treePane != nil {
 			clearLayoutRTL(treePane.Handle())
 		}
@@ -2129,21 +2159,21 @@ func Run(path string) error {
 		}
 		if gripHost != nil {
 			clearLayoutRTL(gripHost.Handle())
-			dragStartW := treePaneW
+			dragStartW := 0
 			grip := &splitGrip{}
 			if err := grip.Mount(gripHost, func(totalDX int) {
-				// totalDX = הזזת מסך מצטברת מתחילת הגרירה (בלי קפיצות מצטברות)
 				sign := 1
 				if !treeLeftOfGrip(treePane, gripHost) {
-					// סייר מימין לידית — הרחבה כשהעכבר זז שמאלה
 					sign = -1
 				}
+				if dragStartW <= 0 {
+					dragStartW = treePaneW
+				}
 				treePaneW = dragStartW + sign*totalDX
-				applyTreeWidth()
+				layoutSplit()
 			}); err != nil {
 				return err
 			}
-			// מאפסים את בסיס הרוחב בכל התחלת גרירה (דרך MouseDown על הידית)
 			grip.CustomWidget.MouseDown().Attach(func(x, y int, button walk.MouseButton) {
 				_ = x
 				_ = y
@@ -2151,38 +2181,39 @@ func Run(path string) error {
 					return
 				}
 				dragStartW = treePane.BoundsPixels().Width
-				if dragStartW < 120 {
+				if dragStartW < 80 {
 					dragStartW = treePaneW
 				}
 			})
 		}
-		// רוחב סייר ≈ 20% מרוחב אזור הסייר+עורך
 		treePaneW = 0
-		applyTreeWidth()
+		treeSized = false
+		layoutSplit()
+		splitHost.SizeChanged().Attach(func() {
+			layoutSplit()
+			fillEditStack()
+		})
 		if mw != nil {
-			var once bool
 			mw.SizeChanged().Attach(func() {
-				if once || splitHost == nil {
-					return
-				}
-				if splitHost.ClientBoundsPixels().Width < 80 {
-					return
-				}
-				once = true
-				treePaneW = 0
-				applyTreeWidth()
+				layoutSplit()
+				fillEditStack()
 			})
 		}
 	}
-	// כפיית RTL על אזור הקוד: gutter (ילד ראשון) מופיע מימין
+	// codeHost ב־LTR: עורך משמאל, מספור מימין (צמוד בלי רווחים)
 	if codeHost != nil {
-		ex := uint32(win.GetWindowLong(codeHost.Handle(), win.GWL_EXSTYLE))
-		ex |= win.WS_EX_LAYOUTRTL | win.WS_EX_NOINHERITLAYOUT
-		win.SetWindowLong(codeHost.Handle(), win.GWL_EXSTYLE, int32(ex))
-		win.SetWindowPos(codeHost.Handle(), 0, 0, 0, 0, 0,
-			win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
+		clearLayoutRTL(codeHost.Handle())
+		if editStack != nil {
+			clearLayoutRTL(editStack.Handle())
+			_ = editStack.SetLayout(nil)
+			editStack.SizeChanged().Attach(fillEditStack)
+		}
+		if lineEdit != nil {
+			styleEditorPane(lineEdit)
+		}
+		codeHost.RequestLayout()
+		fillEditStack()
 	}
-	codeHost.RequestLayout()
 	if fileTreeHost != nil && fileTree != nil {
 		if err := fileTree.Mount(fileTreeHost); err != nil {
 			walk.MsgBox(mw, "שגיאה", "לא ניתן ליצור סייר קבצים:\n"+err.Error(), walk.MsgBoxIconError)
