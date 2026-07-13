@@ -32,9 +32,10 @@ import (
 )
 
 var (
-	lineErrRe    = regexp.MustCompile(`(?i)(?:שורה|line)\s*(\d+)`)
-	errLeadRe    = regexp.MustCompile(`(?i)^שגיאה\s*:?\s*`)
+	lineErrRe     = regexp.MustCompile(`(?i)(?:שורה|line)\s*(\d+)`)
+	errLeadRe     = regexp.MustCompile(`(?i)^שגיאה\s*:?\s*`)
 	errLinePrefRe = regexp.MustCompile(`(?i)^(?:ב?שורה|line)\s*\d+\s*[:：\-—–]?\s*`)
+	errFileRe     = regexp.MustCompile(`(?i)בקובץ\s+([^\s:：]+)`)
 )
 
 // פלטת Dark+ מקצועית — רקע עמוק + מבטא teal של יוד
@@ -112,12 +113,16 @@ func Run(path string) error {
 	fileModel := NewFileListModel()
 	dirty := false
 	var errLines []int
+	var errFiles []string // מקביל ל־errLines — נתיב/שם קובץ לשגיאה
 	errLineSet := map[int]bool{}
 	var updateLineNumbers func()
 	var syncLineScroll func()
 	var updateCaretStatus func()
 	var refreshProjectUI func()
 	var selectPathInTree func(string)
+	var jumpFromErrPanel func()
+	var openPath func(string) error
+	var resolveErrorFile func(string) string
 	lastGutterLines := 0
 
 	setCompleteProjectRoot := func(root string) {
@@ -287,17 +292,30 @@ func Run(path string) error {
 		if len(msgs) == 0 {
 			setPanelText(errEdit, "אין שגיאות")
 			errLines = []int{0}
+			errFiles = []string{""}
 			errCount = 0
 			refreshTabLabels()
 			updateLineNumbers()
 			return
 		}
-		display, lines := formatErrorPanel(msgs)
+		display, lines, files := formatErrorPanel(msgs)
 		errCount = len(lines)
 		errLines = lines
-		for _, ln := range lines {
+		errFiles = files
+		curBase := ""
+		if currentPath != "" {
+			curBase = filepath.Base(currentPath)
+		}
+		for i, ln := range lines {
 			if ln > 0 {
-				errLineSet[ln] = true
+				f := ""
+				if i < len(files) {
+					f = files[i]
+				}
+				// סמן בשוליים רק שגיאות של הקובץ הפתוח כרגע
+				if f == "" || f == curBase || filepath.Base(f) == curBase {
+					errLineSet[ln] = true
+				}
 			}
 		}
 		setPanelText(errEdit, display)
@@ -328,14 +346,34 @@ func Run(path string) error {
 		updateCaretStatus()
 	}
 
-	jumpFromErrPanel := func() {
+	jumpFromErrPanel = func() {
 		if errEdit == nil || len(errLines) == 0 {
 			return
 		}
 		start, _ := errEdit.TextSelection()
 		idx := lineIndexAt(errEdit.Text(), start)
-		if idx >= 0 && idx < len(errLines) && errLines[idx] > 0 {
-			gotoLine(errLines[idx])
+		if idx < 0 || idx >= len(errLines) {
+			return
+		}
+		ln := errLines[idx]
+		fileHint := ""
+		if idx < len(errFiles) {
+			fileHint = errFiles[idx]
+		}
+		if fileHint != "" && openPath != nil {
+			abs := ""
+			if resolveErrorFile != nil {
+				abs = resolveErrorFile(fileHint)
+			}
+			if abs != "" {
+				if err := openPath(abs); err != nil && err.Error() != "בוטל" {
+					walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+					return
+				}
+			}
+		}
+		if ln > 0 {
+			gotoLine(ln)
 		}
 	}
 
@@ -460,6 +498,71 @@ func Run(path string) error {
 		return nil
 	}
 
+	// resolveErrorFile — מוצא נתיב מלא לקובץ שגיאה (שם בסיס או נתיב)
+	resolveErrorFile = func(name string) string {
+		if name == "" {
+			return ""
+		}
+		if filepath.IsAbs(name) {
+			return name
+		}
+		candidates := []string{}
+		if projectRoot != "" {
+			candidates = append(candidates, filepath.Join(projectRoot, name))
+		}
+		if currentPath != "" {
+			candidates = append(candidates, filepath.Join(filepath.Dir(currentPath), name))
+		}
+		candidates = append(candidates, filepath.Join(baseDir(), name))
+		for _, c := range candidates {
+			if fi, err := os.Stat(c); err == nil && !fi.IsDir() {
+				return c
+			}
+		}
+		if projectRoot != "" {
+			var found string
+			_ = filepath.Walk(projectRoot, func(path string, info os.FileInfo, err error) error {
+				if err != nil || info.IsDir() {
+					return nil
+				}
+				if strings.EqualFold(info.Name(), name) || strings.EqualFold(info.Name(), filepath.Base(name)) {
+					found = path
+					return filepath.SkipAll
+				}
+				return nil
+			})
+			return found
+		}
+		return ""
+	}
+
+	// autoSaveIfNeeded — שמירה שקטה לפני מעבר לקובץ אחר (בלי דיאלוג מפריע)
+	autoSaveIfNeeded := func() bool {
+		if !dirty {
+			return true
+		}
+		if currentPath == "" {
+			return confirmDiscard("לשמור לפני מעבר לקובץ אחר")
+		}
+		if err := saveFile(false); err != nil {
+			walk.MsgBox(mw, "שגיאה", "שמירה אוטומטית נכשלה:\n"+err.Error(), walk.MsgBoxIconError)
+			return false
+		}
+		return true
+	}
+
+	// openPath — פתיחת קובץ עם שמירה אוטומטית של הנוכחי
+	openPath = func(p string) error {
+		if currentPath != "" && filepath.Clean(p) == filepath.Clean(currentPath) {
+			selectPathInTree(p)
+			return nil
+		}
+		if !autoSaveIfNeeded() {
+			return fmt.Errorf("בוטל")
+		}
+		return loadFile(p)
+	}
+
 	newFile := func() {
 		if !confirmDiscard("לשמור לפני קובץ חדש") {
 			return
@@ -506,6 +609,22 @@ func Run(path string) error {
 		fn()
 	}
 
+	stampSyntaxErrs := func(errs []string, file string) []string {
+		if file == "" || len(errs) == 0 {
+			return errs
+		}
+		base := filepath.Base(file)
+		out := make([]string, len(errs))
+		for i, e := range errs {
+			if strings.Contains(e, "בקובץ ") {
+				out[i] = e
+			} else {
+				out[i] = "שגיאה בקובץ " + base + ": " + e
+			}
+		}
+		return out
+	}
+
 	// sourceForRun — בפרויקט פתוח מריצים תמיד את התחל.יוד; אחרת את העורך הנוכחי.
 	sourceForRun := func() (source, runPath string, ok bool) {
 		if projectMode && projectRoot != "" {
@@ -546,7 +665,7 @@ func Run(path string) error {
 			pr := parser.New(lexer.New(source))
 			program := pr.ParseProgram()
 			if errs := pr.Errors(); len(errs) > 0 {
-				setErrors(errs)
+				setErrors(stampSyntaxErrs(errs, runPath))
 				setOutput("")
 				setStatus(fmt.Sprintf("✗ שגיאות תחביר · %d", len(errs)))
 				gotoLine(extractLine(errs[0]))
@@ -578,7 +697,7 @@ func Run(path string) error {
 		pr := parser.New(lexer.New(source))
 		program := pr.ParseProgram()
 		if errs := pr.Errors(); len(errs) > 0 {
-			setErrors(errs)
+			setErrors(stampSyntaxErrs(errs, runPath))
 			setStatus(fmt.Sprintf("✗ שגיאות תחביר · %d", len(errs)))
 			gotoLine(extractLine(errs[0]))
 			return
@@ -674,6 +793,8 @@ func Run(path string) error {
 				}
 			}()
 
+			evaluator.PushSourceFile(runPath)
+			defer evaluator.PopSourceFile()
 			env := evaluator.NewGlobalEnv(baseDir())
 			result := evaluator.Eval(program, env)
 			out := buf.String()
@@ -702,7 +823,7 @@ func Run(path string) error {
 
 	runMachine := func() {
 		withBusy("מריץ · מכונה…", func() {
-			source, _, ok := sourceForRun()
+			source, runPath, ok := sourceForRun()
 			if !ok {
 				return
 			}
@@ -714,7 +835,7 @@ func Run(path string) error {
 			pr := parser.New(lexer.New(source))
 			program := pr.ParseProgram()
 			if errs := pr.Errors(); len(errs) > 0 {
-				setErrors(errs)
+				setErrors(stampSyntaxErrs(errs, runPath))
 				setStatus(fmt.Sprintf("✗ שגיאות תחביר · %d", len(errs)))
 				gotoLine(extractLine(errs[0]))
 				return
@@ -866,7 +987,7 @@ func Run(path string) error {
 				"Tab / Shift+Tab  הזחה / החזרת הזחה\n"+
 				"Enter  שורה חדשה עם הזחה\n"+
 				"Ctrl+Shift+F  סדר קוד · Ctrl± גודל גופן\n\n"+
-				"● בשוליים = שורת שגיאה · לחיצה על שגיאה קופצת לשורה",
+				"● בשוליים = שורת שגיאה · לחיצה על שגיאה פותחת קובץ וקופצת לשורה",
 			walk.MsgBoxOK|walk.MsgBoxIconInformation)
 	}
 
@@ -1021,10 +1142,7 @@ func Run(path string) error {
 			fileModel.Enter(n.path)
 			return
 		}
-		if !confirmDiscard("לשמור לפני פתיחת קובץ") {
-			return
-		}
-		if err := loadFile(n.path); err != nil {
+		if err := openPath(n.path); err != nil && err.Error() != "בוטל" {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 		}
 	}
@@ -1045,11 +1163,7 @@ func Run(path string) error {
 			return
 		}
 		fileModel.Refresh()
-		if !confirmDiscard("לשמור לפני פתיחת הקובץ החדש") {
-			selectPathInTree(path)
-			return
-		}
-		if err := loadFile(path); err != nil {
+		if err := openPath(path); err != nil && err.Error() != "בוטל" {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 		}
 	}
@@ -1496,7 +1610,7 @@ func Run(path string) error {
 			return e
 		}
 		if hint, e := walk.NewLabel(tabBar); e == nil {
-			_ = hint.SetText("לחיצה על שגיאה ← מעבר לשורה")
+			_ = hint.SetText("לחיצה על שגיאה ← פתיחת הקובץ ומעבר לשורה")
 			hint.SetTextColor(colMuted)
 			_ = hint.SetRightToLeftReading(true)
 		}
@@ -1788,45 +1902,67 @@ func extractLine(msg string) int {
 	return n
 }
 
-// formatErrorPanel מציג כל שגיאה בשורה נפרדת: «שגיאה בשורה N — הסבר»
-func formatErrorPanel(msgs []string) (string, []int) {
+// formatErrorPanel מציג כל שגיאה בשורה נפרדת: «שגיאה בקובץ X בשורה N — הסבר»
+func formatErrorPanel(msgs []string) (string, []int, []string) {
 	var lines []string
 	var lineNums []int
+	var files []string
 	for _, raw := range msgs {
 		for _, part := range strings.Split(raw, "\n") {
 			part = strings.TrimSpace(part)
 			if part == "" || part == "שגיאות תחביר:" {
 				continue
 			}
-			display, ln := formatOneError(part)
+			display, ln, file := formatOneError(part)
 			lines = append(lines, display)
 			lineNums = append(lineNums, ln)
+			files = append(files, file)
 		}
 	}
 	if len(lines) == 0 {
-		return "אין שגיאות", []int{0}
+		return "אין שגיאות", []int{0}, []string{""}
 	}
-	return strings.Join(lines, "\r\n"), lineNums
+	return strings.Join(lines, "\r\n"), lineNums, files
 }
 
-func formatOneError(raw string) (string, int) {
+func formatOneError(raw string) (display string, line int, file string) {
 	s := strings.TrimSpace(raw)
 	s = strings.TrimLeft(s, " \t•-")
 	s = errLeadRe.ReplaceAllString(s, "")
 	s = strings.TrimSpace(s)
+
+	if m := errFileRe.FindStringSubmatch(s); len(m) > 1 {
+		file = strings.TrimSpace(m[1])
+		// מסיר «בקובץ NAME» / «בקובץ NAME בשורה» מההמשך
+		s = strings.TrimSpace(errFileRe.ReplaceAllString(s, ""))
+		s = strings.TrimLeft(s, ":：—–- ")
+	}
 
 	ln := extractLine(s)
 	explanation := s
 	if pref := errLinePrefRe.FindString(s); pref != "" {
 		explanation = strings.TrimSpace(s[len(pref):])
 	}
+	explanation = strings.TrimLeft(explanation, ":：—–- ")
 	if explanation == "" {
 		explanation = s
 	}
-	if ln > 0 {
-		return fmt.Sprintf("שגיאה בשורה %d — %s", ln, explanation), ln
+	// ניקוי כפילות «בשורה N» שנשארה אחרי בקובץ
+	if pref := errLinePrefRe.FindString(explanation); pref != "" {
+		explanation = strings.TrimSpace(explanation[len(pref):])
+		explanation = strings.TrimLeft(explanation, ":：—–- ")
 	}
-	return fmt.Sprintf("שגיאה — %s", explanation), 0
+
+	switch {
+	case file != "" && ln > 0:
+		return fmt.Sprintf("שגיאה בקובץ %s בשורה %d — %s", file, ln, explanation), ln, file
+	case file != "":
+		return fmt.Sprintf("שגיאה בקובץ %s — %s", file, explanation), 0, file
+	case ln > 0:
+		return fmt.Sprintf("שגיאה בשורה %d — %s", ln, explanation), ln, ""
+	default:
+		return fmt.Sprintf("שגיאה — %s", explanation), 0, ""
+	}
 }
 
 func lineIndexAt(src string, pos int) int {

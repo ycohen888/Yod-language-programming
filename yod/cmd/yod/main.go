@@ -21,7 +21,7 @@ import (
 //go:generate go run ../../tools/mkico.go ../../assets/yod-icon-source.png ../../assets/yod.ico
 //go:generate rsrc -arch amd64 -ico ../../assets/yod.ico -manifest yod.exe.manifest -o rsrc_windows_amd64.syso
 
-const version = "0.52.1"
+const version = "0.52.2"
 
 func main() {
 	console.Init()
@@ -236,6 +236,8 @@ func runSource(source, pathForBase string) error {
 	if base == "" {
 		base = "."
 	}
+	evaluator.PushSourceFile(pathForBase)
+	defer evaluator.PopSourceFile()
 	env := evaluator.NewGlobalEnv(base)
 	result := evaluator.Eval(program, env)
 	if result != nil && result.Type() == object.ErrorObj {

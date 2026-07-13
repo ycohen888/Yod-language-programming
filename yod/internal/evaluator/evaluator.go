@@ -879,7 +879,11 @@ func isError(obj object.Object) bool {
 }
 
 func newError(line int, msg string) *object.Error {
-	return &object.Error{Message: fmt.Sprintf("שורה %d: %s", line, msg)}
+	return &object.Error{
+		Message: fmt.Sprintf("שורה %d: %s", line, msg),
+		Line:    line,
+		File:    currentSourceFile(),
+	}
 }
 
 var builtins = map[string]*object.Builtin{
@@ -1056,10 +1060,19 @@ func evalInclude(node *ast.IncludeStatement, env *object.Environment) object.Obj
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if errs := p.Errors(); len(errs) > 0 {
-		return newError(node.Line(), "שגיאות בקובץ הכלול "+path+": "+errs[0])
+		return &object.Error{
+			Message: errs[0],
+			Line:    extractLineNum(errs[0]),
+			File:    full,
+		}
 	}
+	PushSourceFile(full)
+	defer PopSourceFile()
 	result := Eval(program, env)
 	if isError(result) {
+		if e, ok := result.(*object.Error); ok && e.File == "" {
+			e.File = full
+		}
 		return result
 	}
 	return NULL

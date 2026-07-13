@@ -2,6 +2,7 @@ package object
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"yod/internal/ast"
@@ -87,10 +88,29 @@ func (r *ReturnValue) Inspect() string { return r.Value.Inspect() }
 
 type Error struct {
 	Message string
+	Line    int    // מספר שורה (0 אם לא ידוע)
+	File    string // נתיב קובץ המקור (ריק אם לא ידוע)
 }
 
-func (e *Error) Type() Type      { return ErrorObj }
-func (e *Error) Inspect() string { return "שגיאה: " + e.Message }
+func (e *Error) Type() Type { return ErrorObj }
+
+func (e *Error) Inspect() string {
+	msg := e.Message
+	// תאימות לאחור: אם Message כבר מתחיל ב־«שורה N:» — לא כופלים
+	hasLineInMsg := e.Line > 0 && strings.HasPrefix(msg, "שורה ")
+	switch {
+	case e.File != "" && e.Line > 0 && !hasLineInMsg:
+		return fmt.Sprintf("שגיאה בקובץ %s בשורה %d: %s", filepath.Base(e.File), e.Line, msg)
+	case e.File != "" && hasLineInMsg:
+		return fmt.Sprintf("שגיאה בקובץ %s: %s", filepath.Base(e.File), msg)
+	case e.File != "":
+		return fmt.Sprintf("שגיאה בקובץ %s: %s", filepath.Base(e.File), msg)
+	case e.Line > 0 && !hasLineInMsg:
+		return fmt.Sprintf("שגיאה בשורה %d: %s", e.Line, msg)
+	default:
+		return "שגיאה: " + msg
+	}
+}
 
 type Break struct{}
 

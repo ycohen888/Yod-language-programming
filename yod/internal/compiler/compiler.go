@@ -38,6 +38,7 @@ type Compiler struct {
 	loops       []LoopContext
 	classes     map[string]*object.Class
 	baseDir     string
+	sourceFile  string
 	included    map[string]bool
 }
 
@@ -659,13 +660,21 @@ func (c *Compiler) compileInclude(node *ast.IncludeStatement) error {
 	p := parser.New(l)
 	program := p.ParseProgram()
 	if errs := p.Errors(); len(errs) > 0 {
-		return fmt.Errorf("שגיאות בקובץ הכלול %s: %s", path, errs[0])
+		return fmt.Errorf("שגיאה בקובץ %s: %s", filepath.Base(full), errs[0])
 	}
 
 	prev := c.baseDir
+	prevFile := c.sourceFile
 	c.baseDir = filepath.Dir(full)
-	defer func() { c.baseDir = prev }()
-	return c.Compile(program)
+	c.sourceFile = full
+	defer func() {
+		c.baseDir = prev
+		c.sourceFile = prevFile
+	}()
+	if err := c.Compile(program); err != nil {
+		return fmt.Errorf("שגיאה בקובץ %s: %v", filepath.Base(full), err)
+	}
+	return nil
 }
 
 func constantObject(expr ast.Expression) (object.Object, bool) {
