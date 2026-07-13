@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית גרפים | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.59.0</span><strong>גרפים</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית גרפים</h1>
+      <p class="lead">
+        גרפים מקצועיים לחלון Windows: עמודות, קו ועוגה (דונאט),
+        עם מקרא, רשת, כותרת וסדרות מרובות.
+        טוענים עם <code>כלול "גרפים"</code> (או <code>חלונות.גרף</code>).
+      </p>
+
+      <h2>יצירה</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>יצירה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>גרפים.עמודות()</code></td><td>גרף עמודות (גם קבוצות לסדרות)</td></tr>
+          <tr><td><code>גרפים.קו()</code></td><td>גרף קו עם נקודות</td></tr>
+          <tr><td><code>גרפים.עוגה()</code></td><td>עוגה / דונאט עם אחוזים</td></tr>
+          <tr><td><code>גרפים.גרף("עמודות"|"קו"|"עוגה")</code></td><td>יצירה כללית לפי סוג</td></tr>
+          <tr><td><code>חלונות.גרף(סוג?)</code></td><td>אותו רכיב מתוך ספריית חלונות</td></tr>
+        </tbody>
+      </table>
+
+      <h2>מתודות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>מתודה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>קבע_כותרת(טקסט)</code></td><td>כותרת מעל הגרף</td></tr>
+          <tr><td><code>קבע_תוויות(רשימה)</code></td><td>תוויות ציר X / קטגוריות</td></tr>
+          <tr><td><code>קבע_סדרות(רשימה)</code></td><td>מילונים: <code>שם</code>, <code>ערכים</code>, אופציונלי <code>צבע</code></td></tr>
+          <tr><td><code>קבע_נתונים(רשימה)</code></td><td>קיצור: מספרים, או <code>{"שם","ערך","צבע?"}</code> (לעוגה)</td></tr>
+          <tr><td><code>קבע_סוג(סוג)</code></td><td>החלפת סוג בזמן ריצה</td></tr>
+          <tr><td><code>קבע_ציר_X</code> / <code>קבע_ציר_Y</code></td><td>תוויות צירים</td></tr>
+          <tr><td><code>קבע_מקרא(אמת|שקר)</code></td><td>הצגת מקרא (ברירת מחדל: אמת)</td></tr>
+          <tr><td><code>קבע_רשת(אמת|שקר)</code></td><td>קווי עזר (עמודות/קו)</td></tr>
+          <tr><td><code>קבע_גובה(מספר)</code></td><td>גובה מינימלי של הרכיב</td></tr>
+          <tr><td><code>רענן()</code></td><td>ציור מחדש אחרי שינוי נתונים</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה — עמודות</h2>
+      <figure class="example">
+        <span class="example-label">שתי סדרות</span>
+        <pre class="code-block">כלול "חלונות"
+כלול "גרפים"
+
+משתנה ח = חלונות.חלון: "מכירות"
+ח.קבע_גודל: 720, 420
+
+משתנה ג = גרפים.עמודות()
+ג.קבע_כותרת: "מכירות"
+ג.קבע_תוויות: ["א", "ב", "ג"]
+ג.קבע_סדרות: [
+  {"שם": "2025", "ערכים": [10, 20, 15], "צבע": "כחול"},
+  {"שם": "2024", "ערכים": [8, 14, 12], "צבע": "כתום"}
+]
+
+ח.הוסף: ג
+ח.הצג:</pre>
+      </figure>
+
+      <h2>דוגמה — עוגה</h2>
+      <figure class="example">
+        <span class="example-label">נתחים עם אחוזים</span>
+        <pre class="code-block">משתנה ע = גרפים.עוגה()
+ע.קבע_כותרת: "נתח"
+ע.קבע_נתונים: [
+  {"שם": "א", "ערך": 40},
+  {"שם": "ב", "ערך": 35},
+  {"שם": "ג", "ערך": 25}
+]</pre>
+      </figure>
+
+      <div class="callout tip">
+        דוגמה מלאה עם שלושה גרפים — <code>פרוייקט דוגמה/גרפים/</code>.
+        הצבעים: כחול, ירוק, אדום, כתום, סגול, ורוד, תכלת, צהוב, זהב, אפור…
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

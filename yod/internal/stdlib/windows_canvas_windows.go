@@ -600,6 +600,8 @@ func buildControlWidget(ch *controlState) Widget {
 		}
 	case "טבלה":
 		return buildTableWidget(ch)
+	case "גרף":
+		return buildChartWidget(ch)
 	case "דפדפן":
 		return Composite{
 			AssignTo:      &ch.host,

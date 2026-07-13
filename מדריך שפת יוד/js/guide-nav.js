@@ -4,7 +4,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.53.0";
+  var VERSION = "0.59.0";
 
   /** עץ ניווט: פרקים + תת־סעיפים (עמודים) */
   var NAV = [
@@ -79,7 +79,8 @@
         { title: "מערכת", href: "עמודים/ספריית-מערכת.html", keywords: "סביבה תהליך מעבד זיכרון כונן" },
         { title: "רשת", href: "עמודים/ספריית-רשת.html", keywords: "HTTP" },
         { title: "SQL", href: "עמודים/ספריית-SQL.html", keywords: "sqlite mysql" },
-        { title: "חלונות", href: "עמודים/ספריית-חלונות.html", keywords: "GUI דפדפן WebView2 אתר משטח" },
+        { title: "חלונות", href: "עמודים/ספריית-חלונות.html", keywords: "GUI דפדפן WebView2 אתר משטח טבלה גרף" },
+        { title: "גרפים", href: "עמודים/ספריית-גרפים.html", keywords: "גרף עמודות קו עוגה סדרות מקרא" },
         { title: "עכבר", href: "עמודים/ספריית-עכבר.html", keywords: "מיקום כפתור שמאל ימין אמצע" },
         { title: "ציור", href: "עמודים/ספריית-ציור.html", keywords: "PNG צורות" },
         { title: "הצפנה", href: "עמודים/ספריית-הצפנה.html", keywords: "sha md5" },

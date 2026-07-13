@@ -72,6 +72,16 @@ type controlState struct {
 	tableView  *walk.TableView
 	tableModel *yodTableModel
 	tableCols  []int
+	// גרף
+	chartWidget     *walk.CustomWidget
+	chartKind       string // עמודות | קו | עוגה
+	chartTitle      string
+	chartLabels     []string
+	chartSeries     []chartSeries
+	chartXLabel     string
+	chartYLabel     string
+	chartShowLegend bool
+	chartShowGrid   bool
 }
 
 func NewWindowsModule() *object.Module {
@@ -93,6 +103,7 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["בחר_פתיחה"] = &object.Builtin{Fn: winFileOpen}
 	m.Attrs["רשימה"] = &object.Builtin{Fn: winCreateList}
 	m.Attrs["טבלה"] = &object.Builtin{Fn: winCreateTable}
+	m.Attrs["גרף"] = &object.Builtin{Fn: winCreateChart}
 	m.Attrs["שאל"] = &object.Builtin{Fn: winAsk}
 	return m
 }
@@ -343,8 +354,18 @@ func parseWalkColor(args ...object.Object) (walk.Color, error) {
 				return walk.RGB(30, 30, 30), nil
 			case "לבן", "white":
 				return walk.RGB(250, 250, 250), nil
+			case "צהוב", "yellow":
+				return walk.RGB(234, 179, 8), nil
+			case "סגול", "purple", "violet":
+				return walk.RGB(168, 85, 247), nil
+			case "ורוד", "pink":
+				return walk.RGB(236, 72, 153), nil
+			case "תכלת", "cyan", "sky":
+				return walk.RGB(14, 165, 233), nil
+			case "זהב", "gold":
+				return walk.RGB(202, 138, 4), nil
 			default:
-				return 0, fmt.Errorf("צבע לא מוכר: %s (ירוק/אדום/כתום/כחול/אפור)", s)
+				return 0, fmt.Errorf("צבע לא מוכר: %s", s)
 			}
 		}
 		return 0, fmt.Errorf("קבע_צבע מצפה לשם צבע או ל־3 מספרים RGB")

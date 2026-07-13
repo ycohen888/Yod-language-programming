@@ -26,6 +26,7 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["בחר_פתיחה"] = unsupported
 	m.Attrs["רשימה"] = unsupported
 	m.Attrs["טבלה"] = unsupported
+	m.Attrs["גרף"] = unsupported
 	m.Attrs["שאל"] = unsupported
 	return m
 }
