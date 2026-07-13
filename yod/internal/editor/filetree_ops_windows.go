@@ -67,6 +67,57 @@ func promptTextDialog(owner walk.Form, title, label, initial string) (string, bo
 	return result, accepted
 }
 
+// promptPathDialog — הזנת נתיב מלא (מאפשר \ ו־:)
+func promptPathDialog(owner walk.Form, title, label, initial string) (string, bool) {
+	var dlg *walk.Dialog
+	var edit *walk.LineEdit
+	var acceptPB *walk.PushButton
+	accepted := false
+	result := ""
+
+	accept := func() {
+		result = strings.TrimSpace(edit.Text())
+		if result == "" {
+			walk.MsgBox(dlg, title, "נא להזין נתיב.", walk.MsgBoxIconWarning)
+			return
+		}
+		accepted = true
+		dlg.Accept()
+	}
+
+	_, _ = Dialog{
+		AssignTo:           &dlg,
+		Title:              title,
+		MinSize:            Size{Width: 480, Height: 150},
+		Layout:             VBox{Margins: Margins{Left: 14, Right: 14, Top: 12, Bottom: 12}, Spacing: 10},
+		DefaultButton:      &acceptPB,
+		RightToLeftReading: true,
+		Children: []Widget{
+			Label{Text: label, RightToLeftReading: true},
+			LineEdit{
+				AssignTo:           &edit,
+				Text:               initial,
+				RightToLeftReading: true,
+				OnKeyDown: func(key walk.Key) {
+					if key == walk.KeyReturn {
+						accept()
+					}
+				},
+			},
+			Composite{
+				Layout: HBox{Spacing: 8},
+				Children: []Widget{
+					HSpacer{},
+					PushButton{AssignTo: &acceptPB, Text: "אישור", OnClicked: accept},
+					PushButton{Text: "ביטול", OnClicked: func() { dlg.Cancel() }},
+				},
+			},
+		},
+	}.Run(owner)
+
+	return result, accepted
+}
+
 func createNewFileOnDisk(dir, name string) (string, error) {
 	if filepath.Ext(name) == "" {
 		name += ".יוד"

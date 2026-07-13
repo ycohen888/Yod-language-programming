@@ -840,20 +840,24 @@ func Run(path string) error {
 			initial = projectRoot
 		} else if currentPath != "" {
 			initial = filepath.Dir(currentPath)
+		} else if home, err := os.UserHomeDir(); err == nil {
+			initial = home
 		}
 		path, ok, err := pickFolder(mw, "פתיחת תיקיית פרויקט", initial)
-		if err != nil {
-			// גיבוי: הזנת נתיב ידנית אם הדיאלוג נכשל
-			typed, typedOK := promptTextDialog(mw, "פתיחת תיקייה", "נתיב מלא לתיקייה:", initial)
-			if !typedOK || typed == "" {
-				walk.MsgBox(mw, "שגיאה", "לא ניתן לפתוח דיאלוג תיקייה:\n"+err.Error(), walk.MsgBoxIconError)
+		if err != nil || !ok || path == "" {
+			if err != nil {
+				// גיבוי: הזנת נתיב מלא (לא promptTextDialog — הוא דוחה \ בנתיב)
+				typed, typedOK := promptPathDialog(mw, "פתיחת תיקייה", "נתיב מלא לתיקייה:", initial)
+				if !typedOK || typed == "" {
+					if err != nil {
+						walk.MsgBox(mw, "שגיאה", "לא ניתן לפתוח דיאלוג תיקייה:\n"+err.Error(), walk.MsgBoxIconError)
+					}
+					return
+				}
+				path = typed
+			} else {
 				return
 			}
-			path = typed
-			ok = true
-		}
-		if !ok || path == "" {
-			return
 		}
 		fi, err := os.Stat(path)
 		if err != nil || !fi.IsDir() {
@@ -864,28 +868,9 @@ func Run(path string) error {
 		if err == nil {
 			path = abs
 		}
-		// מסתירים ומחליפים מודל — מונע קריסות ב־TreeView על ItemsReset
-		if treeView != nil {
-			treeView.SetVisible(false)
-			treeView.SetSuspended(true)
-		}
-		if treeEmpty != nil {
-			treeEmpty.SetVisible(true)
-		}
+		// אותו מסלול כמו פתיחת קובץ (עובד) — רק SetRoot, בלי SetModel
 		projectRoot = path
-		newModel := NewFileTreeModel()
-		newModel.SetRoot(projectRoot)
-		if treeView != nil {
-			if err := treeView.SetModel(newModel); err != nil {
-				treeView.SetSuspended(false)
-				walk.MsgBox(mw, "שגיאה", "טעינת סייר נכשלה:\n"+err.Error(), walk.MsgBoxIconError)
-				return
-			}
-		}
-		treeModel = newModel
-		if treeView != nil {
-			treeView.SetSuspended(false)
-		}
+		treeModel.SetRoot(projectRoot)
 		refreshProjectUI()
 		updateTitle()
 		setStatus("תיקייה · " + filepath.Base(projectRoot))
