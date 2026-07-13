@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -169,7 +170,10 @@ func Run(path string) error {
 		if updateCaretStatus != nil {
 			updateCaretStatus()
 		}
-		// gutter + סייר — מחוץ לנתיב הקריטי של לחיצת טאב
+		// gutter מיד עם הקובץ הפעיל — בלי המתנה (אחרת מספרי שורות «ישנים»)
+		if updateLineNumbers != nil {
+			updateLineNumbers()
+		}
 		path := currentPath
 		tab := docs.Active
 		time.AfterFunc(1*time.Millisecond, func() {
@@ -180,8 +184,8 @@ func Run(path string) error {
 				if docs == nil || docs.Active != tab {
 					return
 				}
-				if updateLineNumbers != nil {
-					updateLineNumbers()
+				if syncLineScroll != nil {
+					syncLineScroll()
 				}
 				if path != "" {
 					selectPathInTree(path)
@@ -473,6 +477,7 @@ func Run(path string) error {
 			return
 		}
 		n := codeEdit.LineCount()
+		lastGutterLines = n
 		width := len(strconv.Itoa(n))
 		if width < 3 {
 			width = 3
@@ -483,6 +488,7 @@ func Run(path string) error {
 			if i > 1 {
 				b.WriteString("\r\n")
 			}
+			// רוחב קבוע לסימן שגיאה — כדי שהמספרים יישארו מיושרים
 			if errLineSet[i] {
 				fmt.Fprintf(&b, "●%*d", width, i)
 			} else {
@@ -491,6 +497,7 @@ func Run(path string) error {
 		}
 		win.SendMessage(lineEdit.Handle(), win.WM_SETREDRAW, 0, 0)
 		lineEdit.SetText(b.String())
+		applyGutterMetrics(lineEdit)
 		if len(errLineSet) > 0 {
 			lineEdit.SetTextColor(colErrText)
 		} else {
@@ -498,7 +505,12 @@ func Run(path string) error {
 		}
 		win.SendMessage(lineEdit.Handle(), win.WM_SETREDRAW, 1, 0)
 		win.InvalidateRect(lineEdit.Handle(), nil, true)
-		updateCaretStatus()
+		// אחרי החלפת טקסט הסקרול ב־gutter מתאפס — לסנכרן מיד עם העורך
+		if syncLineScroll != nil {
+			syncLineScroll()
+		} else {
+			updateCaretStatus()
+		}
 	}
 
 	syncLineScroll = func() {
@@ -509,6 +521,15 @@ func Run(path string) error {
 		gut := int(lineEdit.SendMessage(win.EM_GETFIRSTVISIBLELINE, 0, 0))
 		if first != gut {
 			lineEdit.SendMessage(win.EM_LINESCROLL, 0, uintptr(first-gut))
+		}
+		// אם עדיין לא מיושר — נסיון לפי פיקסלים (כמו בעורך)
+		_, cy := codeEdit.ScrollPos()
+		var gpt win.POINT
+		lineEdit.SendMessage(emGetScrollPos, 0, uintptr(unsafe.Pointer(&gpt)))
+		if int(gpt.Y) != cy {
+			gpt.X = 0
+			gpt.Y = int32(cy)
+			lineEdit.SendMessage(emSetScrollPos, 0, uintptr(unsafe.Pointer(&gpt)))
 		}
 		updateCaretStatus()
 	}
@@ -1176,9 +1197,13 @@ func Run(path string) error {
 			if f, err := walk.NewFont(codeFace, size, 0); err == nil {
 				lineEdit.SetFont(f)
 			}
+			applyGutterMetrics(lineEdit)
 		}
 		if modeLbl != nil {
 			modeLbl.SetText(fmt.Sprintf("UTF-8 · יוד · %dpt", size))
+		}
+		if updateLineNumbers != nil {
+			updateLineNumbers()
 		}
 	}
 
@@ -2195,6 +2220,49 @@ func fixGutterEdit(w walk.Window) {
 	win.SetWindowLong(hwnd, win.GWL_EXSTYLE, int32(ex))
 	win.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
 		win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
+	if te, ok := w.(*walk.TextEdit); ok {
+		applyGutterMetrics(te)
+	}
+}
+
+// applyGutterMetrics — אותו גובה/מרווח שורה כמו ב־CodeEdit, כדי שמספרים יישבו מול השורות.
+func applyGutterMetrics(te *walk.TextEdit) {
+	if te == nil {
+		return
+	}
+	hwnd := te.Handle()
+	// בחירת כל הטקסט לעיצוב
+	var cr win.CHARRANGE
+	cr.CpMin = 0
+	cr.CpMax = -1
+	win.SendMessage(hwnd, win.EM_EXSETSEL, 0, uintptr(unsafe.Pointer(&cr)))
+
+	var cf win.CHARFORMAT2
+	cf.CbSize = uint32(unsafe.Sizeof(cf))
+	cf.DwMask = win.CFM_COLOR | win.CFM_FACE | win.CFM_SIZE | win.CFM_CHARSET
+	cf.CrTextColor = win.COLORREF(colLineNum)
+	cf.YHeight = int32(codeFontSize * 20)
+	cf.BCharSet = win.DEFAULT_CHARSET
+	face, _ := syscall.UTF16FromString(pickCodeFont())
+	copy(cf.SzFaceName[:], face)
+	win.SendMessage(hwnd, win.EM_SETCHARFORMAT, win.SCF_ALL, uintptr(unsafe.Pointer(&cf)))
+
+	var pf win.PARAFORMAT2
+	pf.CbSize = uint32(unsafe.Sizeof(pf))
+	pf.DwMask = win.PFM_ALIGNMENT | win.PFM_LINESPACING | win.PFM_SPACEAFTER
+	pf.WAlignment = win.PFA_RIGHT
+	// תואם ל־CodeEdit.setCodePara
+	pf.BLineSpacingRule = 5
+	pf.DyLineSpacing = 24
+	pf.DySpaceAfter = 40
+	win.SendMessage(hwnd, win.EM_SETPARAFORMAT, 0, uintptr(unsafe.Pointer(&pf)))
+
+	// שוליים אופקיים קטנים — כמו העורך
+	const (
+		ecLeftMargin  = 0x0001
+		ecRightMargin = 0x0002
+	)
+	win.SendMessage(hwnd, win.EM_SETMARGINS, ecLeftMargin|ecRightMargin, uintptr(4|(4<<16)))
 }
 
 // fixCodeEdit — קוד בעברית: קריאה RTL (בלוקים עם סוף, בלי {})
