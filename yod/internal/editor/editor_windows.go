@@ -1739,37 +1739,17 @@ func Run(path string) error {
 	_ = cerr
 	docs = NewDocTabs(docTabBar, editorsHost)
 
-	// מיקום ידני: gutter צמוד לימין, עורך ממלא את השאר — בלי HBox/RTL שמבלבלים
+	// רק ממקם את ה־CodeEdit הפעיל בתוך המארח (בלי SetLayout(nil) — קורס ב־walk)
 	layoutCodePane := func() {
-		if codeHost == nil || lineEdit == nil || editorsHost == nil {
-			return
-		}
-		b := codeHost.ClientBoundsPixels()
-		if b.Width < 80 || b.Height < 40 {
-			return
-		}
-		gutterW := 52
-		_ = editorsHost.SetBoundsPixels(walk.Rectangle{
-			X: 0, Y: 0, Width: b.Width - gutterW, Height: b.Height,
-		})
-		_ = lineEdit.SetBoundsPixels(walk.Rectangle{
-			X: b.Width - gutterW, Y: 0, Width: gutterW, Height: b.Height,
-		})
 		if docs != nil {
 			docs.layoutEditors()
 		}
 	}
-	if codeHost != nil {
-		_ = codeHost.SetLayout(nil)
-		codeHost.SizeChanged().Attach(layoutCodePane)
-	}
 	if editorsHost != nil {
-		_ = editorsHost.SetLayout(nil)
-		editorsHost.SizeChanged().Attach(func() {
-			if docs != nil {
-				docs.layoutEditors()
-			}
-		})
+		editorsHost.SizeChanged().Attach(layoutCodePane)
+	}
+	if codeHost != nil {
+		codeHost.SizeChanged().Attach(layoutCodePane)
 	}
 
 	docs.WireEditor = func(ce *CodeEdit, tab *OpenFileTab) {
@@ -1819,7 +1799,7 @@ func Run(path string) error {
 		syncFromActiveTab()
 	}
 
-	// codeHost ב־LTR ידני — בלי שיקוף LAYOUTRTL
+	// codeHost ב־LTR: [עורך | gutter] — gutter בימין צמוד לקוד
 	fixGutterEdit(lineEdit)
 	clearLayoutRTL := func(hwnd win.HWND) {
 		if hwnd == 0 {
@@ -1841,6 +1821,9 @@ func Run(path string) error {
 		}
 		if lineEdit != nil {
 			fixGutterEdit(lineEdit)
+		}
+		if codeHost != nil {
+			codeHost.RequestLayout()
 		}
 		layoutCodePane()
 	}
@@ -1979,7 +1962,6 @@ func Run(path string) error {
 				return
 			case <-t.C:
 				mw.Synchronize(func() {
-					layoutCodePane()
 					syncLineScroll()
 				})
 			}

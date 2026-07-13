@@ -170,18 +170,16 @@ func (d *DocTabs) layoutEditors() {
 		if t.Editor == nil {
 			continue
 		}
-		if t == d.Active {
-			t.Editor.SetVisible(true)
-			if bounds.Width > 0 && bounds.Height > 0 {
-				_ = t.Editor.SetBoundsPixels(walk.Rectangle{
-					X: 0, Y: 0, Width: bounds.Width, Height: bounds.Height,
-				})
-			}
-		} else {
-			t.Editor.SetVisible(false)
-			_ = t.Editor.SetBoundsPixels(walk.Rectangle{})
+		vis := t == d.Active
+		t.Editor.SetVisible(vis)
+		if vis && bounds.Width > 0 && bounds.Height > 0 {
+			_ = t.Editor.SetBoundsPixels(walk.Rectangle{
+				X: 0, Y: 0, Width: bounds.Width, Height: bounds.Height,
+			})
 		}
 	}
+	// מבקשים layout רק על המארח — ה־VBox ייתן מקום לילד הגלוי
+	d.EditorsHost.RequestLayout()
 }
 
 func (d *DocTabs) refreshBar() {
