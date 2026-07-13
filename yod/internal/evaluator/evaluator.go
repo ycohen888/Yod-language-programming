@@ -1014,8 +1014,10 @@ func NewGlobalEnv(baseDir string) *object.Environment {
 		switch f := fn.(type) {
 		case *object.Function:
 			return callUserFunction(f, args, nil, nil, 1)
+		case *object.Builtin:
+			return f.Fn(args...)
 		default:
-			return &object.Error{Message: "בלחיצה מצפה לפונקציה"}
+			return &object.Error{Message: "מצופה לפונקציה, קיבל " + string(fn.Type())}
 		}
 	}
 	return env

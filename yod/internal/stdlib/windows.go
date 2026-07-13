@@ -573,16 +573,13 @@ func listSetItems(st *controlState, args ...object.Object) object.Object {
 			items = append(items, el.Inspect())
 		}
 	}
-	prev := -1
-	if st.listBox != nil {
-		prev = st.listBox.CurrentIndex()
-	}
 	st.listItems = items
 	if st.listBox != nil {
-		_ = st.listBox.SetModel(items)
-		if prev >= 0 && prev < len(items) {
-			_ = st.listBox.SetCurrentIndex(prev)
+		cp := append([]string(nil), items...)
+		if err := st.listBox.SetModel(cp); err != nil {
+			return errObj("רשימה.קבע_פריטים נכשל: " + err.Error())
 		}
+		_ = st.listBox.SetCurrentIndex(-1)
 	}
 	return object.Nil
 }

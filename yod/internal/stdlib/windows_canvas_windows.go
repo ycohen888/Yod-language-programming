@@ -590,7 +590,8 @@ func buildControlWidget(ch *controlState) Widget {
 			AssignTo:      &ch.listBox,
 			Model:         items,
 			StretchFactor: 1,
-			MinSize:       Size{Height: minH},
+			MinSize:       Size{Width: 200, Height: minH},
+			Font:          Font{Family: "Consolas", PointSize: 10},
 			OnCurrentIndexChanged: func() {
 				if ch.onSelect != nil {
 					invokeYod(ch.onSelect, nil)

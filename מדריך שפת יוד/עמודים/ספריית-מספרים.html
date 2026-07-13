@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית מספרים | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.58.2</span><strong>מספרים</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית מספרים</h1>
+      <p class="lead">
+        עיצוב מספרים לתצוגה: פסיקי אלפים, כסף, גדלי זיכרון ואחוזים.
+        טוענים עם <code>כלול "מספרים"</code>.
+        לחישובים מתמטיים — ראו גם <a href="ספריית-מתמטיקה.html">מתמטיקה</a>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th><th>דוגמה</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>מספרים.מפריד(מספר)</code></td><td>פסיקי אלפים בלי שבר</td><td><code>5,554,324</code></td></tr>
+          <tr><td><code>מספרים.שלם(מספר)</code></td><td>עיגול + פסיקי אלפים</td><td><code>1,235</code></td></tr>
+          <tr><td><code>מספרים.עשרוני(מספר, [ספרות])</code></td><td>שבר עשרוני (ברירת מחדל 2)</td><td><code>1,234.50</code></td></tr>
+          <tr><td><code>מספרים.כסף(מספר, [סמל], [ספרות])</code></td><td>מטבע; ברירת מחדל <code>₪</code></td><td><code>₪19.90</code></td></tr>
+          <tr><td><code>מספרים.בתים(בתים)</code></td><td>גודל קריא: קילו/מגה/גיגה…</td><td><code>5.12 מגה</code></td></tr>
+          <tr><td><code>מספרים.אחוז(מספר, [ספרות])</code></td><td>עם סימן %</td><td><code>87%</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמאות</h2>
+      <figure class="example">
+        <span class="example-label">פסיקים, כסף וזיכרון</span>
+        <pre class="code-block">כלול "מספרים"
+
+הדפס: מספרים.מפריד(5554324)
+הדפס: מספרים.כסף(1250.5)
+הדפס: מספרים.כסף(99, "$")
+הדפס: מספרים.בתים(15728640)
+הדפס: מספרים.אחוז(42.7, 1)</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>5,554,324
+₪1,250.50
+$99.00
+15 מגה
+42.7%</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        בפרויקט <code>פרוייקט דוגמה/מידע מחשב/</code> משתמשים ב־<code>מספרים.בתים</code>
+        ו־<code>מספרים.אחוז</code> להצגת זיכרון ומעבד.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>
