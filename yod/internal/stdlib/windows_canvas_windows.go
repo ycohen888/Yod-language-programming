@@ -85,6 +85,48 @@ func winCreateFrame(args ...object.Object) object.Object {
 	return w
 }
 
+func attachClick(w *object.GuiWidget, st *controlState) {
+	w.Attrs["בלחיצה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("בלחיצה מצפה לפונקציה אחת")
+		}
+		switch a[0].(type) {
+		case *object.Function, *object.Closure, *object.CompiledFunction:
+			st.onClick = a[0]
+			return object.Nil
+		default:
+			return errObj("בלחיצה מצפה לפונקציה")
+		}
+	}}
+}
+
+// חלונות.דגם(צבע…) — ריבוע צבע לחיץ (לוח צבעים)
+func winCreateSwatch(args ...object.Object) object.Object {
+	c, err := parseDrawColor(args...)
+	if err != nil {
+		return errObj("חלונות.דגם: " + err.Error())
+	}
+	st := &controlState{kind: "דגם", swatchColor: c}
+	w := &object.GuiWidget{Kind: "דגם", Data: st, Attrs: map[string]object.Object{}}
+	attachClick(w, st)
+	return w
+}
+
+// חלונות.סמל(סוג) — כפתור כלי עם אייקון מצויר
+func winCreateIcon(args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj("חלונות.סמל מצפה לשם כלי (עיפרון/מחק/קו/…)")
+	}
+	name, ok := asString(args[0])
+	if !ok || name == "" {
+		return errObj("חלונות.סמל מצפה למחרוזת")
+	}
+	st := &controlState{kind: "סמל", iconKind: name}
+	w := &object.GuiWidget{Kind: "סמל", Data: st, Attrs: map[string]object.Object{}}
+	attachClick(w, st)
+	return w
+}
+
 // חלונות.משטח(רוחב, גובה) — לוח ציור אינטראקטיבי לעכבר (הלוגיקה ביוד)
 func winCreateCanvas(args ...object.Object) object.Object {
 	if len(args) != 2 {
@@ -402,9 +444,8 @@ func invokeYod(fn object.Object, args []object.Object) {
 	} else if f, ok := fn.(*object.Function); ok && object.InvokeFunction != nil {
 		res = object.InvokeFunction(f, args)
 	}
-	if err, ok := res.(*object.Error); ok {
-		walk.MsgBox(nil, "שגיאה", err.Message, walk.MsgBoxIconError)
-	}
+	// לא MsgBox כאן — בגרירת עכבר זה יוצר הצפה של חלונות שלא ניתן לסגור
+	_ = res
 }
 
 func numObj(v int) object.Object {
@@ -519,6 +560,41 @@ func buildControlWidget(ch *controlState) Widget {
 			MaxSize:    Size{Height: 48},
 			Children:   kids,
 		}
+	case "דגם":
+		cb := ch.onClick
+		return CustomWidget{
+			AssignTo:            &ch.toolWidget,
+			MinSize:             Size{Width: 28, Height: 28},
+			MaxSize:             Size{Width: 28, Height: 28},
+			InvalidatesOnResize: true,
+			PaintMode:           PaintBuffered,
+			Paint: func(canvas *walk.Canvas, bounds walk.Rectangle) error {
+				return paintSwatch(ch, canvas, bounds)
+			},
+			OnMouseDown: func(x, y int, button walk.MouseButton) {
+				if button == walk.LeftButton {
+					invokeYod(cb, nil)
+				}
+			},
+		}
+	case "סמל":
+		cb := ch.onClick
+		return CustomWidget{
+			AssignTo:            &ch.toolWidget,
+			MinSize:             Size{Width: 40, Height: 36},
+			MaxSize:             Size{Width: 48, Height: 40},
+			InvalidatesOnResize: true,
+			PaintMode:           PaintBuffered,
+			ToolTipText:         ch.iconKind,
+			Paint: func(canvas *walk.Canvas, bounds walk.Rectangle) error {
+				return paintToolIcon(ch, canvas, bounds)
+			},
+			OnMouseDown: func(x, y int, button walk.MouseButton) {
+				if button == walk.LeftButton {
+					invokeYod(cb, nil)
+				}
+			},
+		}
 	case "עמודה":
 		kids := make([]Widget, 0, len(ch.children)+1)
 		for _, child := range ch.children {
@@ -527,10 +603,10 @@ func buildControlWidget(ch *controlState) Widget {
 		}
 		kids = append(kids, VSpacer{})
 		return Composite{
-			Layout:     VBox{Margins: Margins{Left: 4, Top: 4, Right: 4, Bottom: 4}, Spacing: 4},
-			Background: SolidColorBrush{Color: walk.RGB(245, 245, 245)},
-			MinSize:    Size{Width: 100},
-			MaxSize:    Size{Width: 120},
+			Layout:     VBox{Margins: Margins{Left: 4, Top: 4, Right: 4, Bottom: 4}, Spacing: 3},
+			Background: SolidColorBrush{Color: walk.RGB(236, 236, 236)},
+			MinSize:    Size{Width: 52},
+			MaxSize:    Size{Width: 56},
 			Children:   kids,
 		}
 	case "מסגרת":
@@ -603,4 +679,125 @@ func paintSurface(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) 
 		Height: st.board.img.Bounds().Dy(),
 	}
 	return canvas.DrawImageStretchedPixels(bmp, dest)
+}
+
+func paintSwatch(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) error {
+	c := st.swatchColor
+	br, err := walk.NewSolidColorBrush(walk.RGB(c.R, c.G, c.B))
+	if err != nil {
+		return err
+	}
+	defer br.Dispose()
+	inner := walk.Rectangle{X: bounds.X + 2, Y: bounds.Y + 2, Width: bounds.Width - 4, Height: bounds.Height - 4}
+	if err := canvas.FillRectanglePixels(br, inner); err != nil {
+		return err
+	}
+	pen, err := walk.NewCosmeticPen(walk.PenSolid, walk.RGB(60, 60, 60))
+	if err != nil {
+		return nil
+	}
+	defer pen.Dispose()
+	return canvas.DrawRectanglePixels(pen, inner)
+}
+
+func paintToolIcon(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) error {
+	bg, err := walk.NewSolidColorBrush(walk.RGB(250, 250, 250))
+	if err != nil {
+		return err
+	}
+	defer bg.Dispose()
+	_ = canvas.FillRectanglePixels(bg, bounds)
+	border, err := walk.NewCosmeticPen(walk.PenSolid, walk.RGB(180, 180, 180))
+	if err != nil {
+		return nil
+	}
+	defer border.Dispose()
+	_ = canvas.DrawRectanglePixels(border, bounds)
+
+	ink := walk.RGB(30, 30, 30)
+	brush, err := walk.NewSolidColorBrush(ink)
+	if err != nil {
+		return nil
+	}
+	defer brush.Dispose()
+	pen, err := walk.NewGeometricPen(walk.PenSolid, 2, brush)
+	if err != nil {
+		return nil
+	}
+	defer pen.Dispose()
+	cx := bounds.X + bounds.Width/2
+	cy := bounds.Y + bounds.Height/2
+	pad := 8
+
+	switch st.iconKind {
+	case "עיפרון":
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: bounds.X + pad, Y: bounds.Y + bounds.Height - pad},
+			walk.Point{X: bounds.X + bounds.Width - pad, Y: bounds.Y + pad})
+		tip, _ := walk.NewSolidColorBrush(walk.RGB(40, 40, 40))
+		if tip != nil {
+			defer tip.Dispose()
+			_ = canvas.FillEllipsePixels(tip, walk.Rectangle{X: bounds.X + bounds.Width - pad - 3, Y: bounds.Y + pad - 2, Width: 6, Height: 6})
+		}
+	case "מחק":
+		er, _ := walk.NewSolidColorBrush(walk.RGB(255, 180, 200))
+		if er != nil {
+			defer er.Dispose()
+			_ = canvas.FillRectanglePixels(er, walk.Rectangle{X: bounds.X + pad, Y: cy - 6, Width: bounds.Width - 2*pad, Height: 12})
+		}
+		_ = canvas.DrawRectanglePixels(pen, walk.Rectangle{X: bounds.X + pad, Y: cy - 6, Width: bounds.Width - 2*pad, Height: 12})
+	case "קו":
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: bounds.X + pad, Y: bounds.Y + bounds.Height - pad},
+			walk.Point{X: bounds.X + bounds.Width - pad, Y: bounds.Y + pad})
+	case "מלבן":
+		_ = canvas.DrawRectanglePixels(pen, walk.Rectangle{X: bounds.X + pad, Y: bounds.Y + pad, Width: bounds.Width - 2*pad, Height: bounds.Height - 2*pad})
+	case "עיגול":
+		_ = canvas.DrawEllipsePixels(pen, walk.Rectangle{X: bounds.X + pad, Y: bounds.Y + pad, Width: bounds.Width - 2*pad, Height: bounds.Height - 2*pad})
+	case "אליפסה":
+		_ = canvas.DrawEllipsePixels(pen, walk.Rectangle{X: bounds.X + pad - 2, Y: bounds.Y + pad + 4, Width: bounds.Width - 2*pad + 4, Height: bounds.Height - 2*pad - 8})
+	case "מילוי":
+		fill, _ := walk.NewSolidColorBrush(walk.RGB(100, 149, 237))
+		if fill != nil {
+			defer fill.Dispose()
+			_ = canvas.FillEllipsePixels(fill, walk.Rectangle{X: cx - 8, Y: cy - 4, Width: 16, Height: 14})
+		}
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: cx, Y: bounds.Y + pad}, walk.Point{X: cx, Y: cy})
+	case "טפטפת":
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: bounds.X + pad + 2, Y: bounds.Y + bounds.Height - pad},
+			walk.Point{X: cx + 4, Y: bounds.Y + pad + 4})
+		drop, _ := walk.NewSolidColorBrush(walk.RGB(220, 50, 50))
+		if drop != nil {
+			defer drop.Dispose()
+			_ = canvas.FillEllipsePixels(drop, walk.Rectangle{X: cx + 2, Y: bounds.Y + pad, Width: 8, Height: 10})
+		}
+	case "בטל":
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: cx + 8, Y: cy - 8}, walk.Point{X: cx - 8, Y: cy - 8})
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: cx - 8, Y: cy - 8}, walk.Point{X: cx - 2, Y: cy - 14})
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: cx - 8, Y: cy - 8}, walk.Point{X: cx - 2, Y: cy - 2})
+		_ = canvas.DrawEllipsePixels(pen, walk.Rectangle{X: cx - 10, Y: cy - 10, Width: 20, Height: 18})
+	case "נקה":
+		_ = canvas.DrawRectanglePixels(pen, walk.Rectangle{X: bounds.X + pad, Y: bounds.Y + pad + 2, Width: bounds.Width - 2*pad, Height: bounds.Height - 2*pad - 2})
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: bounds.X + pad + 2, Y: bounds.Y + pad + 4},
+			walk.Point{X: bounds.X + bounds.Width - pad - 2, Y: bounds.Y + bounds.Height - pad - 2})
+	case "פתח":
+		_ = canvas.DrawRectanglePixels(pen, walk.Rectangle{X: bounds.X + pad, Y: cy - 2, Width: bounds.Width - 2*pad, Height: bounds.Height/2 - 2})
+		tab, _ := walk.NewSolidColorBrush(walk.RGB(255, 220, 100))
+		if tab != nil {
+			defer tab.Dispose()
+			_ = canvas.FillRectanglePixels(tab, walk.Rectangle{X: bounds.X + pad, Y: bounds.Y + pad, Width: 12, Height: 8})
+		}
+	case "שמור":
+		disk, _ := walk.NewSolidColorBrush(walk.RGB(70, 70, 160))
+		if disk != nil {
+			defer disk.Dispose()
+			_ = canvas.FillRectanglePixels(disk, walk.Rectangle{X: bounds.X + pad, Y: bounds.Y + pad, Width: bounds.Width - 2*pad, Height: bounds.Height - 2*pad})
+		}
+		slot, _ := walk.NewSolidColorBrush(walk.RGB(230, 230, 230))
+		if slot != nil {
+			defer slot.Dispose()
+			_ = canvas.FillRectanglePixels(slot, walk.Rectangle{X: cx - 6, Y: bounds.Y + pad + 2, Width: 12, Height: 8})
+		}
+	default:
+		_ = canvas.DrawLinePixels(pen, walk.Point{X: bounds.X + pad, Y: cy}, walk.Point{X: bounds.X + bounds.Width - pad, Y: cy})
+	}
+	return nil
 }

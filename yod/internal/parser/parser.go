@@ -629,9 +629,10 @@ func (p *Parser) isJuxtaArgStart() bool {
 		return false
 	}
 	// רק ליטרלים — לא מזהים (כדי לא לבלוע את גוף הלולאה: עבור x בתוך רשימה / הדפס)
+	// לא Minus: אחרת «x - y» נפרש כקריאה juxta «x(-y)» במקום חיסור.
 	switch p.peekToken.Type {
 	case token.String, token.Number, token.True, token.False, token.Null,
-		token.Bang, token.Minus:
+		token.Bang:
 		return true
 	}
 	return false

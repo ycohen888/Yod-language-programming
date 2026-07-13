@@ -5,6 +5,7 @@ package stdlib
 import (
 	"fmt"
 	"image"
+	"image/color"
 
 	"github.com/jchv/go-webview2/pkg/edge"
 	"github.com/lxn/walk"
@@ -21,7 +22,7 @@ type windowState struct {
 }
 
 type controlState struct {
-	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | עמודה | מסגרת | משטח
+	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | עמודה | מסגרת | משטח | דגם | סמל
 	text      string
 	textColor walk.Color
 	onClick   object.Object
@@ -47,6 +48,10 @@ type controlState struct {
 	onMouseUp   object.Object
 	undoStack   []*image.RGBA
 	backup      *image.RGBA
+	// דגם צבע / סמל כלי
+	swatchColor color.RGBA
+	iconKind    string
+	toolWidget  *walk.CustomWidget
 }
 
 func NewWindowsModule() *object.Module {
@@ -61,6 +66,8 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["עמודה"] = &object.Builtin{Fn: winCreateColumn}
 	m.Attrs["מסגרת"] = &object.Builtin{Fn: winCreateFrame}
 	m.Attrs["משטח"] = &object.Builtin{Fn: winCreateCanvas}
+	m.Attrs["דגם"] = &object.Builtin{Fn: winCreateSwatch}
+	m.Attrs["סמל"] = &object.Builtin{Fn: winCreateIcon}
 	m.Attrs["הודעה"] = &object.Builtin{Fn: winMessage}
 	m.Attrs["בחר_שמירה"] = &object.Builtin{Fn: winFileSave}
 	m.Attrs["בחר_פתיחה"] = &object.Builtin{Fn: winFileOpen}

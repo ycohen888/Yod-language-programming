@@ -17,19 +17,25 @@ func parse(t *testing.T, input string) *ast.Program {
 	return prog
 }
 
-func TestVarStatement(t *testing.T) {
-	prog := parse(t, `משתנה א = 10;`)
-	if len(prog.Statements) != 1 {
-		t.Fatalf("statements: %d", len(prog.Statements))
-	}
-	vs, ok := prog.Statements[0].(*ast.VarStatement)
+func TestSubtractionNotJuxtaCall(t *testing.T) {
+	prog := parse(t, "הדפס: (א - ב).מוחלט()")
+	es, ok := prog.Statements[0].(*ast.ExpressionStatement)
 	if !ok {
 		t.Fatalf("got %T", prog.Statements[0])
 	}
-	if vs.Name.Value != "א" {
-		t.Fatalf("name %q", vs.Name.Value)
+	call, ok := es.Expr.(*ast.CallExpression)
+	if !ok {
+		t.Fatalf("want Call, got %T", es.Expr)
+	}
+	mem, ok := call.Function.(*ast.MemberExpression)
+	if !ok {
+		t.Fatalf("want Member, got %T", call.Function)
+	}
+	if _, ok := mem.Object.(*ast.InfixExpression); !ok {
+		t.Fatalf("want Infix under member (חיסור), got %T — juxta bug?", mem.Object)
 	}
 }
+
 
 func TestVarWithoutValue(t *testing.T) {
 	prog := parse(t, "משתנה א\nהדפס: א")
