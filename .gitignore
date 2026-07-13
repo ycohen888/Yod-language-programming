@@ -6,6 +6,7 @@
 *.test
 *.out
 *.syso
+!yod/cmd/yod/rsrc_windows_amd64.syso
 yod/yod
 yod/cmd/yod/yod
 

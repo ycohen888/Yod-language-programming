@@ -15,6 +15,16 @@ go build -o yod.exe ./cmd/yod
 .\yod.exe הרץ examples\shalom.יוד
 ```
 
+האייקון של `yod.exe` מגיע מ־`cmd/yod/rsrc_windows_amd64.syso` (משובץ בריפו).
+אם צריך לייצר מחדש אחרי שינוי לוגו:
+
+```powershell
+cd yod\cmd\yod
+go generate
+```
+
+(דורש `rsrc`: `go install github.com/akavel/rsrc@latest`)
+
 4. הריצו בדיקות:
 
 ```powershell
