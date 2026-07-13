@@ -1111,36 +1111,36 @@ func Run(path string) error {
 		Children: []Widget{
 			// —— סרגל כלים ——
 			Composite{
-				Layout:     HBox{Margins: Margins{Left: 14, Right: 14, Top: 8, Bottom: 8}, Spacing: 6},
+				Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 3, Bottom: 3}, Spacing: 4},
 				Background: SolidColorBrush{Color: colToolbar},
 				Children: []Widget{
-					Label{Text: "יוד", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 14, Bold: true}},
-					Label{Text: "עורך", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 10}},
+					Label{Text: "יוד", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 11, Bold: true}},
+					Label{Text: "עורך", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 8}},
 					VSeparator{},
-					btnRun.Decl(68, "הרץ — מפרש מלא (F5)"),
-					btnVM.Decl(78, "מכונה — הרצה ב־bytecode (F6)"),
-					btnCheck.Decl(66, "בדוק קומפילציה בלי להריץ (F7)"),
-					btnPack.Decl(66, "ארוז ל־EXE בודד — לחיצה כפולה מריצה (Ctrl+Shift+P)"),
+					btnRun.Decl(48, "הרץ — מפרש מלא (F5)"),
+					btnVM.Decl(52, "מכונה — הרצה ב־bytecode (F6)"),
+					btnCheck.Decl(44, "בדוק קומפילציה בלי להריץ (F7)"),
+					btnPack.Decl(44, "ארוז ל־EXE בודד — לחיצה כפולה מריצה (Ctrl+Shift+P)"),
 					VSeparator{},
-					btnNew.Decl(60, "קובץ חדש (Ctrl+N)"),
-					btnOpen.Decl(60, "פתח קובץ (Ctrl+O)"),
-					btnFolder.Decl(70, "פתח תיקיית פרויקט (Ctrl+Shift+O)"),
-					btnSave.Decl(62, "שמור קובץ (Ctrl+S)"),
-					btnFormat.Decl(60, "סדר קוד — הזחה 2 רווחים (Ctrl+Shift+F)"),
-					btnHighlight.Decl(62, "הדגשת תחביר בדפדפן"),
+					btnNew.Decl(40, "קובץ חדש (Ctrl+N)"),
+					btnOpen.Decl(40, "פתח קובץ (Ctrl+O)"),
+					btnFolder.Decl(48, "פתח תיקיית פרויקט (Ctrl+Shift+O)"),
+					btnSave.Decl(42, "שמור קובץ (Ctrl+S)"),
+					btnFormat.Decl(40, "סדר קוד — הזחה 2 רווחים (Ctrl+Shift+F)"),
+					btnHighlight.Decl(42, "הדגשת תחביר בדפדפן"),
 					HSpacer{},
 				},
 			},
 			// —— שורת קובץ + תיקייה ——
 			Composite{
-				Layout:     HBox{Margins: Margins{Left: 14, Right: 14, Top: 6, Bottom: 6}, Spacing: 8},
+				Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 2, Bottom: 2}, Spacing: 6},
 				Background: SolidColorBrush{Color: colTabBar},
 				Children: []Widget{
-					Label{AssignTo: &fileLbl, Text: "קובץ-חדש.יוד", TextColor: colText, Font: Font{Family: uiFont, PointSize: 10}, RightToLeftReading: true},
+					Label{AssignTo: &fileLbl, Text: "קובץ-חדש.יוד", TextColor: colText, Font: Font{Family: uiFont, PointSize: 9}, RightToLeftReading: true},
 					Label{Text: "·", TextColor: colBorder},
-					Label{AssignTo: &projLbl, Text: "אין תיקייה פתוחה", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 9}, RightToLeftReading: true},
+					Label{AssignTo: &projLbl, Text: "אין תיקייה פתוחה", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 8}, RightToLeftReading: true},
 					HSpacer{},
-					Label{Text: "RTL · עברית", TextColor: colMuted, RightToLeftReading: true},
+					Label{Text: "RTL · עברית", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 8}, RightToLeftReading: true},
 				},
 			},
 			Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
@@ -1155,9 +1155,8 @@ func Run(path string) error {
 						AssignTo:      &treePane,
 						Layout:        VBox{MarginsZero: true, Spacing: 0},
 						Background:    SolidColorBrush{Color: colToolbar},
-						MinSize:       Size{Width: 220},
-						MaxSize:       Size{Width: 320},
-						StretchFactor: 0,
+						MinSize:       Size{Width: 140},
+						StretchFactor: 1,
 						Children: []Widget{
 							Composite{
 								Layout:     HBox{Margins: Margins{Left: 10, Right: 8, Top: 8, Bottom: 6}, Spacing: 6},
@@ -1180,7 +1179,7 @@ func Run(path string) error {
 								AssignTo:      &treeView,
 								Model:         treeModel,
 								Visible:       false,
-								MinSize:       Size{Width: 200, Height: 200},
+								MinSize:       Size{Width: 120, Height: 200},
 								StretchFactor: 1,
 								Font:          Font{Family: uiFont, PointSize: 10},
 								Background:    SolidColorBrush{Color: colPanel},
@@ -1199,11 +1198,11 @@ func Run(path string) error {
 							},
 						},
 					},
-					// עמודת עורך
+					// עמודת עורך (~80%)
 					Composite{
 						Layout:        VBox{MarginsZero: true, Spacing: 0},
 						Background:    SolidColorBrush{Color: colBg},
-						StretchFactor: 1,
+						StretchFactor: 4,
 						Children: []Widget{
 							Composite{
 								AssignTo:      &codeHost,
@@ -1250,8 +1249,8 @@ func Run(path string) error {
 										Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 5, Bottom: 4}, Spacing: 4},
 										Background: SolidColorBrush{Color: colTabBar},
 										Children: []Widget{
-											tabErrBtn.Decl(96, "לשונית שגיאות — תחביר וריצה"),
-											tabOutBtn.Decl(72, "לשונית פלט — פלט הדפס"),
+											tabErrBtn.Decl(72, "לשונית שגיאות — תחביר וריצה"),
+											tabOutBtn.Decl(48, "לשונית פלט — פלט הדפס"),
 											HSpacer{},
 											Label{Text: "לחיצה על שגיאה ← מעבר לשורה", TextColor: colMuted, RightToLeftReading: true},
 										},
@@ -1384,10 +1383,27 @@ func Run(path string) error {
 		// מבטל RTL על ה־splitter כדי שהילד הראשון (סייר) יישאר תמיד בצד שמאל של המסך
 		ex := win.GetWindowLong(treeSplit.Handle(), win.GWL_EXSTYLE)
 		win.SetWindowLong(treeSplit.Handle(), win.GWL_EXSTYLE, ex&^win.WS_EX_LAYOUTRTL)
+		// לא SetFixed — כדי שגרירת הרוחב תעבוד; StretchFactor 1:4 ≈ 20%/80%
 		if treePane != nil {
-			treeSplit.SetFixed(treePane, true)
-			_ = treePane.SetMinMaxSize(walk.Size{Width: 220, Height: 0}, walk.Size{Width: 320, Height: 0})
+			_ = treePane.SetMinMaxSize(walk.Size{Width: 140, Height: 0}, walk.Size{Width: 600, Height: 0})
 		}
+		mw.Synchronize(func() {
+			if treeSplit == nil || treePane == nil {
+				return
+			}
+			cb := treeSplit.ClientBoundsPixels()
+			if cb.Width <= 0 {
+				return
+			}
+			w := cb.Width / 5 // ~20%
+			if w < 140 {
+				w = 140
+			}
+			b := treePane.BoundsPixels()
+			b.Width = w
+			_ = treePane.SetBoundsPixels(b)
+			treeSplit.RequestLayout()
+		})
 	}
 	if treeView != nil {
 		applyDarkScrollbars(treeView.Handle())

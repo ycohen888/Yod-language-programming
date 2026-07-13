@@ -36,7 +36,9 @@ const (
 	iconPack
 )
 
-const btnH = 28
+const btnH = 20
+const btnFontPt = 8
+const btnIconPx = 12
 
 // DarkBtn כפתור שטוח מקצועי עם Material Icon + tooltip
 type DarkBtn struct {
@@ -164,17 +166,17 @@ func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 
 	iconW := 0
 	if b.icon != iconNone {
-		iconW = 16
+		iconW = btnIconPx
 		ir := walk.Rectangle{
-			X: bounds.X + bounds.Width - 18, Y: bounds.Y,
-			Width: 16, Height: bounds.Height,
+			X: bounds.X + bounds.Width - btnIconPx - 3, Y: bounds.Y,
+			Width: btnIconPx, Height: bounds.Height,
 		}
 		if err := b.drawMaterialIcon(canvas, ir, fg); err != nil {
 			return err
 		}
 	}
 
-	font, err := walk.NewFont(uiFont, 10, 0)
+	font, err := walk.NewFont(uiFont, btnFontPt, 0)
 	if err != nil {
 		font = b.cw.Font()
 	} else {
@@ -184,9 +186,9 @@ func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 		return nil
 	}
 	tr := walk.Rectangle{
-		X:      bounds.X + 6,
+		X:      bounds.X + 4,
 		Y:      bounds.Y,
-		Width:  bounds.Width - iconW - 10,
+		Width:  bounds.Width - iconW - 8,
 		Height: bounds.Height,
 	}
 	return canvas.DrawText(b.text, font, fg, tr,
@@ -228,7 +230,7 @@ func (b *DarkBtn) drawMaterialIcon(canvas *walk.Canvas, r walk.Rectangle, fg wal
 		return nil
 	}
 	materialicons.Ensure()
-	font, err := walk.NewFont(materialicons.Family, 15, 0)
+	font, err := walk.NewFont(materialicons.Family, btnIconPx, 0)
 	if err != nil {
 		return nil // בלי פונט — מדלגים על איקון
 	}
