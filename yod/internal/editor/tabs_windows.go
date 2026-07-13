@@ -21,9 +21,8 @@ type OpenFileTab struct {
 	SelStart     int
 	SelEnd       int
 	FirstVisible int
-	IsDirty      bool
-	TabBtn       *DarkBtn
-	CloseBtn     *DarkBtn
+	IsDirty bool
+	TabBtn  *DocTabBtn
 }
 
 // DocTabs — ניהול טאבי מסמכים כמו ב־Visual Studio, עם עורך יחיד.
@@ -231,34 +230,26 @@ func (d *DocTabs) refreshBar() {
 	for d.Bar.Children().Len() > 0 {
 		d.Bar.Children().At(0).Dispose()
 	}
+	forceTabBarLTR(d.Bar.Handle())
 	for _, t := range d.Order {
 		tab := t
-		title := tab.Title
-		if tab.IsDirty {
-			title = "● " + title
-		}
-		btn := &DarkBtn{
-			text:   title,
-			active: tab == d.Active,
-			onClick: func() {
-				d.Activate(tab)
-			},
-		}
 		tip := tab.FilePath
 		if tip == "" {
 			tip = tab.Title
 		}
-		_ = btn.Mount(d.Bar, tip)
-		tab.TabBtn = btn
-
-		xbtn := &DarkBtn{
-			text: "×",
-			onClick: func() {
+		btn := &DocTabBtn{
+			title:  tab.Title,
+			dirty:  tab.IsDirty,
+			active: tab == d.Active,
+			onActivate: func() {
+				d.Activate(tab)
+			},
+			onClose: func() {
 				_ = d.Close(tab)
 			},
 		}
-		_ = xbtn.Mount(d.Bar, "סגור טאב")
-		tab.CloseBtn = xbtn
+		_ = btn.Mount(d.Bar, tip)
+		tab.TabBtn = btn
 	}
 	if _, err := walk.NewHSpacer(d.Bar); err == nil {
 		// ok

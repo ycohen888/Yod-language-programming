@@ -43,7 +43,7 @@ var (
 	colBg      = walk.RGB(24, 25, 28)
 	colPanel   = walk.RGB(28, 29, 33)
 	colToolbar = walk.RGB(36, 38, 43)
-	colTabBar  = walk.RGB(32, 34, 38)
+	colTabBar  = walk.RGB(37, 37, 38) // VS Code #252526
 	colStatus  = walk.RGB(32, 34, 38)
 	colBorder  = walk.RGB(48, 50, 56)
 	colText    = walk.RGB(220, 220, 220)
@@ -1552,10 +1552,10 @@ func Run(path string) error {
 								Children: []Widget{
 									Composite{
 										AssignTo:   &docTabBar,
-										Layout:     HBox{Margins: Margins{Left: 4, Right: 4, Top: 2, Bottom: 2}, Spacing: 2},
-										Background: SolidColorBrush{Color: colTabBar},
-										MinSize:    Size{Height: 28},
-										MaxSize:    Size{Height: 28},
+										Layout:     HBox{MarginsZero: true, Spacing: 0},
+										Background: SolidColorBrush{Color: colDocTabBar},
+										MinSize:    Size{Height: docTabH},
+										MaxSize:    Size{Height: docTabH},
 										Children:   []Widget{},
 									},
 									Composite{
