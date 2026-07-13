@@ -181,6 +181,18 @@ func winCreateCanvas(args ...object.Object) object.Object {
 	w.Attrs["בעכבר_זוז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setMouseHandler(&st.onMouseHover, "בעכבר_זוז", a)
 	}}
+	w.Attrs["בעת_תו"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setMouseHandler(&st.onKeyChar, "בעת_תו", a)
+	}}
+	w.Attrs["בעת_מקש"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setMouseHandler(&st.onKeyCmd, "בעת_מקש", a)
+	}}
+	w.Attrs["בקש_מיקוד"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if st.canvas != nil {
+			_ = st.canvas.SetFocus()
+		}
+		return object.Nil
+	}}
 	w.Attrs["קבע_רמז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setSurfaceHint(st, a...)
 	}}
@@ -758,6 +770,9 @@ func buildControlWidget(ch *controlState) Widget {
 				return paintSurface(ch, canvas, bounds)
 			},
 			OnMouseDown: func(x, y int, button walk.MouseButton) {
+				if ch.canvas != nil {
+					_ = ch.canvas.SetFocus()
+				}
 				name := walkButtonName(button)
 				ch.dragging = true
 				ch.dragButton = name
@@ -783,6 +798,12 @@ func buildControlWidget(ch *controlState) Widget {
 				}
 				ch.dragButton = ""
 				invokeYodMouse(ch.onMouseUp, x, y, btn)
+			},
+			OnKeyDown: func(key walk.Key) {
+				handleSurfaceKeyDown(ch, key)
+			},
+			OnKeyPress: func(key walk.Key) {
+				handleSurfaceKeyPress(ch, key)
 			},
 		}
 	default:

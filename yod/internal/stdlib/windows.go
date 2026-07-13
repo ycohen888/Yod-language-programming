@@ -69,6 +69,8 @@ type controlState struct {
 	onMouseDrag  object.Object
 	onMouseUp    object.Object
 	onMouseHover object.Object // תנועת עכבר בלי לחיצה (רמזים וכו')
+	onKeyChar    object.Object // בעת_תו — תו מוקלד (כולל עברית)
+	onKeyCmd     object.Object // בעת_מקש — מחיקה / אנטר / …
 	undoStack   []*image.RGBA
 	backup      *image.RGBA
 	// דגם צבע / סמל כלי
