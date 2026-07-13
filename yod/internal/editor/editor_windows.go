@@ -253,6 +253,54 @@ func Run(path string) error {
 		return wd
 	}
 
+	// resolveRunYodExe — מעדיף yod.exe ליד הפרויקט (או בתיקיית האב) על פני
+	// תהליך העורך עצמו, כדי שלא יישאר מנוע ישן אחרי go build.
+	resolveRunYodExe := func() (string, error) {
+		self, err := os.Executable()
+		if err != nil {
+			self = ""
+		}
+		seen := map[string]bool{}
+		var candidates []string
+		add := func(p string) {
+			if p == "" {
+				return
+			}
+			p = filepath.Clean(p)
+			if seen[p] {
+				return
+			}
+			seen[p] = true
+			candidates = append(candidates, p)
+		}
+		dir := baseDir()
+		add(filepath.Join(dir, "yod.exe"))
+		add(filepath.Join(filepath.Dir(dir), "yod.exe"))
+		if self != "" {
+			add(filepath.Join(filepath.Dir(self), "yod.exe"))
+			add(self)
+		}
+		var newest string
+		var newestTime time.Time
+		for _, c := range candidates {
+			st, err := os.Stat(c)
+			if err != nil || st.IsDir() {
+				continue
+			}
+			if newest == "" || st.ModTime().After(newestTime) {
+				newest = c
+				newestTime = st.ModTime()
+			}
+		}
+		if newest != "" {
+			return newest, nil
+		}
+		if self != "" {
+			return self, nil
+		}
+		return "", fmt.Errorf("לא נמצא yod.exe")
+	}
+
 	selectPathInTree = func(p string) {
 		if fileList == nil || projectRoot == "" || p == "" {
 			return
@@ -769,7 +817,7 @@ func Run(path string) error {
 
 		// חלונות/ציור: MainWindow בתוך העורך סוגר את כל התהליך — מריצים בתהליך נפרד
 		if strings.Contains(source, "חלונות") || strings.Contains(source, "ציור") {
-			exe, err := os.Executable()
+			exe, err := resolveRunYodExe()
 			if err != nil {
 				setErrors([]string{"לא הצלחתי למצוא את yod.exe: " + err.Error()})
 				setStatus("✗ הרצה נכשלה")
