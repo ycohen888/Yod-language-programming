@@ -38,6 +38,7 @@
 ### אפשרות א׳ — הורדה מוכנה (Windows)
 
 ב־[Releases](https://github.com/ycohen888/Yod-language-programming/releases) יש `yod.exe` מוכן להורדה.
+הגרסה האחרונה: **[v0.52.6](https://github.com/ycohen888/Yod-language-programming/releases/tag/v0.52.6)**.
 אין צורך ב־Go: מורידים, מריצים, ומתחילים.
 
 ### אפשרות ב׳ — בנייה מקוד המקור
