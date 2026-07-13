@@ -1740,8 +1740,10 @@ func Run(path string) error {
 	docs = NewDocTabs(docTabBar, editorsHost)
 
 	// מיקום ידני ב־LTR: עורך משמאל · gutter צמוד לימין.
-	// בלי SetLayout(nil) — קורס ב־walk; ממקמים רק בשינוי גודל (לא בטיימר!).
+	// בלי SetLayout(nil) — קורס ב־walk. HBox עלול לדרוס אחרי layout —
+	// לכן מתקנים בטיימר, אבל נוגעים ב־CodeEdit רק כשגודל המארח באמת השתנה.
 	const gutterW = 52
+	var lastEditorClient walk.Size
 	layoutCodePane := func() {
 		if codeHost == nil || lineEdit == nil || editorsHost == nil {
 			return
@@ -1753,24 +1755,18 @@ func Run(path string) error {
 		editW := b.Width - gutterW
 		wantEdit := walk.Rectangle{X: 0, Y: 0, Width: editW, Height: b.Height}
 		wantGut := walk.Rectangle{X: editW, Y: 0, Width: gutterW, Height: b.Height}
-		hostChanged := editorsHost.BoundsPixels() != wantEdit
-		gutChanged := lineEdit.BoundsPixels() != wantGut
-		if hostChanged {
+		if editorsHost.BoundsPixels() != wantEdit {
 			_ = editorsHost.SetBoundsPixels(wantEdit)
 		}
-		if gutChanged {
+		if lineEdit.BoundsPixels() != wantGut {
 			_ = lineEdit.SetBoundsPixels(wantGut)
 		}
-		if docs != nil {
+		cs := editorsHost.ClientBoundsPixels()
+		sz := walk.Size{Width: cs.Width, Height: cs.Height}
+		if docs != nil && sz != lastEditorClient {
+			lastEditorClient = sz
 			docs.layoutEditors()
 		}
-	}
-	if editorsHost != nil {
-		editorsHost.SizeChanged().Attach(func() {
-			if docs != nil {
-				docs.layoutEditors()
-			}
-		})
 	}
 	if codeHost != nil {
 		codeHost.SizeChanged().Attach(layoutCodePane)
@@ -1810,7 +1806,11 @@ func Run(path string) error {
 	}
 	docs.OnActivate = func(tab *OpenFileTab) {
 		syncFromActiveTab()
+		lastEditorClient = walk.Size{} // כפה מילוי מחדש לטאב הפעיל
 		layoutCodePane()
+		if docs != nil {
+			docs.layoutEditors()
+		}
 		if tab != nil {
 			setStatus("טאב · " + tab.Title)
 		} else {
@@ -1984,6 +1984,7 @@ func Run(path string) error {
 				return
 			case <-t.C:
 				mw.Synchronize(func() {
+					layoutCodePane()
 					syncLineScroll()
 				})
 			}
