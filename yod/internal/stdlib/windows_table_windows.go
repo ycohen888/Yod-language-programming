@@ -476,15 +476,15 @@ func buildTableWidget(ch *controlState) Widget {
 		cols = []TableViewColumn{{Title: " ", Width: 100}}
 	}
 	tv := TableView{
-		AssignTo:         &ch.tableView,
-		AlternatingRowBG: true,
-		ColumnsOrderable: true,
+		AssignTo:            &ch.tableView,
+		AlternatingRowBG:    true,
+		ColumnsOrderable:    true,
 		LastColumnStretched: true,
-		Columns:          cols,
-		Model:            ch.tableModel,
-		StretchFactor:    1,
-		MinSize:          Size{Width: 200, Height: minH},
-		Font:             Font{Family: "Segoe UI", PointSize: 10},
+		Columns:             cols,
+		Model:               ch.tableModel,
+		StretchFactor:       1,
+		MinSize:             Size{Width: 200, Height: minH},
+		Font:                Font{Family: "Segoe UI", PointSize: 10},
 		OnCurrentIndexChanged: func() {
 			if ch.onSelect != nil {
 				invokeYod(ch.onSelect, nil)
@@ -495,7 +495,8 @@ func buildTableWidget(ch *controlState) Widget {
 		},
 	}
 	if ch.tableDark {
-		tv.Background = SolidColorBrush{Color: walk.RGB(22, 27, 34)}
+		tv.Background = SolidColorBrush{Color: darkPanelBG()}
+		tv.CustomHeaderHeight = 30
 	}
 	return tv
 }
@@ -504,14 +505,44 @@ func styleTableCell(ch *controlState, style *walk.CellStyle) {
 	if ch == nil || !ch.tableDark {
 		return
 	}
-	darkBG := walk.RGB(30, 37, 46)
-	darkAlt := walk.RGB(38, 46, 58)
-	darkText := walk.RGB(230, 237, 243)
-	darkMuted := walk.RGB(148, 163, 184)
-	darkSel := walk.RGB(37, 99, 235)
+	darkBG := darkCtlBG()
+	darkAlt := darkCtlAlt()
+	darkText := darkCtlText()
+	darkMuted := darkCtlMuted()
+	darkSel := darkSelBG()
 	darkSelText := walk.RGB(255, 255, 255)
+	headerBG := darkHeaderBG()
 
 	row := style.Row()
+	if row == -1 {
+		style.BackgroundColor = headerBG
+		style.TextColor = darkText
+		if canvas := style.Canvas(); canvas != nil {
+			bounds := style.Bounds()
+			brush, err := walk.NewSolidColorBrush(headerBG)
+			if err == nil {
+				defer brush.Dispose()
+				_ = canvas.FillRectangle(brush, bounds)
+			}
+			title := ""
+			if ch.tableModel != nil && style.Col() >= 0 && style.Col() < len(ch.tableModel.fields) {
+				title = ch.tableModel.fields[style.Col()]
+			}
+			if title != "" {
+				font, err := walk.NewFont("Segoe UI", 9, walk.FontBold)
+				if err == nil {
+					defer font.Dispose()
+					pad := bounds
+					pad.X += 8
+					pad.Width -= 10
+					_ = canvas.DrawText(title, font, darkText, pad,
+						walk.TextLeft|walk.TextVCenter|walk.TextSingleLine)
+				}
+			}
+		}
+		return
+	}
+
 	selected := false
 	if ch.tableView != nil && ch.tableView.CurrentIndex() == row {
 		selected = true
@@ -537,9 +568,14 @@ func applyTableDarkColors(st *controlState) {
 	if st == nil || st.tableView == nil || !st.tableDark {
 		return
 	}
-	brush, err := walk.NewSolidColorBrush(walk.RGB(22, 27, 34))
+	brush, err := walk.NewSolidColorBrush(darkPanelBG())
 	if err == nil {
 		st.tableView.SetBackground(brush)
 	}
 	st.tableView.SetAlternatingRowBG(true)
+	applyDarkThemeToWidget(st.tableView)
+	// כותרות עמודות + סקרולים
+	if hwnd := st.tableView.Handle(); hwnd != 0 {
+		applyDarkChrome(hwnd)
+	}
 }

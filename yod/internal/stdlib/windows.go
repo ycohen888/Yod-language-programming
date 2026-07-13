@@ -9,11 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jchv/go-webview2/pkg/edge"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
+	"github.com/lxn/win"
 
 	"yod/internal/object"
 )
@@ -31,6 +33,7 @@ type windowState struct {
 	icon      *walk.Icon
 	bgColor   walk.Color
 	hasBg     bool
+	dark      bool
 }
 
 type windowTimer struct {
@@ -80,10 +83,14 @@ type controlState struct {
 	tableModel *yodTableModel
 	tableCols  []int
 	tableDark  bool
+	// עיצוב כהה לרכיבים
+	ctrlDark bool
+	button   *walk.PushButton
 	// גרף
 	chartWidget     *walk.CustomWidget
 	chartKind       string // עמודות | קו | עוגה
 	chartTitle      string
+	chartSubtitle   string
 	chartLabels     []string
 	chartSeries     []chartSeries
 	chartXLabel     string
@@ -153,10 +160,64 @@ func winCreateWindow(args ...object.Object) object.Object {
 	w.Attrs["קבע_רקע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winSetBackground(st, a...)
 	}}
+	w.Attrs["קבע_כהה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetDark(st, a...)
+	}}
 	w.Attrs["הצג"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winShow(st)
 	}}
 	return w
+}
+
+func winSetDark(st *windowState, args ...object.Object) object.Object {
+	on, errObjVal := parseDarkBool("חלון.קבע_כהה", args...)
+	if errObjVal != nil {
+		return errObjVal
+	}
+	st.dark = on
+	if on && !st.hasBg {
+		st.bgColor = darkWinBG()
+		st.hasBg = true
+	}
+	if on {
+		markDarkControlsRecursive(st.children)
+	}
+	if st.mw != nil {
+		if on {
+			preferAppDarkMode()
+			applyDarkThemeToWidget(st.mw)
+			if st.hasBg {
+				brush, err := walk.NewSolidColorBrush(st.bgColor)
+				if err == nil {
+					st.mw.SetBackground(brush)
+				}
+			}
+			applyDarkControlsRecursive(st.children, true)
+			st.mw.Invalidate()
+		}
+	}
+	return object.Nil
+}
+
+func markDarkControlsRecursive(children []*controlState) {
+	for _, ch := range children {
+		if ch == nil {
+			continue
+		}
+		switch ch.kind {
+		case "טבלה":
+			ch.tableDark = true
+		case "גרף":
+			ch.chartDark = true
+		case "כפתור", "שדה", "רשימה":
+			ch.ctrlDark = true
+		case "תווית":
+			if ch.textColor == walk.RGB(30, 30, 30) {
+				ch.textColor = darkCtlText()
+			}
+		}
+		markDarkControlsRecursive(ch.children)
+	}
 }
 
 func winSetBackground(st *windowState, args ...object.Object) object.Object {
@@ -233,6 +294,17 @@ func winCreateButton(args ...object.Object) object.Object {
 	}}
 	w.Attrs["קרא_טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return &object.String{Value: st.text}
+	}}
+	w.Attrs["קבע_כהה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		on, errV := parseDarkBool("כפתור.קבע_כהה", a...)
+		if errV != nil {
+			return errV
+		}
+		st.ctrlDark = on
+		if st.button != nil {
+			applyButtonDark(st)
+		}
+		return object.Nil
 	}}
 	return w
 }
@@ -516,6 +588,17 @@ func winCreateEdit(args ...object.Object) object.Object {
 		}
 		return &object.String{Value: st.text}
 	}}
+	w.Attrs["קבע_כהה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		on, errV := parseDarkBool("שדה.קבע_כהה", a...)
+		if errV != nil {
+			return errV
+		}
+		st.ctrlDark = on
+		if st.edit != nil {
+			applyEditDark(st)
+		}
+		return object.Nil
+	}}
 	return w
 }
 
@@ -644,6 +727,17 @@ func winCreateList(args ...object.Object) object.Object {
 		st.onSelect = a[0]
 		return object.Nil
 	}}
+	w.Attrs["קבע_כהה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		on, errV := parseDarkBool("רשימה.קבע_כהה", a...)
+		if errV != nil {
+			return errV
+		}
+		st.ctrlDark = on
+		if st.listBox != nil {
+			applyListDark(st)
+		}
+		return object.Nil
+	}}
 	return w
 }
 
@@ -705,6 +799,10 @@ func winAsk(args ...object.Object) object.Object {
 
 func winShow(st *windowState) object.Object {
 	var mw *walk.MainWindow
+	if st.dark {
+		preferAppDarkMode()
+		markDarkControlsRecursive(st.children)
+	}
 	children := make([]Widget, 0, len(st.children))
 	for _, ch := range st.children {
 		ch := ch
@@ -738,6 +836,9 @@ func winShow(st *windowState) object.Object {
 	if st.hasBg {
 		cfg.Background = SolidColorBrush{Color: st.bgColor}
 	}
+	if st.dark {
+		preferAppDarkMode()
+	}
 	if err := cfg.Create(); err != nil {
 		return errObj("הצגת חלון נכשלה: " + err.Error())
 	}
@@ -748,7 +849,10 @@ func winShow(st *windowState) object.Object {
 	if iconPath != "" {
 		_ = applyWindowIcon(st, iconPath)
 	}
-	applyDarkTablesRecursive(st.children)
+	if st.dark {
+		applyDarkThemeToWidget(mw)
+	}
+	applyDarkControlsRecursive(st.children, st.dark)
 
 	for _, ch := range st.children {
 		wireBrowsersRecursive(ch, mw)
@@ -817,15 +921,97 @@ func applyWindowIcon(st *windowState, path string) error {
 }
 
 func applyDarkTablesRecursive(children []*controlState) {
+	applyDarkControlsRecursive(children, false)
+}
+
+func applyDarkControlsRecursive(children []*controlState, windowDark bool) {
 	for _, ch := range children {
 		if ch == nil {
 			continue
 		}
-		if ch.kind == "טבלה" && ch.tableDark {
-			applyTableDarkColors(ch)
+		if windowDark {
+			switch ch.kind {
+			case "טבלה":
+				ch.tableDark = true
+			case "גרף":
+				ch.chartDark = true
+			case "כפתור", "שדה", "רשימה":
+				ch.ctrlDark = true
+			case "תווית":
+				if ch.textColor == walk.RGB(30, 30, 30) {
+					ch.textColor = darkCtlText()
+					if ch.label != nil {
+						ch.label.SetTextColor(ch.textColor)
+					}
+				}
+			}
 		}
-		applyDarkTablesRecursive(ch.children)
+		switch ch.kind {
+		case "טבלה":
+			if ch.tableDark {
+				applyTableDarkColors(ch)
+			}
+		case "כפתור":
+			if ch.ctrlDark {
+				applyButtonDark(ch)
+			}
+		case "שדה":
+			if ch.ctrlDark {
+				applyEditDark(ch)
+			}
+		case "רשימה":
+			if ch.ctrlDark {
+				applyListDark(ch)
+			}
+		case "גרף":
+			if ch.chartDark {
+				invalidateChart(ch)
+			}
+		}
+		applyDarkControlsRecursive(ch.children, windowDark)
 	}
+}
+
+func applyButtonDark(st *controlState) {
+	if st == nil || st.button == nil || !st.ctrlDark {
+		return
+	}
+	applyDarkThemeToWidget(st.button)
+	clearWidgetFocusEffects(st.button)
+	// כיבוי עיצוב ויזואלי של Win32 כדי שיאפשר רקע מותאם
+	empty, _ := syscall.UTF16PtrFromString("")
+	win.SetWindowTheme(st.button.Handle(), empty, empty)
+	brush, err := walk.NewSolidColorBrush(darkBtnBG())
+	if err == nil {
+		st.button.SetBackground(brush)
+	}
+	st.button.Invalidate()
+}
+
+func applyEditDark(st *controlState) {
+	if st == nil || st.edit == nil || !st.ctrlDark {
+		return
+	}
+	applyDarkThemeToWidget(st.edit)
+	clearWidgetFocusEffects(st.edit)
+	brush, err := walk.NewSolidColorBrush(darkFieldBG())
+	if err == nil {
+		st.edit.SetBackground(brush)
+	}
+	st.edit.SetTextColor(darkCtlText())
+	st.edit.Invalidate()
+}
+
+func applyListDark(st *controlState) {
+	if st == nil || st.listBox == nil || !st.ctrlDark {
+		return
+	}
+	applyDarkThemeToWidget(st.listBox)
+	brush, err := walk.NewSolidColorBrush(darkPanelBG())
+	if err == nil {
+		st.listBox.SetBackground(brush)
+	}
+	st.listBox.Invalidate()
 }
 
 func wireBrowsersRecursive(ch *controlState, mw *walk.MainWindow) {

@@ -558,12 +558,18 @@ func buildControlWidget(ch *controlState) Widget {
 	switch ch.kind {
 	case "כפתור":
 		cb := ch.onClick
-		return PushButton{
-			Text: ch.text,
+		btn := PushButton{
+			AssignTo: &ch.button,
+			Text:     ch.text,
 			OnClicked: func() {
 				invokeYod(cb, nil)
 			},
 		}
+		if ch.ctrlDark {
+			btn.Background = SolidColorBrush{Color: darkBtnBG()}
+			btn.Font = Font{Family: "Segoe UI", PointSize: 10}
+		}
+		return btn
 	case "תווית":
 		return Label{
 			AssignTo:  &ch.label,
@@ -582,10 +588,16 @@ func buildControlWidget(ch *controlState) Widget {
 			},
 		}
 	case "שדה":
-		return LineEdit{
+		le := LineEdit{
 			AssignTo: &ch.edit,
 			Text:     ch.text,
 		}
+		if ch.ctrlDark {
+			le.Background = SolidColorBrush{Color: darkFieldBG()}
+			le.TextColor = darkCtlText()
+			le.Font = Font{Family: "Segoe UI", PointSize: 10}
+		}
+		return le
 	case "רשימה":
 		minH := ch.listMinH
 		if minH < 40 {
@@ -595,7 +607,7 @@ func buildControlWidget(ch *controlState) Widget {
 		if items == nil {
 			items = []string{}
 		}
-		return ListBox{
+		lb := ListBox{
 			AssignTo:      &ch.listBox,
 			Model:         items,
 			StretchFactor: 1,
@@ -607,6 +619,10 @@ func buildControlWidget(ch *controlState) Widget {
 				}
 			},
 		}
+		if ch.ctrlDark {
+			lb.Background = SolidColorBrush{Color: darkPanelBG()}
+		}
+		return lb
 	case "טבלה":
 		return buildTableWidget(ch)
 	case "גרף":

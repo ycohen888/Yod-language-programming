@@ -93,6 +93,9 @@ func newChartWidget(kind string) object.Object {
 	w.Attrs["קבע_כהה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return chartSetBool(st, &st.chartDark, "קבע_כהה", a...)
 	}}
+	w.Attrs["קבע_תת_כותרת"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return chartSetSubtitle(st, a...)
+	}}
 	w.Attrs["קבע_גובה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		if len(a) != 1 {
 			return errObj("גרף.קבע_גובה מצפה למספר")
@@ -153,6 +156,19 @@ func chartSetTitle(st *controlState, args ...object.Object) object.Object {
 		return errObj("גרף.קבע_כותרת מצפה למחרוזת")
 	}
 	st.chartTitle = s
+	invalidateChart(st)
+	return object.Nil
+}
+
+func chartSetSubtitle(st *controlState, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj("גרף.קבע_תת_כותרת מצפה למחרוזת")
+	}
+	s, ok := asString(args[0])
+	if !ok {
+		return errObj("גרף.קבע_תת_כותרת מצפה למחרוזת")
+	}
+	st.chartSubtitle = s
 	invalidateChart(st)
 	return object.Nil
 }
@@ -424,14 +440,30 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 
 	pad := 14
 	titleH := 0
-	if st.chartTitle != "" {
+	if st.chartTitle != "" || st.chartSubtitle != "" {
 		titleH = 28
-		font, err := walk.NewFont("Segoe UI", 12, walk.FontBold)
-		if err == nil {
-			defer font.Dispose()
-			tr := walk.Rectangle{X: bounds.X + pad, Y: bounds.Y + 6, Width: bounds.Width - pad*2, Height: 24}
-			_ = canvas.DrawText(st.chartTitle, font, theme.title, tr,
-				walk.TextCenter|walk.TextVCenter|walk.TextSingleLine)
+		if st.chartSubtitle != "" {
+			titleH = 46
+		}
+		y := bounds.Y + 6
+		if st.chartTitle != "" {
+			font, err := walk.NewFont("Segoe UI", 12, walk.FontBold)
+			if err == nil {
+				defer font.Dispose()
+				tr := walk.Rectangle{X: bounds.X + pad, Y: y, Width: bounds.Width - pad*2, Height: 22}
+				_ = canvas.DrawText(st.chartTitle, font, theme.title, tr,
+					walk.TextCenter|walk.TextVCenter|walk.TextSingleLine)
+				y += 22
+			}
+		}
+		if st.chartSubtitle != "" {
+			font, err := walk.NewFont("Segoe UI", 9, 0)
+			if err == nil {
+				defer font.Dispose()
+				tr := walk.Rectangle{X: bounds.X + pad, Y: y, Width: bounds.Width - pad*2, Height: 18}
+				_ = canvas.DrawText(st.chartSubtitle, font, theme.tick, tr,
+					walk.TextCenter|walk.TextVCenter|walk.TextSingleLine)
+			}
 		}
 	}
 
