@@ -18,7 +18,7 @@ func parse(t *testing.T, input string) *ast.Program {
 }
 
 func TestSubtractionNotJuxtaCall(t *testing.T) {
-	prog := parse(t, "הדפס: (א - ב).מוחלט()")
+	prog := parse(t, "(א - ב).מוחלט()")
 	es, ok := prog.Statements[0].(*ast.ExpressionStatement)
 	if !ok {
 		t.Fatalf("got %T", prog.Statements[0])
