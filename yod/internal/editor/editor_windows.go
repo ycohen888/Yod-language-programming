@@ -122,6 +122,7 @@ func Run(path string) error {
 	errLineSet := map[int]bool{}
 	var updateLineNumbers func()
 	var syncLineScroll func()
+	var clearGutter func()
 	var updateCaretStatus func()
 	var refreshProjectUI func()
 	var selectPathInTree func(string)
@@ -162,6 +163,9 @@ func Run(path string) error {
 			currentPath = ""
 			dirty = false
 			updateTitle()
+			if clearGutter != nil {
+				clearGutter()
+			}
 			return
 		}
 		currentPath = docs.Active.FilePath
@@ -473,7 +477,13 @@ func Run(path string) error {
 	}
 
 	updateLineNumbers = func() {
-		if lineEdit == nil || codeEdit == nil {
+		if lineEdit == nil {
+			return
+		}
+		if codeEdit == nil || docs == nil || docs.Active == nil || docs.Active.edit == nil {
+			if clearGutter != nil {
+				clearGutter()
+			}
 			return
 		}
 		n := codeEdit.LineCount()
@@ -496,6 +506,7 @@ func Run(path string) error {
 			}
 		}
 		win.SendMessage(lineEdit.Handle(), win.WM_SETREDRAW, 0, 0)
+		lineEdit.SetVisible(true)
 		lineEdit.SetText(b.String())
 		applyGutterMetrics(lineEdit)
 		if len(errLineSet) > 0 {
@@ -508,13 +519,28 @@ func Run(path string) error {
 		// אחרי החלפת טקסט הסקרול ב־gutter מתאפס — לסנכרן מיד עם העורך
 		if syncLineScroll != nil {
 			syncLineScroll()
-		} else {
+		} else if updateCaretStatus != nil {
 			updateCaretStatus()
 		}
 	}
 
+	clearGutter = func() {
+		lastGutterLines = 0
+		if lineEdit == nil {
+			return
+		}
+		win.SendMessage(lineEdit.Handle(), win.WM_SETREDRAW, 0, 0)
+		lineEdit.SetText("")
+		var gpt win.POINT
+		lineEdit.SendMessage(emSetScrollPos, 0, uintptr(unsafe.Pointer(&gpt)))
+		lineEdit.SendMessage(win.EM_LINESCROLL, 0, 0)
+		win.SendMessage(lineEdit.Handle(), win.WM_SETREDRAW, 1, 0)
+		win.InvalidateRect(lineEdit.Handle(), nil, true)
+		lineEdit.SetVisible(false)
+	}
+
 	syncLineScroll = func() {
-		if codeEdit == nil || lineEdit == nil {
+		if codeEdit == nil || lineEdit == nil || docs == nil || docs.Active == nil {
 			return
 		}
 		first := codeEdit.FirstVisibleLine()
@@ -1973,6 +1999,8 @@ func Run(path string) error {
 	docs.OnActivate = func(tab *OpenFileTab) {
 		if tab != nil && tab.edit != nil {
 			codeEdit = tab.edit
+		} else {
+			codeEdit = nil
 		}
 		syncFromActiveTab()
 		if tab != nil {
@@ -1983,7 +2011,13 @@ func Run(path string) error {
 	}
 	docs.ConfirmClose = confirmDiscardTab
 	docs.OnClosed = func(tab *OpenFileTab) {
-		syncFromActiveTab()
+		// הסנכרון/ניקוי gutter קורה ב־OnActivate; כאן רק אם לא נשאר טאב
+		if docs != nil && len(docs.Order) == 0 {
+			codeEdit = nil
+			if clearGutter != nil {
+				clearGutter()
+			}
+		}
 	}
 
 	fixGutterEdit(lineEdit)
