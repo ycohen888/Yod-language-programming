@@ -178,6 +178,12 @@ func winCreateCanvas(args ...object.Object) object.Object {
 	w.Attrs["בעכבר_למעלה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setMouseHandler(&st.onMouseUp, "בעכבר_למעלה", a)
 	}}
+	w.Attrs["בעכבר_זוז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setMouseHandler(&st.onMouseHover, "בעכבר_זוז", a)
+	}}
+	w.Attrs["קבע_רמז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setSurfaceHint(st, a...)
+	}}
 
 	w.Attrs["קבע_צבע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		c, err := parseDrawColor(a...)
@@ -758,14 +764,15 @@ func buildControlWidget(ch *controlState) Widget {
 				invokeYodMouse(ch.onMouseDown, x, y, name)
 			},
 			OnMouseMove: func(x, y int, button walk.MouseButton) {
-				if !ch.dragging {
+				if ch.dragging {
+					btn := ch.dragButton
+					if btn == "" {
+						btn = walkButtonName(button)
+					}
+					invokeYodMouse(ch.onMouseDrag, x, y, btn)
 					return
 				}
-				btn := ch.dragButton
-				if btn == "" {
-					btn = walkButtonName(button)
-				}
-				invokeYodMouse(ch.onMouseDrag, x, y, btn)
+				invokeYodMouse(ch.onMouseHover, x, y, walkButtonName(button))
 			},
 			OnMouseUp: func(x, y int, button walk.MouseButton) {
 				name := walkButtonName(button)

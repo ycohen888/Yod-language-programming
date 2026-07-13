@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספריית דוגמה · 0.65.2</span><strong>רכיבים</strong></div>
+      <div class="brand"><span class="eyebrow">ספריית דוגמה · 0.65.3</span><strong>רכיבים</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
@@ -63,7 +63,7 @@
         </thead>
         <tbody>
           <tr><td><code>כפתור_משטח</code></td><td>כפתור מעוגל; <code>בלחיצה</code>, <code>קבע_ראשי</code></td></tr>
-          <tr><td><code>כפתור_איקון</code></td><td>כפתור 32×32 עם תמונת PNG/JPG; <code>קבע_נתיב</code>, <code>קבע_פעיל</code>, טקסט אופציונלי. ציור דרך <code>משטח.תמונה(נתיב, x, y, רחב, גבה)</code></td></tr>
+          <tr><td><code>כפתור_איקון</code></td><td>כפתור 32×32 עם תמונת PNG/JPG; <code>קבע_נתיב</code>, <code>קבע_פעיל</code>, <code>קבע_רמז</code> (tooltip), טקסט אופציונלי. ציור דרך <code>משטח.תמונה(נתיב, x, y, רחב, גבה)</code></td></tr>
           <tr><td><code>כפתור_צלמית</code></td><td>כפתור ריבועי עם תו/טקסט לסרגל; <code>קבע_פעיל</code></td></tr>
           <tr><td><code>סליידר</code></td><td>ערך בצעד שלם; <code>בשינוי</code>, <code>קבע_ערך_שקט</code></td></tr>
           <tr><td><code>מספר_מדרגה</code></td><td>כפתורי − / +</td></tr>
@@ -86,6 +86,11 @@
           <tr><td><code>מפריד</code> / <code>מסגרת_ציור</code></td><td>קו מפריד וכרטיס רקע</td></tr>
         </tbody>
       </table>
+
+      <p>
+        לכל רכיב: <code>קבע_רמז("טקסט")</code> — <code>לוח_רכיבים</code> מעדכן את
+        <code>משטח.קבע_רמז</code> בריחוף (tooltip מערכת).
+      </p>
 
       <h2>דוגמה מלאה</h2>
       <p>

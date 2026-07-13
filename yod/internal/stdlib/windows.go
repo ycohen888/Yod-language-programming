@@ -65,9 +65,10 @@ type controlState struct {
 	canvasH     int
 	dragging    bool
 	dragButton  string
-	onMouseDown object.Object
-	onMouseDrag object.Object
-	onMouseUp   object.Object
+	onMouseDown  object.Object
+	onMouseDrag  object.Object
+	onMouseUp    object.Object
+	onMouseHover object.Object // תנועת עכבר בלי לחיצה (רמזים וכו')
 	undoStack   []*image.RGBA
 	backup      *image.RGBA
 	// דגם צבע / סמל כלי
@@ -655,7 +656,14 @@ func setControlHint(st *controlState, name string, a ...object.Object) object.Ob
 	if st.edit != nil {
 		_ = st.edit.SetToolTipText(s)
 	}
+	if st.canvas != nil {
+		_ = st.canvas.SetToolTipText(s)
+	}
 	return object.Nil
+}
+
+func setSurfaceHint(st *controlState, a ...object.Object) object.Object {
+	return setControlHint(st, "משטח.קבע_רמז", a...)
 }
 
 func winSetMenu(st *windowState, args ...object.Object) object.Object {
