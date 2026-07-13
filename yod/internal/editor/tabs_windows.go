@@ -256,11 +256,6 @@ func (d *DocTabs) showEditor(tab *OpenFileTab) {
 	tab.edit.SetVisible(true)
 	d.Editor = tab.edit
 	if d.Host != nil {
-		// ממלאים את כל שטח העריכה (פריסה ידנית בלי HBox)
-		b := d.Host.ClientBoundsPixels()
-		if b.Width > 0 && b.Height > 0 {
-			_ = tab.edit.SetBoundsPixels(b)
-		}
 		d.Host.RequestLayout()
 	}
 	_ = tab.edit.SetFocus()
@@ -377,10 +372,6 @@ func (d *DocTabs) openNewTab(tab *OpenFileTab) (*OpenFileTab, error) {
 	d.Editor = tab.edit
 	_ = tab.edit.SetFocus()
 	if d.Host != nil {
-		b := d.Host.ClientBoundsPixels()
-		if b.Width > 0 && b.Height > 0 {
-			_ = tab.edit.SetBoundsPixels(b)
-		}
 		d.Host.RequestLayout()
 	}
 	if d.OnEditor != nil {

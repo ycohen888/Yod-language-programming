@@ -111,29 +111,28 @@ func Run(path string) error {
 		busy         bool
 	)
 
-	treePaneW := 0 // יוגדר ל־~20% בפריסה הידנית של splitHost
+	treePaneW := 0 // יוגדר ל־~20% אחרי שיש רוחב אמיתי
 	treeSized := false
-	var layoutSplit func()
-	var fillEditStack func()
-	layoutSplit = func() {
-		if splitHost == nil || treePane == nil || gripHost == nil || editorSplit == nil {
+	var applyTreeWidth func()
+	applyTreeWidth = func() {
+		if treePane == nil || splitHost == nil {
 			return
 		}
-		cb := splitHost.ClientBoundsPixels()
-		if cb.Width < 200 || cb.Height < 40 {
+		hostW := splitHost.ClientBoundsPixels().Width
+		if hostW < 200 {
 			return
 		}
 		const gripW = 6
 		const editorMin = 280
-		maxTree := cb.Width - gripW - editorMin
+		maxTree := hostW - gripW - editorMin
 		if maxTree < 100 {
-			maxTree = cb.Width / 3
+			maxTree = hostW / 3
 			if maxTree < 100 {
 				maxTree = 100
 			}
 		}
 		if !treeSized || treePaneW <= 0 {
-			treePaneW = cb.Width * 20 / 100
+			treePaneW = hostW * 20 / 100
 			treeSized = true
 		}
 		if treePaneW < 100 {
@@ -142,25 +141,12 @@ func Run(path string) error {
 		if treePaneW > maxTree {
 			treePaneW = maxTree
 		}
-		tw := treePaneW
-		_ = treePane.SetBoundsPixels(walk.Rectangle{X: 0, Y: 0, Width: tw, Height: cb.Height})
-		_ = gripHost.SetBoundsPixels(walk.Rectangle{X: tw, Y: 0, Width: gripW, Height: cb.Height})
-		_ = editorSplit.SetBoundsPixels(walk.Rectangle{
-			X: tw + gripW, Y: 0, Width: cb.Width - tw - gripW, Height: cb.Height,
-		})
-	}
-	fillEditStack = func() {
-		if editStack == nil {
-			return
-		}
-		b := editStack.ClientBoundsPixels()
-		if b.Width < 1 || b.Height < 1 {
-			return
-		}
-		ch := editStack.Children()
-		for i := 0; i < ch.Len(); i++ {
-			_ = ch.At(i).SetBoundsPixels(b)
-		}
+		w := treePaneW
+		_ = treePane.SetMinMaxSizePixels(
+			walk.Size{Width: w, Height: 40},
+			walk.Size{Width: w, Height: 8000},
+		)
+		splitHost.RequestLayout()
 	}
 
 	codeFace := pickCodeFont()
@@ -1797,6 +1783,7 @@ func Run(path string) error {
 						Layout:     VBox{MarginsZero: true, Spacing: 0},
 						Background: SolidColorBrush{Color: colToolbar},
 						MinSize:    Size{Width: 100},
+						MaxSize:    Size{Width: 400},
 						Children: []Widget{
 							Composite{
 								Layout:     HBox{Margins: Margins{Left: 8, Right: 6, Top: 6, Bottom: 4}, Spacing: 6},
@@ -1809,11 +1796,11 @@ func Run(path string) error {
 							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
 							Label{
 								AssignTo:           &treeEmpty,
-								Text:               "פתחו תיקיית פרויקט\n(קובץ ← פתח תיקייה)\nאו גררו קובץ .יוד לכאן\nהקובץ הראשי: התחל.יוד",
+								Text:               "פתחו תיקיית פרויקט\n(קובץ ← פתח תיקייה)",
 								TextColor:          colMuted,
 								Font:               Font{Family: uiFont, PointSize: 9},
 								RightToLeftReading: true,
-								MinSize:            Size{Height: 60},
+								MinSize:            Size{Height: 40},
 							},
 							Composite{
 								AssignTo:      &fileTreeHost,
@@ -2070,8 +2057,10 @@ func Run(path string) error {
 
 	docs = NewDocTabs(docTabBar, editStack, codeEdit, wireCodeEdit)
 	docs.OnEditor = func(ed *CodeEdit) {
-		codeEdit = ed // כל הסגירות הישנות ב־main מצביעות על העורך הגלוי
-		fillEditStack()
+		codeEdit = ed
+		if editStack != nil {
+			editStack.RequestLayout()
+		}
 	}
 
 	docs.OnActivate = func(tab *OpenFileTab) {
@@ -2148,9 +2137,8 @@ func Run(path string) error {
 	}
 
 	if splitHost != nil {
-		// פריסה ידנית — רוחב סייר קבוע (~20%), בלי HBox/RTL שמרחיבים אותו
+		// LTR + רוחב סייר קבוע (~20%) דרך MinMaxSize — בלי SetLayout(nil) (קריסה ב־walk)
 		clearLayoutRTL(splitHost.Handle())
-		_ = splitHost.SetLayout(nil)
 		if treePane != nil {
 			clearLayoutRTL(treePane.Handle())
 		}
@@ -2170,7 +2158,8 @@ func Run(path string) error {
 					dragStartW = treePaneW
 				}
 				treePaneW = dragStartW + sign*totalDX
-				layoutSplit()
+				treeSized = true
+				applyTreeWidth()
 			}); err != nil {
 				return err
 			}
@@ -2188,31 +2177,30 @@ func Run(path string) error {
 		}
 		treePaneW = 0
 		treeSized = false
-		layoutSplit()
+		applyTreeWidth()
 		splitHost.SizeChanged().Attach(func() {
-			layoutSplit()
-			fillEditStack()
+			if !treeSized {
+				applyTreeWidth()
+			}
 		})
 		if mw != nil {
 			mw.SizeChanged().Attach(func() {
-				layoutSplit()
-				fillEditStack()
+				if !treeSized {
+					applyTreeWidth()
+				}
 			})
 		}
 	}
-	// codeHost ב־LTR: עורך משמאל, מספור מימין (צמוד בלי רווחים)
+	// codeHost ב־LTR: עורך משמאל, מספור מימין
 	if codeHost != nil {
 		clearLayoutRTL(codeHost.Handle())
 		if editStack != nil {
 			clearLayoutRTL(editStack.Handle())
-			_ = editStack.SetLayout(nil)
-			editStack.SizeChanged().Attach(fillEditStack)
 		}
 		if lineEdit != nil {
 			styleEditorPane(lineEdit)
 		}
 		codeHost.RequestLayout()
-		fillEditStack()
 	}
 	if fileTreeHost != nil && fileTree != nil {
 		if err := fileTree.Mount(fileTreeHost); err != nil {
