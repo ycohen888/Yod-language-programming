@@ -838,10 +838,15 @@ func Run(path string) error {
 		}
 		path, ok, err := pickFolder(mw, "פתיחת תיקיית פרויקט", initial)
 		if err != nil {
-			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			walk.MsgBox(mw, "שגיאה", "לא ניתן לפתוח דיאלוג תיקייה:\n"+err.Error(), walk.MsgBoxIconError)
 			return
 		}
 		if !ok || path == "" {
+			return
+		}
+		fi, err := os.Stat(path)
+		if err != nil || !fi.IsDir() {
+			walk.MsgBox(mw, "שגיאה", "הנתיב שנבחר אינו תיקייה:\n"+path, walk.MsgBoxIconError)
 			return
 		}
 		abs, err := filepath.Abs(path)
