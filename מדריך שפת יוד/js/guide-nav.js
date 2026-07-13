@@ -4,7 +4,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.59.0";
+  var VERSION = "0.60.0";
 
   /** עץ ניווט: פרקים + תת־סעיפים (עמודים) */
   var NAV = [
@@ -138,6 +138,58 @@
     return hay.indexOf(q) !== -1;
   }
 
+  function pageSections(href) {
+    var all = window.GUIDE_SECTIONS || {};
+    return all[href] || [];
+  }
+
+  function matchingSections(q, href, liveHeads) {
+    if (!q) return [];
+    var secs = pageSections(href).slice();
+    if (liveHeads && liveHeads.length) {
+      var byTitle = {};
+      for (var i = 0; i < secs.length; i++) byTitle[secs[i].title] = secs[i];
+      for (var j = 0; j < liveHeads.length; j++) {
+        var lh = liveHeads[j];
+        if (byTitle[lh.title]) {
+          if (lh.id) byTitle[lh.title].id = lh.id;
+        } else {
+          var row = { title: lh.title, id: lh.id || "", level: lh.level };
+          secs.push(row);
+          byTitle[lh.title] = row;
+        }
+      }
+    }
+    var out = [];
+    for (var k = 0; k < secs.length; k++) {
+      if (matches(q, secs[k].title, "")) out.push(secs[k]);
+    }
+    return out;
+  }
+
+  function renderSectionLinks(pageHref, sections, pageActive) {
+    if (!sections || !sections.length) return "";
+    var html = '<div class="nav-sub" data-page-toc="1">';
+    for (var h = 0; h < sections.length; h++) {
+      var item = sections[h];
+      var link =
+        item.id && pageActive
+          ? "#" + item.id
+          : resolve(pageHref) + (item.id ? "#" + item.id : "");
+      html +=
+        '<a href="' +
+        link +
+        '"' +
+        (item.id && pageActive ? ' data-heading="' + item.id + '"' : "") +
+        (item.level === "h3" ? ' style="padding-right:18px"' : "") +
+        ' class="nav-section-link">' +
+        item.title +
+        "</a>";
+    }
+    html += "</div>";
+    return html;
+  }
+
   function ensureHeadingIds(article) {
     if (!article) return [];
     var heads = article.querySelectorAll("h2, h3");
@@ -179,7 +231,7 @@
       "</span></span>" +
       "</a>" +
       '<div class="guide-search">' +
-      '<input type="search" id="guide-search-input" placeholder="חיפוש במדריך…" autocomplete="off" />' +
+      '<input type="search" id="guide-search-input" placeholder="חיפוש בעמודים ובסעיפים…" autocomplete="off" />' +
       '<span class="guide-search-icon" aria-hidden="true">⌕</span>' +
       "</div>" +
       "</div>" +
@@ -206,19 +258,22 @@
 
       for (var i = 0; i < chapter.children.length; i++) {
         var page = chapter.children[i];
-        var hit = chapterHit || matches(q, page.title, page.keywords);
+        var pageActive = cur === page.href;
+        var liveHeads = pageActive ? articleHeads : null;
+        var sectionHits = q ? matchingSections(q, page.href, liveHeads) : [];
+        var hit =
+          chapterHit ||
+          matches(q, page.title, page.keywords) ||
+          sectionHits.length > 0;
         if (q && !hit) continue;
         if (!q || hit) {
           any = true;
         }
         var href = resolve(page.href);
-        var pageActive = cur === page.href;
         if (pageActive) {
           hasActivePage = true;
           open = true;
         }
-
-        if (q && !hit) continue;
 
         childHtml +=
           '<a class="nav-link' +
@@ -231,22 +286,10 @@
           page.title +
           "</a>";
 
-        if (pageActive && articleHeads && articleHeads.length) {
-          childHtml += '<div class="nav-sub" data-page-toc="1">';
-          for (var h = 0; h < articleHeads.length; h++) {
-            var item = articleHeads[h];
-            childHtml +=
-              '<a href="#' +
-              item.id +
-              '" data-heading="' +
-              item.id +
-              '"' +
-              (item.level === "h3" ? ' style="padding-right:18px"' : "") +
-              ">" +
-              item.title +
-              "</a>";
-          }
-          childHtml += "</div>";
+        if (q && sectionHits.length) {
+          childHtml += renderSectionLinks(page.href, sectionHits, pageActive);
+        } else if (!q && pageActive && articleHeads && articleHeads.length) {
+          childHtml += renderSectionLinks(page.href, articleHeads, true);
         }
       }
 
@@ -457,12 +500,38 @@
     }
   }
 
+  function navScriptDir() {
+    var list = document.querySelectorAll('script[src*="guide-nav.js"]');
+    if (!list.length) return "js/";
+    var src = list[list.length - 1].getAttribute("src") || "js/guide-nav.js";
+    return src.replace(/guide-nav\.js(\?.*)?$/, "");
+  }
+
+  function loadSectionIndex(done) {
+    if (window.GUIDE_SECTIONS) {
+      done();
+      return;
+    }
+    var scr = document.createElement("script");
+    scr.src = navScriptDir() + "guide-sections.js";
+    scr.onload = function () {
+      done();
+    };
+    scr.onerror = function () {
+      window.GUIDE_SECTIONS = window.GUIDE_SECTIONS || {};
+      done();
+    };
+    document.head.appendChild(scr);
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
-    ensureShell();
-    var articleHeads = ensureHeadingIds(document.querySelector(".article"));
-    buildSidebar();
-    setupSearch(articleHeads);
-    setupScrollSpy();
-    setupMobile();
+    loadSectionIndex(function () {
+      ensureShell();
+      var articleHeads = ensureHeadingIds(document.querySelector(".article"));
+      buildSidebar();
+      setupSearch(articleHeads);
+      setupScrollSpy();
+      setupMobile();
+    });
   });
 })();
