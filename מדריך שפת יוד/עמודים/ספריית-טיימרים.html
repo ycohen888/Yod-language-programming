@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית טיימרים | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.60.0</span><strong>טיימרים</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית טיימרים</h1>
+      <p class="lead">
+        הפעלה חוזרת או חד־פעמית ברקע בלי לחסום. טוענים עם <code>כלול "טיימרים"</code>.
+        בחלון GUI הקריאות מסונכרנות לחוט הממשק.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>טיימרים.כל_כמה(שניות, פונקציה)</code></td><td>חוזר כל מספר שניות — מחזיר מזהה</td></tr>
+          <tr><td><code>טיימרים.פעם_אחת(שניות, פונקציה)</code></td><td>פעם אחת אחרי השהייה — מחזיר מזהה</td></tr>
+          <tr><td><code>טיימרים.עצור(מזהה)</code></td><td>עוצר טיימר</td></tr>
+          <tr><td><code>טיימרים.עצור_הכל()</code></td><td>עוצר את כל הטיימרים</td></tr>
+          <tr><td><code>טיימרים.השהה(מזהה)</code></td><td>משהה בלי לבטל</td></tr>
+          <tr><td><code>טיימרים.המשך(מזהה)</code></td><td>ממשיך אחרי השהיה</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה</h2>
+      <figure class="example">
+        <span class="example-label">רענון כל 2 שניות</span>
+        <pre class="code-block">כלול "טיימרים"
+
+משתנה מ = טיימרים.כל_כמה: 2, פונקציה ()
+  הדפס("תיק")
+סוף
+
+טיימרים.פעם_אחת: 10, פונקציה ()
+  טיימרים.עצור: מ
+  הדפס("נעצר")
+סוף</pre>
+      </figure>
+
+      <div class="callout tip">
+        בחלון חלונות אפשר גם <code>חלון.כל_כמה</code> שרץ רק בזמן שהחלון פתוח.
+        <code>טיימרים</code> עובד גם בקונסול וגם ב־GUI.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

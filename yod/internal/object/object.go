@@ -298,7 +298,7 @@ func (h *Hash) Get(name string) (Object, bool) {
 }
 
 type Function struct {
-	Parameters []*ast.Identifier
+	Parameters []*ast.Parameter
 	Body       *ast.BlockStatement
 	Env        *Environment
 }
@@ -307,7 +307,15 @@ func (f *Function) Type() Type { return FunctionObj }
 func (f *Function) Inspect() string {
 	params := make([]string, len(f.Parameters))
 	for i, p := range f.Parameters {
-		params[i] = p.Value
+		if p == nil || p.Name == nil {
+			params[i] = "?"
+			continue
+		}
+		if p.Default != nil {
+			params[i] = p.Name.Value + "=…"
+		} else {
+			params[i] = p.Name.Value
+		}
 	}
 	return fmt.Sprintf("פונקציה(%s)", strings.Join(params, ", "))
 }
@@ -316,6 +324,8 @@ type CompiledFunction struct {
 	Instructions  code.Instructions
 	NumLocals     int
 	NumParameters int
+	NumRequired   int             // פרמטרים חובה (בלי ברירת מחדל)
+	Defaults      []Object        // ברירות מחדל קבועות; nil באינדקס = חובה / לא בשימוש
 }
 
 func (f *CompiledFunction) Type() Type      { return CompiledFunctionObj }

@@ -443,17 +443,15 @@ func invalidateCanvas(st *controlState) {
 	}
 }
 
-func invokeYod(fn object.Object, args []object.Object) {
+func invokeYodMouse(fn object.Object, x, y int, button string) {
 	if fn == nil {
 		return
 	}
-	var res object.Object
-	if object.InvokeCallable != nil {
-		res = object.InvokeCallable(fn, args)
-	} else if f, ok := fn.(*object.Function); ok && object.InvokeFunction != nil {
-		res = object.InvokeFunction(f, args)
+	args := []object.Object{numObj(x), numObj(y)}
+	if mouseHandlerArity(fn) >= 3 {
+		args = append(args, &object.String{Value: button})
 	}
-	_ = res
+	invokeYod(fn, args)
 }
 
 func mouseHandlerArity(fn object.Object) int {
@@ -481,17 +479,6 @@ func walkButtonName(button walk.MouseButton) string {
 	default:
 		return mouseOther
 	}
-}
-
-func invokeYodMouse(fn object.Object, x, y int, button string) {
-	if fn == nil {
-		return
-	}
-	args := []object.Object{numObj(x), numObj(y)}
-	if mouseHandlerArity(fn) >= 3 {
-		args = append(args, &object.String{Value: button})
-	}
-	invokeYod(fn, args)
 }
 
 func numObj(v int) object.Object {
@@ -561,9 +548,13 @@ func buildControlWidget(ch *controlState) Widget {
 		btn := PushButton{
 			AssignTo: &ch.button,
 			Text:     ch.text,
+			Enabled:  !ch.ctrlDisabled,
 			OnClicked: func() {
 				invokeYod(cb, nil)
 			},
+		}
+		if ch.ctrlHint != "" {
+			btn.ToolTipText = ch.ctrlHint
 		}
 		if ch.ctrlDark {
 			btn.Background = SolidColorBrush{Color: darkBtnBG()}
@@ -591,6 +582,10 @@ func buildControlWidget(ch *controlState) Widget {
 		le := LineEdit{
 			AssignTo: &ch.edit,
 			Text:     ch.text,
+			Enabled:  !ch.ctrlDisabled,
+		}
+		if ch.ctrlHint != "" {
+			le.ToolTipText = ch.ctrlHint
 		}
 		if ch.ctrlDark {
 			le.Background = SolidColorBrush{Color: darkFieldBG()}

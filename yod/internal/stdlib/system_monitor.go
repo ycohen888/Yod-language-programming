@@ -24,6 +24,7 @@ func sysProcesses(args ...object.Object) object.Object {
 		out = append(out, &object.Hash{Pairs: map[string]object.Object{
 			"מזהה":        &object.Number{Value: float64(p.PID)},
 			"שם":          &object.String{Value: p.Name},
+			"נתיב":        &object.String{Value: p.Path},
 			"זיכרון_בתים": &object.Number{Value: float64(p.WorkingSet)},
 			"זיכרון_מגה":  &object.Number{Value: float64(p.WorkingSet / mb)},
 		}})
@@ -116,6 +117,7 @@ type osProcess struct {
 	PID        uint32
 	Name       string
 	WorkingSet uint64
+	Path       string
 }
 
 type osDrive struct {

@@ -537,8 +537,27 @@ func evalParentLiteral(node *ast.ParentLiteral, env *object.Environment) object.
 }
 
 func callUserFunction(fn *object.Function, args []object.Object, this *object.Instance, owner *object.Class, line int) object.Object {
-	if len(args) != len(fn.Parameters) {
-		return newError(line, fmt.Sprintf("מספר ארגומנטים שגוי: ציפיתי ל־%d קיבלתי %d", len(fn.Parameters), len(args)))
+	nParams := len(fn.Parameters)
+	nRequired := 0
+	seenDefault := false
+	for _, p := range fn.Parameters {
+		if p == nil {
+			continue
+		}
+		if p.Default != nil {
+			seenDefault = true
+		} else {
+			if seenDefault {
+				return newError(line, "פרמטר בלי ברירת מחדל אחרי פרמטר עם ברירת מחדל")
+			}
+			nRequired++
+		}
+	}
+	if len(args) < nRequired || len(args) > nParams {
+		if nRequired == nParams {
+			return newError(line, fmt.Sprintf("מספר ארגומנטים שגוי: ציפיתי ל־%d קיבלתי %d", nParams, len(args)))
+		}
+		return newError(line, fmt.Sprintf("מספר ארגומנטים שגוי: ציפיתי ל־%d…%d קיבלתי %d", nRequired, nParams, len(args)))
 	}
 	extended := object.NewEnclosedEnvironment(fn.Env)
 	if this != nil {
@@ -548,7 +567,21 @@ func callUserFunction(fn *object.Function, args []object.Object, this *object.In
 		extended.CurrentClass = owner
 	}
 	for i, param := range fn.Parameters {
-		extended.Set(param.Value, args[i])
+		if param == nil || param.Name == nil {
+			continue
+		}
+		var val object.Object
+		if i < len(args) {
+			val = args[i]
+		} else if param.Default != nil {
+			val = Eval(param.Default, extended)
+			if isError(val) {
+				return val
+			}
+		} else {
+			val = NULL
+		}
+		extended.Set(param.Name.Value, val)
 	}
 	evaluated := Eval(fn.Body, extended)
 	return unwrapReturn(evaluated)

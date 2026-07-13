@@ -693,8 +693,26 @@ func (vm *VM) callFunction(numArgs int) error {
 }
 
 func (vm *VM) pushCallFrame(fn *object.CompiledFunction, numArgs int, free []*object.Cell) error {
-	if numArgs != fn.NumParameters {
-		return fmt.Errorf("מספר ארגומנטים שגוי: ציפיתי ל־%d קיבלתי %d", fn.NumParameters, numArgs)
+	nReq := fn.NumRequired
+	if nReq == 0 && len(fn.Defaults) == 0 {
+		nReq = fn.NumParameters
+	}
+	if numArgs < nReq || numArgs > fn.NumParameters {
+		if nReq == fn.NumParameters {
+			return fmt.Errorf("מספר ארגומנטים שגוי: ציפיתי ל־%d קיבלתי %d", fn.NumParameters, numArgs)
+		}
+		return fmt.Errorf("מספר ארגומנטים שגוי: ציפיתי ל־%d…%d קיבלתי %d", nReq, fn.NumParameters, numArgs)
+	}
+	// השלמת ברירות מחדל על המחסנית לפני הכניסה לפריים
+	for i := numArgs; i < fn.NumParameters; i++ {
+		var def object.Object = &object.Null{}
+		if i < len(fn.Defaults) && fn.Defaults[i] != nil {
+			def = fn.Defaults[i]
+		}
+		if err := vm.push(def); err != nil {
+			return err
+		}
+		numArgs++
 	}
 	frame := NewFrame(fn, vm.sp-numArgs)
 	frame.free = free

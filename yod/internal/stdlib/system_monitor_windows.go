@@ -57,6 +57,7 @@ func listOSProcesses() ([]osProcess, error) {
 				PID:        pid,
 				Name:       name,
 				WorkingSet: processWorkingSet(pid),
+				Path:       processImagePath(pid),
 			})
 		}
 		if err := windows.Process32Next(snap, &pe); err != nil {
@@ -87,6 +88,21 @@ func processWorkingSet(pid uint32) uint64 {
 		return 0
 	}
 	return uint64(pmc.WorkingSetSize)
+}
+
+func processImagePath(pid uint32) string {
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+	if err != nil {
+		return ""
+	}
+	defer windows.CloseHandle(h)
+	buf := make([]uint16, 1024)
+	size := uint32(len(buf))
+	err = windows.QueryFullProcessImageName(h, 0, &buf[0], &size)
+	if err != nil {
+		return ""
+	}
+	return windows.UTF16ToString(buf[:size])
 }
 
 func killOSProcess(pid uint32) error {

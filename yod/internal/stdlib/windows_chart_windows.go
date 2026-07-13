@@ -96,6 +96,9 @@ func newChartWidget(kind string) object.Object {
 	w.Attrs["קבע_תת_כותרת"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return chartSetSubtitle(st, a...)
 	}}
+	w.Attrs["קבע_טווח_Y"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return chartSetYRange(st, a...)
+	}}
 	w.Attrs["קבע_גובה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		if len(a) != 1 {
 			return errObj("גרף.קבע_גובה מצפה למספר")
@@ -169,6 +172,35 @@ func chartSetSubtitle(st *controlState, args ...object.Object) object.Object {
 		return errObj("גרף.קבע_תת_כותרת מצפה למחרוזת")
 	}
 	st.chartSubtitle = s
+	invalidateChart(st)
+	return object.Nil
+}
+
+func chartSetYRange(st *controlState, args ...object.Object) object.Object {
+	switch len(args) {
+	case 1:
+		n, ok := args[0].(*object.Number)
+		if !ok {
+			return errObj("גרף.קבע_טווח_Y מצפה למספר מקס, או מינ ומקס")
+		}
+		st.chartYMin = 0
+		st.chartYMax = n.Value
+		st.chartYRangeSet = true
+	case 2:
+		a, ok1 := args[0].(*object.Number)
+		b, ok2 := args[1].(*object.Number)
+		if !ok1 || !ok2 {
+			return errObj("גרף.קבע_טווח_Y מצפה למספרים")
+		}
+		st.chartYMin = a.Value
+		st.chartYMax = b.Value
+		st.chartYRangeSet = true
+	default:
+		return errObj("גרף.קבע_טווח_Y מצפה למקס, או מינ ומקס")
+	}
+	if st.chartYMax <= st.chartYMin {
+		return errObj("גרף.קבע_טווח_Y: מקס חייב להיות גדול ממינ")
+	}
 	invalidateChart(st)
 	return object.Nil
 }
@@ -566,6 +598,15 @@ func niceCeiling(v float64) float64 {
 
 func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int, isLine bool, theme chartTheme) error {
 	maxV := chartMaxValue(st.chartSeries)
+	minV := 0.0
+	if st.chartYRangeSet {
+		minV = st.chartYMin
+		maxV = st.chartYMax
+	}
+	span := maxV - minV
+	if span <= 0 {
+		span = 1
+	}
 	nCats := len(st.chartLabels)
 	for _, s := range st.chartSeries {
 		if len(s.values) > nCats {
@@ -609,7 +650,7 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 			_ = canvas.DrawLine(gridPen, walk.Point{X: plot.X, Y: y}, walk.Point{X: plot.X + plot.Width, Y: y})
 		}
 		if tickFont != nil {
-			val := maxV * t
+			val := minV + span*t
 			txt := formatChartNumber(val)
 			tr := walk.Rectangle{X: bounds.X + 4, Y: y - 8, Width: plot.X - bounds.X - 8, Height: 16}
 			_ = canvas.DrawText(txt, tickFont, theme.tick, tr,
@@ -639,9 +680,12 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 			pts := make([]walk.Point, 0, len(s.values))
 			for i, v := range s.values {
 				x := plot.X + int((float64(i)+0.5)*slotW)
-				ratio := 0.0
-				if maxV > 0 {
-					ratio = v / maxV
+				ratio := (v - minV) / span
+				if ratio < 0 {
+					ratio = 0
+				}
+				if ratio > 1 {
+					ratio = 1
 				}
 				y := plot.Y + plot.Height - int(ratio*float64(plot.Height))
 				pts = append(pts, walk.Point{X: x, Y: y})
@@ -683,9 +727,12 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 				continue
 			}
 			for i, v := range s.values {
-				ratio := 0.0
-				if maxV > 0 {
-					ratio = v / maxV
+				ratio := (v - minV) / span
+				if ratio < 0 {
+					ratio = 0
+				}
+				if ratio > 1 {
+					ratio = 1
 				}
 				if ratio < 0 {
 					ratio = 0

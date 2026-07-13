@@ -34,6 +34,7 @@ type windowState struct {
 	bgColor   walk.Color
 	hasBg     bool
 	dark      bool
+	menuItems []MenuItem
 }
 
 type windowTimer struct {
@@ -79,13 +80,17 @@ type controlState struct {
 	listMinH    int
 	onSelect    object.Object
 	// טבלה
-	tableView  *walk.TableView
-	tableModel *yodTableModel
-	tableCols  []int
-	tableDark  bool
-	// עיצוב כהה לרכיבים
-	ctrlDark bool
-	button   *walk.PushButton
+	tableView   *walk.TableView
+	tableModel  *yodTableModel
+	tableCols   []int
+	tableDark   bool
+	tableAllRows []yodTableRow // מקור מלא לסינון
+	tableFilter string
+	// עיצוב כהה + מצב רכיב
+	ctrlDark     bool
+	ctrlDisabled bool
+	ctrlHint     string
+	button       *walk.PushButton
 	// גרף
 	chartWidget     *walk.CustomWidget
 	chartKind       string // עמודות | קו | עוגה
@@ -98,6 +103,9 @@ type controlState struct {
 	chartShowLegend bool
 	chartShowGrid   bool
 	chartDark       bool
+	chartYMin       float64
+	chartYMax       float64
+	chartYRangeSet  bool
 	// רקע אופציונלי למסגרת
 	bgColor walk.Color
 	hasBg   bool
@@ -162,6 +170,9 @@ func winCreateWindow(args ...object.Object) object.Object {
 	}}
 	w.Attrs["קבע_כהה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winSetDark(st, a...)
+	}}
+	w.Attrs["קבע_תפריט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetMenu(st, a...)
 	}}
 	w.Attrs["הצג"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winShow(st)
@@ -305,6 +316,12 @@ func winCreateButton(args ...object.Object) object.Object {
 			applyButtonDark(st)
 		}
 		return object.Nil
+	}}
+	w.Attrs["קבע_מושבת"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setControlDisabled(st, "כפתור.קבע_מושבת", a...)
+	}}
+	w.Attrs["קבע_רמז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setControlHint(st, "כפתור.קבע_רמז", a...)
 	}}
 	return w
 }
@@ -599,7 +616,111 @@ func winCreateEdit(args ...object.Object) object.Object {
 		}
 		return object.Nil
 	}}
+	w.Attrs["קבע_מושבת"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setControlDisabled(st, "שדה.קבע_מושבת", a...)
+	}}
+	w.Attrs["קבע_רמז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setControlHint(st, "שדה.קבע_רמז", a...)
+	}}
 	return w
+}
+
+func setControlDisabled(st *controlState, name string, a ...object.Object) object.Object {
+	on, errV := parseDarkBool(name, a...)
+	if errV != nil {
+		return errV
+	}
+	st.ctrlDisabled = on
+	if st.button != nil {
+		st.button.SetEnabled(!on)
+	}
+	if st.edit != nil {
+		st.edit.SetEnabled(!on)
+	}
+	return object.Nil
+}
+
+func setControlHint(st *controlState, name string, a ...object.Object) object.Object {
+	if len(a) != 1 {
+		return errObj(name + " מצפה למחרוזת")
+	}
+	s, ok := asString(a[0])
+	if !ok {
+		return errObj(name + " מצפה למחרוזת")
+	}
+	st.ctrlHint = s
+	if st.button != nil {
+		_ = st.button.SetToolTipText(s)
+	}
+	if st.edit != nil {
+		_ = st.edit.SetToolTipText(s)
+	}
+	return object.Nil
+}
+
+func winSetMenu(st *windowState, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj("חלון.קבע_תפריט מצפה לרשימת תפריטים")
+	}
+	arr, ok := args[0].(*object.Array)
+	if !ok {
+		return errObj("חלון.קבע_תפריט מצפה לרשימה")
+	}
+	items, err := buildMenuItems(arr)
+	if err != nil {
+		return errObj("חלון.קבע_תפריט: " + err.Error())
+	}
+	st.menuItems = items
+	return object.Nil
+}
+
+func buildMenuItems(arr *object.Array) ([]MenuItem, error) {
+	out := make([]MenuItem, 0, len(arr.Elements))
+	for _, el := range arr.Elements {
+		h, ok := el.(*object.Hash)
+		if !ok {
+			return nil, fmt.Errorf("כל פריט תפריט חייב להיות מילון")
+		}
+		nameObj, ok := h.Pairs["שם"]
+		if !ok {
+			return nil, fmt.Errorf("חסר מפתח \"שם\"")
+		}
+		name, ok := asString(nameObj)
+		if !ok {
+			return nil, fmt.Errorf("שם תפריט חייב מחרוזת")
+		}
+		if itemsObj, ok := h.Pairs["פריטים"]; ok {
+			subArr, ok := itemsObj.(*object.Array)
+			if !ok {
+				return nil, fmt.Errorf("פריטים חייבים רשימה")
+			}
+			sub, err := buildMenuItems(subArr)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, Menu{Text: name, Items: sub})
+			continue
+		}
+		if actionObj, ok := h.Pairs["פעולה"]; ok {
+			if !isCallable(actionObj) {
+				return nil, fmt.Errorf("פעולה חייבת פונקציה")
+			}
+			fn := actionObj
+			out = append(out, Action{
+				Text: name,
+				OnTriggered: func() {
+					invokeYod(fn, nil)
+				},
+			})
+			continue
+		}
+		if name == "-" || name == "מפריד" {
+			out = append(out, Separator{})
+			continue
+		}
+		return nil, fmt.Errorf("פריט %q חייב פעולה או פריטים", name)
+	}
+	return out, nil
 }
 
 func setControlText(st *controlState, args ...object.Object) object.Object {
@@ -616,6 +737,9 @@ func setControlText(st *controlState, args ...object.Object) object.Object {
 	}
 	if st.edit != nil {
 		_ = st.edit.SetText(text)
+	}
+	if st.button != nil {
+		_ = st.button.SetText(text)
 	}
 	if st.ledWidget != nil {
 		st.ledWidget.Invalidate()
@@ -666,15 +790,6 @@ func winEvery(st *windowState, args ...object.Object) object.Object {
 	}
 	st.timers = append(st.timers, windowTimer{seconds: sec.Value, fn: args[1]})
 	return object.Nil
-}
-
-func isCallable(o object.Object) bool {
-	switch o.(type) {
-	case *object.Function, *object.Closure, *object.CompiledFunction, *object.Builtin:
-		return true
-	default:
-		return false
-	}
 }
 
 // חלונות.רשימה() — רשימת בחירה (תהליכים, פריטים וכו')
@@ -830,6 +945,9 @@ func winShow(st *windowState) object.Object {
 		Layout:    VBox{Margins: Margins{Left: 12, Top: 10, Right: 12, Bottom: 10}, Spacing: 8},
 		Children:  children,
 	}
+	if len(st.menuItems) > 0 {
+		cfg.MenuItems = st.menuItems
+	}
 	if winIcon != nil {
 		cfg.Icon = winIcon
 	}
@@ -845,6 +963,13 @@ func winShow(st *windowState) object.Object {
 
 	st.mw = mw
 	st.closed = false
+	setTimerUISync(func(fn func()) {
+		if st.mw != nil && !st.closed {
+			st.mw.Synchronize(fn)
+		} else {
+			fn()
+		}
+	})
 
 	if iconPath != "" {
 		_ = applyWindowIcon(st, iconPath)
@@ -901,6 +1026,7 @@ func winShow(st *windowState) object.Object {
 	mw.Run()
 	st.closed = true
 	st.mw = nil
+	setTimerUISync(nil)
 	return &object.Null{}
 }
 

@@ -5,6 +5,7 @@ package stdlib
 import (
 	"fmt"
 	"math"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +15,10 @@ import (
 
 	"yod/internal/object"
 )
+
+func osWriteFile(path string, data []byte) error {
+	return os.WriteFile(path, data, 0o644)
+}
 
 // yodTableRow — שורת תצוגה + ערכי מיון ומקור לקרא_שורה.
 type yodTableRow struct {
@@ -181,6 +186,12 @@ func winCreateTable(args ...object.Object) object.Object {
 		st.onSelect = a[0]
 		return object.Nil
 	}}
+	w.Attrs["סנן"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return tableFilter(st, a...)
+	}}
+	w.Attrs["ייצא_csv"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return tableExportCSV(st, a...)
+	}}
 	return w
 }
 
@@ -300,9 +311,56 @@ func tableSetRows(st *controlState, args ...object.Object) object.Object {
 		}
 		rows = append(rows, row)
 	}
+	st.tableAllRows = rows
+	applyTableFilter(st)
+	return object.Nil
+}
+
+func tableFilter(st *controlState, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj("טבלה.סנן מצפה למחרוזת")
+	}
+	s, ok := asString(args[0])
+	if !ok {
+		if n, ok := args[0].(*object.Number); ok {
+			s = strconv.FormatFloat(n.Value, 'f', -1, 64)
+		} else {
+			return errObj("טבלה.סנן מצפה למחרוזת")
+		}
+	}
+	st.tableFilter = strings.TrimSpace(s)
+	applyTableFilter(st)
+	return object.Nil
+}
+
+func applyTableFilter(st *controlState) {
+	if st.tableModel == nil {
+		return
+	}
+	src := st.tableAllRows
+	if src == nil {
+		src = st.tableModel.items
+	}
+	q := strings.ToLower(st.tableFilter)
+	var rows []yodTableRow
+	if q == "" {
+		rows = append([]yodTableRow(nil), src...)
+	} else {
+		rows = make([]yodTableRow, 0, len(src))
+		for _, r := range src {
+			match := false
+			for _, cell := range r.display {
+				if strings.Contains(strings.ToLower(cell), q) {
+					match = true
+					break
+				}
+			}
+			if match {
+				rows = append(rows, r)
+			}
+		}
+	}
 	st.tableModel.items = rows
-	// מיון במקום אם המשתמש בחר עמודה — ואז תמיד PublishRowsReset
-	// (SortChanged לבד לא קורא ל־LVM_SETITEMCOUNT כשמספר השורות משתנה מ־0).
 	if st.tableModel.hasUserSort {
 		col := st.tableModel.SorterBase.SortedColumn()
 		order := st.tableModel.SortOrder()
@@ -312,7 +370,52 @@ func tableSetRows(st *controlState, args ...object.Object) object.Object {
 	if st.tableView != nil {
 		_ = st.tableView.SetCurrentIndex(-1)
 	}
+}
+
+func tableExportCSV(st *controlState, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj("טבלה.ייצא_csv מצפה לנתיב קובץ")
+	}
+	path, ok := asString(args[0])
+	if !ok || strings.TrimSpace(path) == "" {
+		return errObj("טבלה.ייצא_csv מצפה לנתיב מחרוזת")
+	}
+	if st.tableModel == nil || len(st.tableModel.fields) == 0 {
+		return errObj("טבלה.ייצא_csv: אין שדות")
+	}
+	var b strings.Builder
+	b.WriteString("\ufeff") // BOM ל־Excel
+	for i, f := range st.tableModel.fields {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(csvEscape(f))
+	}
+	b.WriteByte('\n')
+	for _, row := range st.tableModel.items {
+		for i, cell := range row.display {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			b.WriteString(csvEscape(cell))
+		}
+		b.WriteByte('\n')
+	}
+	if err := writeFileUTF8(path, b.String()); err != nil {
+		return errObj("טבלה.ייצא_csv נכשל: " + err.Error())
+	}
 	return object.Nil
+}
+
+func csvEscape(s string) string {
+	if strings.ContainsAny(s, ",\"\n\r") {
+		return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
+	}
+	return s
+}
+
+func writeFileUTF8(path, content string) error {
+	return osWriteFile(path, []byte(content))
 }
 
 func parseTableRow(fields []string, el object.Object) (yodTableRow, error) {

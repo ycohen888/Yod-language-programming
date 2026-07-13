@@ -541,38 +541,65 @@ func (p *Parser) parseFunctionLiteralFrom(tok token.Token, name *ast.Identifier)
 	return fn
 }
 
-func (p *Parser) parseFunctionParameters() []*ast.Identifier {
-	ids := []*ast.Identifier{}
+func (p *Parser) parseFunctionParameters() []*ast.Parameter {
+	params := []*ast.Parameter{}
 	if p.peekIs(token.RParen) {
 		p.nextToken()
-		return ids
+		return params
 	}
 	p.nextToken()
-	ids = append(ids, &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal})
+	param := p.parseOneParameter()
+	if param == nil {
+		return nil
+	}
+	params = append(params, param)
 	for p.peekIs(token.Comma) {
 		p.nextToken()
 		p.nextToken()
-		ids = append(ids, &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal})
+		param = p.parseOneParameter()
+		if param == nil {
+			return nil
+		}
+		params = append(params, param)
 	}
 	if !p.expectPeek(token.RParen) {
 		return nil
 	}
-	return ids
+	return params
 }
 
-// parseBareParameters — פונקציה כפל x, y  (בלי סוגריים)
-func (p *Parser) parseBareParameters() []*ast.Identifier {
-	ids := []*ast.Identifier{}
+func (p *Parser) parseOneParameter() *ast.Parameter {
+	if p.curToken.Type != token.Ident {
+		p.errors = append(p.errors, fmt.Sprintf("שורה %d: פרמטר חייב להיות שם", p.curToken.Line))
+		return nil
+	}
+	name := &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal}
+	param := &ast.Parameter{Name: name}
+	if p.peekIs(token.Assign) {
+		p.nextToken() // =
+		p.nextToken()
+		param.Default = p.parseExpression(lowest)
+	}
+	return param
+}
+
+// parseBareParameters — פונקציה כפל x, y  (בלי סוגריים; בלי ברירות מחדל)
+func (p *Parser) parseBareParameters() []*ast.Parameter {
+	params := []*ast.Parameter{}
 	p.nextToken()
-	ids = append(ids, &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal})
+	params = append(params, &ast.Parameter{
+		Name: &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal},
+	})
 	for p.peekIs(token.Comma) {
 		p.nextToken()
 		if !p.expectPeek(token.Ident) {
-			return ids
+			return params
 		}
-		ids = append(ids, &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal})
+		params = append(params, &ast.Parameter{
+			Name: &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal},
+		})
 	}
-	return ids
+	return params
 }
 
 func (p *Parser) parseExpression(precedence int) ast.Expression {

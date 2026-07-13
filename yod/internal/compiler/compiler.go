@@ -524,8 +524,29 @@ func (c *Compiler) compileFunction(node *ast.FunctionLiteral, asMethod bool) (*o
 	if asMethod {
 		c.symbolTable.Define("זה")
 	}
-	for _, p := range node.Parameters {
-		c.symbolTable.Define(p.Value)
+	defaults := make([]object.Object, len(node.Parameters))
+	numRequired := 0
+	seenDefault := false
+	for i, p := range node.Parameters {
+		if p == nil || p.Name == nil {
+			continue
+		}
+		c.symbolTable.Define(p.Name.Value)
+		if p.Default != nil {
+			seenDefault = true
+			def, ok := constantObject(p.Default)
+			if !ok {
+				c.leaveScope()
+				return nil, nil, fmt.Errorf("ברירת מחדל לפרמטר %q חייבת להיות קבוע (מספר/מחרוזת/אמת/שקר/ריק)", p.Name.Value)
+			}
+			defaults[i] = def
+		} else {
+			if seenDefault {
+				c.leaveScope()
+				return nil, nil, fmt.Errorf("פרמטר בלי ברירת מחדל אחרי פרמטר עם ברירת מחדל")
+			}
+			numRequired++
+		}
 	}
 	if err := c.Compile(node.Body); err != nil {
 		c.leaveScope()
@@ -543,11 +564,16 @@ func (c *Compiler) compileFunction(node *ast.FunctionLiteral, asMethod bool) (*o
 	numParams := len(node.Parameters)
 	if asMethod {
 		numParams++
+		numRequired++
+		// שיטת מחלקה: this הוא הארגומנט הראשון — מרחיבים Defaults
+		defaults = append([]object.Object{nil}, defaults...)
 	}
 	return &object.CompiledFunction{
 		Instructions:  instructions,
 		NumLocals:     numLocals,
 		NumParameters: numParams,
+		NumRequired:   numRequired,
+		Defaults:      defaults,
 	}, freeSymbols, nil
 }
 

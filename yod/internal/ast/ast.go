@@ -146,9 +146,15 @@ func (s *ContinueStatement) Line() int            { return s.Tok.Line }
 type FunctionLiteral struct {
 	Tok        token.Token
 	Name       *Identifier // אופציונלי בהצהרה
-	Parameters []*Identifier
+	Parameters []*Parameter
 	Body       *BlockStatement
 	Visibility Visibility
+}
+
+// Parameter — פרמטר לפונקציה, עם ברירת מחדל אופציונלית (שם = ביטוי).
+type Parameter struct {
+	Name    *Identifier
+	Default Expression // nil = חובה
 }
 
 func (f *FunctionLiteral) expressionNode()      {}
