@@ -5,6 +5,8 @@ package editor
 import (
 	"time"
 
+	materialicons "yod/MaterialIcons"
+
 	"github.com/lxn/walk"
 )
 
@@ -15,9 +17,11 @@ import (
 const (
 	treeRowH     = 22
 	treeIndentPx = 16 // Depth * treeIndentPx
-	treePadX     = 6
-	treeGlyphW   = 14
+	treePadX     = 4
+	treeGlyphW   = 12
+	treeIconW    = 16
 	treeFontPt   = 9
+	treeIconPt   = 12
 	treeDblMS    = 400
 )
 
@@ -73,6 +77,7 @@ func (t *FileTreeView) OnActivate(fn func(n treeNode)) { t.onActivate = fn }
 
 // Mount יוצר את ה־CustomWidget בתוך parent.
 func (t *FileTreeView) Mount(parent walk.Container) error {
+	materialicons.Ensure()
 	cw, err := walk.NewCustomWidgetPixels(parent, 0, t.paint)
 	if err != nil {
 		return err
@@ -209,29 +214,42 @@ func (t *FileTreeView) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 		}
 
 		indent := treePadX + n.Depth*treeIndentPx
-		glyph := "·"
-		fgGlyph := colTreeGlyph
-		fgName := colTreeFile
+		kind := classifyFileKind(n.Name, n.IsDir)
+		iconRune, iconColor := fileKindIcon(kind, n.Expanded)
+
+		chev := " "
 		if n.IsDir {
-			fgName = colTreeDir
 			if n.Expanded {
-				glyph = "▾"
+				chev = "▾"
 			} else {
-				glyph = "▸"
+				chev = "▸"
 			}
 		}
-
 		gr := walk.Rectangle{
 			X: indent, Y: y, Width: treeGlyphW, Height: treeRowH,
 		}
-		if err := canvas.DrawTextPixels(glyph, font, fgGlyph, gr,
+		if err := canvas.DrawTextPixels(chev, font, colTreeGlyph, gr,
 			walk.TextCenter|walk.TextVCenter|walk.TextSingleLine); err != nil {
 			return err
 		}
+
+		ir := walk.Rectangle{
+			X: indent + treeGlyphW, Y: y, Width: treeIconW, Height: treeRowH,
+		}
+		if err := drawTreeMaterialIcon(canvas, ir, iconRune, iconColor); err != nil {
+			return err
+		}
+
+		fgName := colTreeFile
+		if n.IsDir {
+			fgName = colTreeDir
+		} else if kind == fileKindYod {
+			fgName = colBrand
+		}
 		nr := walk.Rectangle{
-			X:      indent + treeGlyphW + 2,
+			X:      indent + treeGlyphW + treeIconW + 2,
 			Y:      y,
-			Width:  bounds.Width - (indent + treeGlyphW + 8),
+			Width:  bounds.Width - (indent + treeGlyphW + treeIconW + 8),
 			Height: treeRowH,
 		}
 		if nr.Width < 8 {
@@ -243,6 +261,19 @@ func (t *FileTreeView) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 		}
 	}
 	return nil
+}
+
+func drawTreeMaterialIcon(canvas *walk.Canvas, r walk.Rectangle, glyph rune, fg walk.Color) error {
+	if glyph == 0 {
+		return nil
+	}
+	font, err := walk.NewFont(materialicons.Family, treeIconPt, 0)
+	if err != nil {
+		return nil
+	}
+	defer font.Dispose()
+	return canvas.DrawTextPixels(materialicons.Glyph(glyph), font, fg, r,
+		walk.TextCenter|walk.TextVCenter|walk.TextSingleLine)
 }
 
 func (t *FileTreeView) rowAt(y int) int {
@@ -280,9 +311,9 @@ func (t *FileTreeView) onMouseDown(x, y int, button walk.MouseButton) {
 		return
 	}
 
-	// לחיצה על אזור החץ (glyph) — פתיחה/סגירה לתיקיות
+	// לחיצה על אזור החץ/איקון תיקייה — פתיחה/סגירה
 	indent := treePadX + n.Depth*treeIndentPx
-	onGlyph := x >= indent && x < indent+treeGlyphW+4
+	onGlyph := x >= indent && x < indent+treeGlyphW+treeIconW+2
 	if n.IsDir && (onGlyph || dbl) {
 		t.model.ToggleExpanded(n.Path)
 		// אחרי Rebuild האינדקס של אותה תיקייה עשוי להישאר

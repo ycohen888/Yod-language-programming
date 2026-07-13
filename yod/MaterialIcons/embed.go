@@ -20,12 +20,22 @@ const (
 	Build        = '\uE869' // build
 	NoteAdd      = '\uE89C' // note_add
 	Archive      = '\uE149' // archive
+	Folder       = '\uE2C7' // folder
 	FolderOpen   = '\uE2C8' // folder_open
 	Save         = '\uE161' // save
 	Highlight    = '\uE25F' // highlight
 	ErrorOutline = '\uE001' // error_outline
 	Terminal     = '\uEB8E' // terminal
 	FormatIndent = '\uE23E' // format_indent_increase
+	InsertFile   = '\uE24D' // insert_drive_file — כללי
+	Image        = '\uE3F4' // image
+	Code         = '\uE86F' // code
+	Description  = '\uE873' // description — טקסט
+	Movie        = '\uE02C' // movie
+	Audiotrack   = '\uE3A1' // audiotrack
+	Settings     = '\uE8B8' // settings
+	PicturePDF   = '\uE415' // picture_as_pdf
+	TableChart   = '\uE265' // table_chart
 )
 
 var (

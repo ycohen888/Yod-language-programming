@@ -1382,7 +1382,7 @@ func Run(path string) error {
 			}
 			return
 		}
-		if err := openPath(n.Path); err != nil && err.Error() != "בוטל" {
+		if err := openFromExplorer(mw, n.Path, openPath); err != nil && err.Error() != "בוטל" {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 		}
 	}
@@ -2016,7 +2016,7 @@ func Run(path string) error {
 					}
 					return
 				}
-				if err := openPath(n.Path); err != nil && err.Error() != "בוטל" {
+				if err := openFromExplorer(mw, n.Path, openPath); err != nil && err.Error() != "בוטל" {
 					walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 				}
 			})

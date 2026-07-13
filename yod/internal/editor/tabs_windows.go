@@ -269,9 +269,22 @@ func (d *DocTabs) OpenPath(path string) (*OpenFileTab, error) {
 		d.Activate(t)
 		return t, nil
 	}
+	fi, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if fi.IsDir() {
+		return nil, fmt.Errorf("לא ניתן לפתוח תיקייה כקובץ")
+	}
+	if fi.Size() > maxEditorOpenBytes {
+		return nil, fmt.Errorf("הקובץ גדול מדי לעורך")
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
+	}
+	if looksBinary(data) {
+		return nil, fmt.Errorf("קובץ זה לא נפתח בעורך יוד (בינארי):\n%s", filepath.Base(path))
 	}
 	tab := &OpenFileTab{
 		Key:      key,

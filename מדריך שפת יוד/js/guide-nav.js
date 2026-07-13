@@ -4,7 +4,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.61.0";
+  var VERSION = "0.61.1";
 
   /** עץ ניווט: פרקים + תת־סעיפים (עמודים) */
   var NAV = [
