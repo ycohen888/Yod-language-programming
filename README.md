@@ -2,7 +2,7 @@
 
 **יוד** היא שפת תכנות מודרנית בעברית: תחביר מימין־לשמאל, ספריות מובנות, עורך גרפי ל־Windows, ומכונה וירטואלית.
 
-גרסה נוכחית: **0.52.6**
+גרסה נוכחית: **0.53.0**
 
 <p align="center">
   <img src="docs/screenshots/editor-code.png" alt="עורך יוד — קוד בעברית" width="720" />
@@ -38,7 +38,7 @@
 ### אפשרות א׳ — הורדה מוכנה (Windows)
 
 ב־[Releases](https://github.com/ycohen888/Yod-language-programming/releases) יש `yod.exe` מוכן להורדה.
-הגרסה האחרונה: **[v0.52.6](https://github.com/ycohen888/Yod-language-programming/releases/tag/v0.52.6)**.
+הגרסה האחרונה: **[v0.53.0](https://github.com/ycohen888/Yod-language-programming/releases/tag/v0.53.0)** (או העדכנית ב־Releases).
 אין צורך ב־Go: מורידים, מריצים, ומתחילים.
 
 ### אפשרות ב׳ — בנייה מקוד המקור

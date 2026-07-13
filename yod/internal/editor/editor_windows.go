@@ -80,29 +80,32 @@ func Run(path string) error {
 	ensureProcessDPI()
 
 	var (
-		mw        *walk.MainWindow
-		codeHost  *walk.Composite
-		codeEdit  *CodeEdit
-		lineEdit  *walk.TextEdit
-		outEdit   *walk.TextEdit
-		errEdit   *walk.TextEdit
-		tabErrBtn *DarkBtn
-		tabOutBtn *DarkBtn
-		statusLbl *walk.Label
-		fileLbl   *walk.Label
-		projLbl   *walk.Label
-		posLbl    *walk.Label
-		linesLbl  *walk.Label
-		modeLbl   *walk.Label
-		fileList  *walk.ListBox
-		treeEmpty *walk.Label
-		treePane  *walk.Composite
-		treeSplit *walk.Splitter
-		toolbar   *walk.Composite
-		tabBar    *walk.Composite
-		activeTab = 0
-		errCount  int
-		busy      bool
+		mw           *walk.MainWindow
+		codeHost     *walk.Composite
+		editorsHost  *walk.Composite
+		docTabBar    *walk.Composite
+		codeEdit     *CodeEdit
+		lineEdit     *walk.TextEdit
+		outEdit      *walk.TextEdit
+		errEdit      *walk.TextEdit
+		tabErrBtn    *DarkBtn
+		tabOutBtn    *DarkBtn
+		statusLbl    *walk.Label
+		projLbl      *walk.Label
+		posLbl       *walk.Label
+		linesLbl     *walk.Label
+		modeLbl      *walk.Label
+		fileList     *walk.ListBox
+		treeEmpty    *walk.Label
+		treePane     *walk.Composite
+		treeSplit    *walk.Splitter
+		editorSplit  *walk.Splitter
+		toolbar      *walk.Composite
+		tabBar       *walk.Composite
+		docs         *DocTabs
+		panelTab     = 0 // 0=שגיאות, 1=פלט
+		errCount     int
+		busy         bool
 	)
 
 	codeFace := pickCodeFont()
@@ -123,6 +126,7 @@ func Run(path string) error {
 	var jumpFromErrPanel func()
 	var openPath func(string) error
 	var resolveErrorFile func(string) string
+	var syncFromActiveTab func()
 	lastGutterLines := 0
 
 	setCompleteProjectRoot := func(root string) {
@@ -149,12 +153,28 @@ func Run(path string) error {
 			}
 			mw.SetTitle(title)
 		}
-		if fileLbl != nil {
-			shown := name + mark
-			if dirty {
-				shown = "● " + name
-			}
-			fileLbl.SetText(shown)
+	}
+
+	syncFromActiveTab = func() {
+		if docs == nil || docs.Active == nil {
+			codeEdit = nil
+			currentPath = ""
+			dirty = false
+			updateTitle()
+			return
+		}
+		codeEdit = docs.Active.Editor
+		currentPath = docs.Active.FilePath
+		dirty = docs.Active.IsDirty
+		updateTitle()
+		if updateLineNumbers != nil {
+			updateLineNumbers()
+		}
+		if updateCaretStatus != nil {
+			updateCaretStatus()
+		}
+		if currentPath != "" {
+			selectPathInTree(currentPath)
 		}
 	}
 
@@ -213,11 +233,11 @@ func Run(path string) error {
 		outLabel := "פלט"
 		if tabErrBtn != nil {
 			tabErrBtn.SetText(errLabel)
-			tabErrBtn.SetActive(activeTab == 0)
+			tabErrBtn.SetActive(panelTab == 0)
 		}
 		if tabOutBtn != nil {
 			tabOutBtn.SetText(outLabel)
-			tabOutBtn.SetActive(activeTab == 1)
+			tabOutBtn.SetActive(panelTab == 1)
 		}
 	}
 
@@ -251,7 +271,7 @@ func Run(path string) error {
 	}
 
 	showErrorsTab := func() {
-		activeTab = 0
+		panelTab = 0
 		if errEdit != nil {
 			errEdit.SetVisible(true)
 		}
@@ -264,7 +284,7 @@ func Run(path string) error {
 		}
 	}
 	showOutputTab := func() {
-		activeTab = 1
+		panelTab = 1
 		if errEdit != nil {
 			errEdit.SetVisible(false)
 		}
@@ -434,32 +454,61 @@ func Run(path string) error {
 				walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 				return false
 			}
+			if docs != nil && docs.Active != nil {
+				docs.MarkPath(currentPath)
+				dirty = false
+			}
 		}
 		return true
 	}
 
+	confirmDiscardTab := func(tab *OpenFileTab) bool {
+		if tab == nil || !tab.IsDirty {
+			return true
+		}
+		was := docs.Active
+		if was != tab {
+			docs.Activate(tab)
+			syncFromActiveTab()
+		}
+		ok := confirmDiscard("לשמור לפני סגירת הטאב")
+		if !ok && was != nil && was != tab {
+			docs.Activate(was)
+			syncFromActiveTab()
+		}
+		return ok
+	}
+
 	loadFile := func(p string) error {
-		data, err := os.ReadFile(p)
+		if docs == nil {
+			return fmt.Errorf("מנהל טאבים לא מוכן")
+		}
+		tab, err := docs.OpenPath(p)
 		if err != nil {
 			return err
 		}
-		currentPath = p
+		if tab != nil {
+			tab.IsDirty = false
+		}
+		syncFromActiveTab()
 		dirty = false
-		codeEdit.SetText(string(data))
+		updateTitle()
+		docs.refreshBar()
 		clearPanels()
 		setPanelText(errEdit, "אין שגיאות")
 		setPanelText(outEdit, "(אין פלט)")
 		updateLineNumbers()
-		updateTitle()
 		setStatus("נפתח · " + filepath.Base(p))
 		if modeLbl != nil {
 			modeLbl.SetText(fmt.Sprintf("UTF-8 · .יוד · %dpt", codeFontSize))
 		}
-		selectPathInTree(p)
 		return nil
 	}
 
 	saveFile := func(forceDialog bool) error {
+		if codeEdit == nil {
+			return fmt.Errorf("אין עורך פעיל")
+		}
 		p := currentPath
 		if p == "" || forceDialog {
 			dlg := new(walk.FileDialog)
@@ -489,6 +538,9 @@ func Run(path string) error {
 		}
 		currentPath = p
 		dirty = false
+		if docs != nil {
+			docs.MarkPath(p)
+		}
 		updateTitle()
 		setStatus("נשמר · " + filepath.Base(p))
 		if projectRoot != "" {
@@ -536,7 +588,7 @@ func Run(path string) error {
 		return ""
 	}
 
-	// autoSaveIfNeeded — שמירה שקטה לפני מעבר לקובץ אחר (בלי דיאלוג מפריע)
+	// autoSaveIfNeeded — שמירה שקטה של הטאב הפעיל לפני פתיחת קובץ חדש מסייר
 	autoSaveIfNeeded := func() bool {
 		if !dirty {
 			return true
@@ -551,12 +603,17 @@ func Run(path string) error {
 		return true
 	}
 
-	// openPath — פתיחת קובץ עם שמירה אוטומטית של הנוכחי
+	// openPath — פתיחה בטאב (מיקוד אם כבר פתוח)
 	openPath = func(p string) error {
-		if currentPath != "" && filepath.Clean(p) == filepath.Clean(currentPath) {
-			selectPathInTree(p)
+		if docs == nil {
+			return fmt.Errorf("מנהל טאבים לא מוכן")
+		}
+		if t := docs.FindByPath(p); t != nil {
+			docs.Activate(t)
+			syncFromActiveTab()
 			return nil
 		}
+		// קובץ חדש לטאב — שומרים את הפעיל אם dirty (כמו קודם)
 		if !autoSaveIfNeeded() {
 			return fmt.Errorf("בוטל")
 		}
@@ -564,25 +621,33 @@ func Run(path string) error {
 	}
 
 	newFile := func() {
-		if !confirmDiscard("לשמור לפני קובץ חדש") {
+		if docs == nil {
 			return
 		}
-		currentPath = ""
-		dirty = false
-		codeEdit.SetText(newFileTemplate)
+		if dirty && currentPath == "" {
+			if !confirmDiscard("לשמור לפני קובץ חדש") {
+				return
+			}
+		} else if dirty && currentPath != "" {
+			if !autoSaveIfNeeded() {
+				return
+			}
+		}
+		_, err := docs.OpenUntitled(newFileTemplate, "קובץ-חדש.יוד")
+		if err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		syncFromActiveTab()
 		clearPanels()
 		setPanelText(errEdit, "אין שגיאות")
 		setPanelText(outEdit, "(אין פלט)")
 		updateLineNumbers()
-		updateTitle()
 		setStatus("קובץ חדש")
 		showErrorsTab()
 	}
 
 	openFile := func() {
-		if !confirmDiscard("לשמור לפני פתיחה") {
-			return
-		}
 		dlg := new(walk.FileDialog)
 		dlg.Title = "פתיחת קובץ יוד"
 		dlg.Filter = "קבצי יוד (*.יוד)|*.יוד|כל הקבצים (*.*)|*.*"
@@ -594,7 +659,7 @@ func Run(path string) error {
 		if !ok {
 			return
 		}
-		if err := loadFile(dlg.FilePath); err != nil {
+		if err := openPath(dlg.FilePath); err != nil && err.Error() != "בוטל" {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 		}
 	}
@@ -912,6 +977,9 @@ func Run(path string) error {
 		_ = codeEdit.SetText(out)
 		codeEdit.SetTextSelection(0, 0)
 		dirty = true
+		if docs != nil {
+			docs.SetActiveDirty(true)
+		}
 		updateTitle()
 		setStatus("✓ הקוד סודר")
 	}
@@ -973,12 +1041,14 @@ func Run(path string) error {
 				"פרויקט: קובץ ← פתח תיקייה (Ctrl+Shift+O)\n"+
 				"הקובץ הראשי הוא תמיד התחל.יוד — ממנו מריצים (F5)\n"+
 				"קבצים אחרים נכללים עם: כלול \"שם.יוד\"\n\n"+
-				"לחיצה כפולה על קובץ · תפריט ימני: חדש/מחק/שנה שם\n\n"+
+				"לחיצה כפולה על קובץ — פותחת/ממקדת טאב · × סוגר טאב · ● = לא נשמר\n"+
+				"תפריט ימני: חדש/מחק/שנה שם · גרירת מפרידים כמו ב־Visual Studio\n\n"+
 				"השלמת קוד: מילות מפתח, מתודות אחרי נקודה, ספריות/קבצי פרויקט ב־כלול\n"+
 				"חצים · Tab/Enter אישור · Esc · Ctrl+Space\n\n"+
 				"F5 / F6 / F7  הרץ / מכונה / בדוק\n"+
 				"Ctrl+Shift+P  ארוז ל־EXE\n"+
 				"Ctrl+N / O / S  חדש / פתח / שמור\n"+
+				"Ctrl+W  סגור טאב\n"+
 				"Ctrl+Shift+O  פתח תיקייה\n"+
 				"Ctrl+Z / Y  בטל / בצע שוב\n"+
 				"Ctrl+F / H  חיפוש / החלפה\n"+
@@ -987,7 +1057,7 @@ func Run(path string) error {
 				"Tab / Shift+Tab  הזחה / החזרת הזחה\n"+
 				"Enter  שורה חדשה עם הזחה\n"+
 				"Ctrl+Shift+F  סדר קוד · Ctrl± גודל גופן\n\n"+
-				"● בשוליים = שורת שגיאה · לחיצה על שגיאה פותחת קובץ וקופצת לשורה",
+				"● בשוליים = שורת שגיאה · לחיצה על שגיאה פותחת טאב וקופצת לשורה",
 			walk.MsgBoxOK|walk.MsgBoxIconInformation)
 	}
 
@@ -1206,7 +1276,19 @@ func Run(path string) error {
 		}
 		if currentPath != "" && filepath.Clean(currentPath) == filepath.Clean(oldPath) {
 			currentPath = newPath
+			if docs != nil && docs.Active != nil {
+				docs.MarkPath(newPath)
+			}
 			updateTitle()
+		} else if docs != nil {
+			if t := docs.FindByPath(oldPath); t != nil {
+				delete(docs.ByKey, t.Key)
+				t.Key = normalizeTabPath(newPath)
+				t.FilePath = newPath
+				t.Title = filepath.Base(newPath)
+				docs.ByKey[t.Key] = t
+				docs.refreshBar()
+			}
 		}
 		fileModel.Refresh()
 		selectPathInTree(newPath)
@@ -1234,12 +1316,19 @@ func Run(path string) error {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 			return
 		}
+		if docs != nil {
+			if t := docs.FindByPath(path); t != nil {
+				t.IsDirty = false
+				_ = docs.Close(t)
+				syncFromActiveTab()
+			}
+		}
 		if currentPath != "" && (filepath.Clean(currentPath) == filepath.Clean(path) ||
 			strings.HasPrefix(filepath.Clean(currentPath)+string(os.PathSeparator), filepath.Clean(path)+string(os.PathSeparator))) {
-			currentPath = ""
-			dirty = false
-			codeEdit.SetText(newFileTemplate)
-			updateTitle()
+			if docs == nil || docs.Active == nil {
+				_, _ = docs.OpenUntitled(newFileTemplate, "קובץ-חדש.יוד")
+				syncFromActiveTab()
+			}
 		}
 		fileModel.Refresh()
 		setStatus("נמחק · " + n.name)
@@ -1285,6 +1374,12 @@ func Run(path string) error {
 					Action{Text: "שמור בשם…", OnTriggered: func() {
 						if err := saveFile(true); err != nil {
 							walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+						}
+					}},
+					Action{Text: "סגור טאב\tCtrl+W", Shortcut: Shortcut{Modifiers: walk.ModControl, Key: walk.KeyW}, OnTriggered: func() {
+						if docs != nil {
+							_ = docs.CloseActive()
+							syncFromActiveTab()
 						}
 					}},
 					Separator{},
@@ -1382,26 +1477,23 @@ func Run(path string) error {
 					VSeparator{},
 				},
 			},
-			// —— שורת קובץ + תיקייה ——
+			// —— שורת פרויקט ——
 			Composite{
 				Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 2, Bottom: 2}, Spacing: 6},
 				Background: SolidColorBrush{Color: colTabBar},
 				Children: []Widget{
-					Label{AssignTo: &fileLbl, Text: "קובץ-חדש.יוד", TextColor: colText, Font: Font{Family: uiFont, PointSize: 9}, RightToLeftReading: true},
-					Label{Text: "·", TextColor: colBorder},
 					Label{AssignTo: &projLbl, Text: "אין תיקייה פתוחה", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 8}, RightToLeftReading: true},
 					HSpacer{},
-					Label{Text: "RTL · עברית", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 8}, RightToLeftReading: true},
+					Label{Text: "RTL · טאבים · Splitters", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 8}, RightToLeftReading: true},
 				},
 			},
 			Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
-			// —— סייר קבוע משמאל | עורך מימין (שורת העבודה ב־LTR) ——
+			// —— סייר | (עורך+טאבים / פאנל תחתון) ——
 			HSplitter{
 				AssignTo:      &treeSplit,
 				StretchFactor: 1,
 				HandleWidth:   8,
 				Children: []Widget{
-					// סייר — תמיד צד שמאל של המסך
 					Composite{
 						AssignTo:      &treePane,
 						Layout:        VBox{MarginsZero: true, Spacing: 0},
@@ -1449,52 +1541,74 @@ func Run(path string) error {
 							},
 						},
 					},
-					// עמודת עורך (~80%)
-					Composite{
-						Layout:        VBox{MarginsZero: true, Spacing: 0},
-						Background:    SolidColorBrush{Color: colBg},
+					VSplitter{
+						AssignTo:      &editorSplit,
 						StretchFactor: 4,
+						HandleWidth:   8,
 						Children: []Widget{
 							Composite{
-								AssignTo:      &codeHost,
-								Layout:        HBox{MarginsZero: true, Spacing: 0},
-								Background:    SolidColorBrush{Color: colPanel},
-								StretchFactor: 5,
-								MinSize:       Size{Height: 280},
+								Layout:        VBox{MarginsZero: true, Spacing: 0},
+								Background:    SolidColorBrush{Color: colBg},
+								StretchFactor: 3,
+								MinSize:       Size{Height: 200},
 								Children: []Widget{
-									TextEdit{
-										AssignTo:      &lineEdit,
-										ReadOnly:      true,
-										VScroll:       false,
-										TextAlignment: AlignFar,
-										TextColor:     colLineNum,
-										Background:    SolidColorBrush{Color: colGutter},
-										Font:          Font{Family: codeFace, PointSize: 14},
-										MinSize:       Size{Width: 56, Height: 280},
-										MaxSize:       Size{Width: 72},
-										OnMouseDown: func(x, y int, button walk.MouseButton) {
-											if button != walk.LeftButton || codeEdit == nil || lineEdit == nil {
-												return
-											}
-											var pt win.POINT
-											pt.X = int32(x)
-											pt.Y = int32(y)
-											r := lineEdit.SendMessage(win.EM_CHARFROMPOS, 0, uintptr(unsafe.Pointer(&pt)))
-											cp := int(win.LOWORD(uint32(r)))
-											ln := int(lineEdit.SendMessage(win.EM_LINEFROMCHAR, uintptr(cp), 0)) + 1
-											if ln >= 1 {
-												gotoLine(ln)
-											}
+									Composite{
+										AssignTo:   &docTabBar,
+										Layout:     HBox{Margins: Margins{Left: 4, Right: 4, Top: 2, Bottom: 2}, Spacing: 2},
+										Background: SolidColorBrush{Color: colTabBar},
+										MinSize:    Size{Height: 28},
+										MaxSize:    Size{Height: 28},
+										Children:   []Widget{},
+									},
+									Composite{
+										AssignTo:      &codeHost,
+										Layout:        HBox{MarginsZero: true, Spacing: 0},
+										Background:    SolidColorBrush{Color: colPanel},
+										StretchFactor: 1,
+										MinSize:       Size{Height: 180},
+										Children: []Widget{
+											TextEdit{
+												AssignTo:      &lineEdit,
+												ReadOnly:      true,
+												VScroll:       false,
+												TextAlignment: AlignFar,
+												TextColor:     colLineNum,
+												Background:    SolidColorBrush{Color: colGutter},
+												Font:          Font{Family: codeFace, PointSize: 14},
+												MinSize:       Size{Width: 56, Height: 180},
+												MaxSize:       Size{Width: 72},
+												OnMouseDown: func(x, y int, button walk.MouseButton) {
+													if button != walk.LeftButton || codeEdit == nil || lineEdit == nil {
+														return
+													}
+													var pt win.POINT
+													pt.X = int32(x)
+													pt.Y = int32(y)
+													r := lineEdit.SendMessage(win.EM_CHARFROMPOS, 0, uintptr(unsafe.Pointer(&pt)))
+													cp := int(win.LOWORD(uint32(r)))
+													ln := int(lineEdit.SendMessage(win.EM_LINEFROMCHAR, uintptr(cp), 0)) + 1
+													if ln >= 1 {
+														gotoLine(ln)
+													}
+												},
+											},
+											Composite{
+												AssignTo:      &editorsHost,
+												Layout:        VBox{MarginsZero: true, Spacing: 0},
+												Background:    SolidColorBrush{Color: colPanel},
+												StretchFactor: 1,
+												MinSize:       Size{Width: 200, Height: 180},
+												Children:      []Widget{},
+											},
 										},
 									},
 								},
 							},
-							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
 							Composite{
 								Layout:        VBox{MarginsZero: true, Spacing: 0},
 								Background:    SolidColorBrush{Color: colBg},
-								MinSize:       Size{Height: 160},
-								StretchFactor: 2,
+								MinSize:       Size{Height: 120},
+								StretchFactor: 1,
 								Children: []Widget{
 									Composite{
 										AssignTo:   &tabBar,
@@ -1513,7 +1627,7 @@ func Run(path string) error {
 										TextColor:          colErrText,
 										Background:         SolidColorBrush{Color: colPanel},
 										Font:               Font{Family: uiFont, PointSize: 11},
-										MinSize:            Size{Height: 120},
+										MinSize:            Size{Height: 80},
 										StretchFactor:      1,
 										OnMouseUp: func(x, y int, button walk.MouseButton) {
 											if button == walk.LeftButton {
@@ -1531,7 +1645,7 @@ func Run(path string) error {
 										TextColor:          colOutText,
 										Background:         SolidColorBrush{Color: colPanel},
 										Font:               Font{Family: codeFace, PointSize: 12},
-										MinSize:            Size{Height: 120},
+										MinSize:            Size{Height: 80},
 										StretchFactor:      1,
 									},
 								},
@@ -1621,24 +1735,54 @@ func Run(path string) error {
 	}
 
 	var cerr error
-	codeEdit, cerr = NewCodeEdit(codeHost)
-	if cerr != nil {
-		return fmt.Errorf("עורך קוד: %w", cerr)
-	}
-	codeEdit.TextChanged().Attach(func() {
-		dirty = true
-		updateTitle()
-		n := codeEdit.LineCount()
-		if n != lastGutterLines {
-			lastGutterLines = n
-			updateLineNumbers()
-		} else if updateCaretStatus != nil {
-			updateCaretStatus()
+	_ = cerr
+	docs = NewDocTabs(docTabBar, editorsHost)
+	docs.WireEditor = func(ce *CodeEdit, tab *OpenFileTab) {
+		ce.TextChanged().Attach(func() {
+			if tab == nil {
+				return
+			}
+			if !tab.IsDirty {
+				tab.IsDirty = true
+				if docs.Active == tab {
+					dirty = true
+					updateTitle()
+				}
+				docs.refreshBar()
+			}
+			n := ce.LineCount()
+			if docs.Active == tab {
+				if n != lastGutterLines {
+					lastGutterLines = n
+					updateLineNumbers()
+				} else if updateCaretStatus != nil {
+					updateCaretStatus()
+				}
+			}
+		})
+		ce.onZoom = applyCodeZoom
+		ce.onSelChange = func() {
+			if docs.Active == tab {
+				updateCaretStatus()
+			}
 		}
-	})
-	codeEdit.onZoom = applyCodeZoom
-	codeEdit.onSelChange = updateCaretStatus
-	fixCodeEdit(codeEdit)
+		fixCodeEdit(ce)
+		clearTabStop(ce)
+	}
+	docs.OnActivate = func(tab *OpenFileTab) {
+		syncFromActiveTab()
+		if tab != nil {
+			setStatus("טאב · " + tab.Title)
+		} else {
+			setStatus("אין קבצים פתוחים")
+		}
+		applyCodeZoom(codeFontSize)
+	}
+	docs.ConfirmClose = confirmDiscardTab
+	docs.OnClosed = func(tab *OpenFileTab) {
+		syncFromActiveTab()
+	}
+
 	fixGutterEdit(lineEdit)
 	// Escape ברמת החלון — אם העורך לא קיבל את המקש
 	if mw != nil {
@@ -1658,7 +1802,6 @@ func Run(path string) error {
 	clearTabStop(outEdit)
 
 	preferAppDarkMode()
-	styleEditorPane(codeEdit)
 	styleEditorPane(lineEdit)
 	styleEditorPane(errEdit)
 	styleEditorPane(outEdit)
@@ -1674,32 +1817,34 @@ func Run(path string) error {
 		)
 	}
 
-	for _, w := range []walk.Window{fileLbl, statusLbl, posLbl, linesLbl, modeLbl} {
+	for _, w := range []walk.Window{statusLbl, posLbl, linesLbl, modeLbl, projLbl} {
 		if w != nil {
 			fixHebrewEdit(w)
 		}
 	}
 	codeHost.RequestLayout()
 
-	if treeSplit != nil {
-		clearLayoutRTL := func(hwnd win.HWND) {
-			if hwnd == 0 {
-				return
-			}
-			ex := win.GetWindowLong(hwnd, win.GWL_EXSTYLE)
-			win.SetWindowLong(hwnd, win.GWL_EXSTYLE, ex&^win.WS_EX_LAYOUTRTL)
+	clearLayoutRTL := func(hwnd win.HWND) {
+		if hwnd == 0 {
+			return
 		}
-		// מבטל RTL על ה־splitter וילדיו — גרירה ב־walk נשברת עם LAYOUTRTL
+		ex := win.GetWindowLong(hwnd, win.GWL_EXSTYLE)
+		win.SetWindowLong(hwnd, win.GWL_EXSTYLE, ex&^win.WS_EX_LAYOUTRTL)
+	}
+	if treeSplit != nil {
 		clearLayoutRTL(treeSplit.Handle())
 		for i := 0; i < treeSplit.Children().Len(); i++ {
 			clearLayoutRTL(treeSplit.Children().At(i).Handle())
 		}
 		if treePane != nil {
-			// מינימום בפיקסלים אמיתיים; בלי MaxSize — כדי לא לחסום גרירה
 			_ = treePane.SetMinMaxSizePixels(walk.Size{Width: 120}, walk.Size{})
 		}
-		// בלי SetBoundsPixels / SetFixed — הם נלחמו ב־layout ובגרירה.
-		// StretchFactor 1:4 ≈ 20%; גרירת ה־handle (8px) מעדכנת item.size.
+	}
+	if editorSplit != nil {
+		clearLayoutRTL(editorSplit.Handle())
+		for i := 0; i < editorSplit.Children().Len(); i++ {
+			clearLayoutRTL(editorSplit.Children().At(i).Handle())
+		}
 	}
 	if fileList != nil {
 		applyDarkScrollbars(fileList.Handle())
@@ -1707,31 +1852,42 @@ func Run(path string) error {
 	}
 	refreshProjectUI()
 	// אם נפתח קובץ מה־CLI — תיקיית האב בסייר (בלי מצב פרויקט מלא)
-	if currentPath != "" {
-		if abs, err := filepath.Abs(currentPath); err == nil {
+	initPath := currentPath
+	currentPath = ""
+	if initPath != "" {
+		if abs, err := filepath.Abs(initPath); err == nil {
 			projectRoot = filepath.Dir(abs)
 			projectMode = false
 			setCompleteProjectRoot(projectRoot)
 			fileModel.SetRoot(projectRoot)
 			refreshProjectUI()
 			selectPathInTree(abs)
+			initPath = abs
 		}
 	}
 
 	mw.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
-		if !dirty {
+		if docs == nil || !docs.AnyDirty() {
 			return
 		}
-		r := walk.MsgBox(mw, "עורך יוד",
-			"יש שינויים שלא נשמרו.\nלשמור לפני יציאה?",
-			walk.MsgBoxYesNoCancel|walk.MsgBoxIconWarning)
-		switch r {
-		case walk.DlgCmdCancel:
-			*canceled = true
-		case walk.DlgCmdYes:
-			if err := saveFile(false); err != nil {
-				walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+		for _, t := range docs.DirtyTabs() {
+			docs.Activate(t)
+			syncFromActiveTab()
+			r := walk.MsgBox(mw, "עורך יוד",
+				"יש שינויים שלא נשמרו ב־"+t.Title+".\nלשמור לפני יציאה?",
+				walk.MsgBoxYesNoCancel|walk.MsgBoxIconWarning)
+			switch r {
+			case walk.DlgCmdCancel:
 				*canceled = true
+				return
+			case walk.DlgCmdYes:
+				if err := saveFile(false); err != nil {
+					walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+					*canceled = true
+					return
+				}
+			case walk.DlgCmdNo:
+				t.IsDirty = false
 			}
 		}
 	})
@@ -1742,17 +1898,18 @@ func Run(path string) error {
 	errLines = []int{0}
 	showErrorsTab()
 
-	if currentPath != "" {
-		if err := loadFile(currentPath); err != nil {
+	if initPath != "" {
+		if err := loadFile(initPath); err != nil {
 			setStatus("לא נפתח · " + err.Error())
+			_ = docs.EnsureWelcome(welcomeTemplate)
+			syncFromActiveTab()
 		}
 	} else {
-		_ = codeEdit.SetText(welcomeTemplate)
-		dirty = false
-		updateTitle()
+		_ = docs.EnsureWelcome(welcomeTemplate)
+		syncFromActiveTab()
 		setStatus("מוכן · F5 להרצה")
-		applyCodeZoom(codeFontSize)
 	}
+	applyCodeZoom(codeFontSize)
 	updateLineNumbers()
 	updateCaretStatus()
 
