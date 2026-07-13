@@ -8,13 +8,13 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// גופנים לקוד — עדיפות לכאלה שתומכים היטב בעברית + לטינית
+// גופנים לקוד — Consolas קודם (עברית ברורה); Cascadia בסוף (חלש בעברית)
 var codeFontCandidates = []string{
-	"Cascadia Code",
-	"Cascadia Mono",
-	"Courier New",
 	"Consolas",
+	"Courier New",
 	"Lucida Console",
+	"Cascadia Mono",
+	"Cascadia Code",
 }
 
 var (
