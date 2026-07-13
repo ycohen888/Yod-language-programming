@@ -3,16 +3,14 @@
 package stdlib
 
 import (
-	"bytes"
-	"encoding/csv"
 	"fmt"
-	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 var (
@@ -20,79 +18,86 @@ var (
 	procGetTickCount64      = modkernel32.NewProc("GetTickCount64")
 	procGetDiskFreeSpaceExW = modkernel32.NewProc("GetDiskFreeSpaceExW")
 	procGetLogicalDrives    = modkernel32.NewProc("GetLogicalDrives")
+
+	modpsapi                 = windows.NewLazySystemDLL("psapi.dll")
+	procGetProcessMemoryInfo = modpsapi.NewProc("GetProcessMemoryInfo")
 )
 
+type processMemoryCounters struct {
+	CB                         uint32
+	PageFaultCount             uint32
+	PeakWorkingSetSize         uintptr
+	WorkingSetSize             uintptr
+	QuotaPeakPagedPoolUsage    uintptr
+	QuotaPagedPoolUsage        uintptr
+	QuotaPeakNonPagedPoolUsage uintptr
+	QuotaNonPagedPoolUsage     uintptr
+	PagefileUsage              uintptr
+	PeakPagefileUsage          uintptr
+}
+
 func listOSProcesses() ([]osProcess, error) {
-	cmd := exec.Command("tasklist", "/FO", "CSV", "/NH")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
-	}
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
-		}
-		return nil, fmt.Errorf("%s", msg)
-	}
-	r := csv.NewReader(bytes.NewReader(stdout.Bytes()))
-	r.FieldsPerRecord = -1
-	rows, err := r.ReadAll()
+	snap, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("CreateToolhelp32Snapshot: %w", err)
 	}
-	out := make([]osProcess, 0, len(rows))
-	for _, row := range rows {
-		if len(row) < 5 {
-			continue
+	defer windows.CloseHandle(snap)
+
+	var pe windows.ProcessEntry32
+	pe.Size = uint32(unsafe.Sizeof(pe))
+	if err := windows.Process32First(snap, &pe); err != nil {
+		return nil, fmt.Errorf("Process32First: %w", err)
+	}
+
+	out := make([]osProcess, 0, 256)
+	for {
+		pid := pe.ProcessID
+		name := windows.UTF16ToString(pe.ExeFile[:])
+		if pid != 0 && name != "" {
+			out = append(out, osProcess{
+				PID:        pid,
+				Name:       name,
+				WorkingSet: processWorkingSet(pid),
+			})
 		}
-		name := strings.TrimSpace(row[0])
-		pid, err := strconv.ParseUint(strings.TrimSpace(row[1]), 10, 32)
-		if err != nil {
-			continue
+		if err := windows.Process32Next(snap, &pe); err != nil {
+			break
 		}
-		mem := parseTasklistMemory(row[4])
-		out = append(out, osProcess{
-			PID:        uint32(pid),
-			Name:       name,
-			WorkingSet: mem,
-		})
+	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("לא נמצאו תהליכים")
 	}
 	return out, nil
 }
 
-func parseTasklistMemory(s string) uint64 {
-	// דוגמה: "12,345 K" או "12345 K"
-	s = strings.TrimSpace(s)
-	s = strings.TrimSuffix(s, "K")
-	s = strings.TrimSuffix(s, "k")
-	s = strings.TrimSpace(s)
-	s = strings.ReplaceAll(s, ",", "")
-	s = strings.ReplaceAll(s, " ", "")
-	n, err := strconv.ParseUint(s, 10, 64)
+func processWorkingSet(pid uint32) uint64 {
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
 	if err != nil {
 		return 0
 	}
-	return n * 1024
+	defer windows.CloseHandle(h)
+
+	var pmc processMemoryCounters
+	pmc.CB = uint32(unsafe.Sizeof(pmc))
+	r1, _, _ := procGetProcessMemoryInfo.Call(
+		uintptr(h),
+		uintptr(unsafe.Pointer(&pmc)),
+		uintptr(pmc.CB),
+	)
+	if r1 == 0 {
+		return 0
+	}
+	return uint64(pmc.WorkingSetSize)
 }
 
 func killOSProcess(pid uint32) error {
-	cmd := exec.Command("taskkill", "/PID", strconv.FormatUint(uint64(pid), 10), "/F")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		HideWindow:    true,
-		CreationFlags: 0x08000000, // CREATE_NO_WINDOW
+	h, err := windows.OpenProcess(windows.PROCESS_TERMINATE, false, pid)
+	if err != nil {
+		return fmt.Errorf("%s", err.Error())
 	}
-	if err := cmd.Run(); err != nil {
-		msg := strings.TrimSpace(stderr.String())
-		if msg == "" {
-			msg = err.Error()
-		}
-		return fmt.Errorf("%s", msg)
+	defer windows.CloseHandle(h)
+	if err := windows.TerminateProcess(h, 1); err != nil {
+		return fmt.Errorf("%s", err.Error())
 	}
 	return nil
 }

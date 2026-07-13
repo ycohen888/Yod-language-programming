@@ -598,6 +598,8 @@ func buildControlWidget(ch *controlState) Widget {
 				}
 			},
 		}
+	case "טבלה":
+		return buildTableWidget(ch)
 	case "דפדפן":
 		return Composite{
 			AssignTo:      &ch.host,

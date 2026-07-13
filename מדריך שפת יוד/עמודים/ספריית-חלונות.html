@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.58.0</span><strong>חלונות</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.58.4</span><strong>חלונות</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
@@ -46,6 +46,7 @@
           <tr><td><code>חלונות.סמל(סוג)</code></td><td>כפתור כלי עם אייקון (עיפרון/מחק/קו/…)</td></tr>
           <tr><td><code>חלונות.דגם(צבע…)</code></td><td>ריבוע צבע לחיץ ללוח צבעים</td></tr>
           <tr><td><code>חלונות.רשימה()</code></td><td>רשימת בחירה: <code>קבע_פריטים</code>, <code>קרא_אינדקס</code>, <code>קרא_פריט</code>, <code>בבחירה</code></td></tr>
+          <tr><td><code>חלונות.טבלה()</code></td><td>טבלת מידע: <code>קבע_שדות</code>, <code>קבע_שורות</code>, <code>מיין</code>, <code>קרא_שורה</code></td></tr>
           <tr><td><code>חלונות.שאל(כותרת, טקסט)</code></td><td>כן/לא — מחזיר <code>אמת</code>/<code>שקר</code></td></tr>
           <tr><td><code>חלונות.בחר_שמירה([כותרת])</code></td><td>דיאלוג שמירה → נתיב או <code>ריק</code></td></tr>
           <tr><td><code>חלונות.בחר_פתיחה([כותרת])</code></td><td>דיאלוג פתיחה → נתיב או <code>ריק</code></td></tr>
@@ -98,6 +99,49 @@
       </div>
 
       <p>לציור צורות בלי עכבר (לוח + הצג) — ראו <a href="ספריית-ציור.html">ספריית ציור</a>.</p>
+
+      <h2>טבלת מידע</h2>
+      <p>
+        <code>חלונות.טבלה()</code> מציגה שדות (עמודות) ושורות. אפשר למיין בלחיצה על כותרת עמודה,
+        או בקוד עם <code>מיין(שם_שדה, "עולה"|"יורד")</code>.
+      </p>
+      <table class="method-table">
+        <thead>
+          <tr><th>מתודה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>קבע_שדות(רשימה)</code></td><td>שמות עמודות, או מילונים <code>{"שם","רוחב"}</code></td></tr>
+          <tr><td><code>קבע_שורות(רשימה)</code></td><td>מילונים לפי שמות השדות, או רשימות ערכים</td></tr>
+          <tr><td><code>מיין(שדה, כיוון?)</code></td><td><code>"עולה"</code> / <code>"יורד"</code> (ברירת מחדל: עולה)</td></tr>
+          <tr><td><code>קרא_אינדקס</code> / <code>קרא_שורה</code> / <code>קרא_שדה</code></td><td>השורה הנבחרת</td></tr>
+          <tr><td><code>קבע_גובה</code> / <code>בבחירה</code></td><td>גודל ואירוע בחירה</td></tr>
+        </tbody>
+      </table>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "חלונות"
+
+משתנה ח = חלונות.חלון: "טבלה"
+ח.קבע_גודל: 640, 420
+
+משתנה ט = חלונות.טבלה()
+ט.קבע_שדות: ["שם", "מזהה", "זיכרון"]
+ט.קבע_שורות: [
+  {"שם": "a.exe", "מזהה": 12, "זיכרון": "80 מגה", "מיון": {"זיכרון": 80}},
+  {"שם": "b.exe", "מזהה": 34, "זיכרון": "12 מגה", "מיון": {"זיכרון": 12}}
+]
+ט.מיין: "זיכרון", "יורד"
+
+ח.הוסף: ט
+ח.הצג:</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>(טבלה עם מיון לפי זיכרון יורד — שדה "מיון" אופציונלי לערכי מיון נפרדים מהתצוגה)</pre>
+        </div>
+      </figure>
+      <div class="callout tip">
+        דוגמה מלאה — רשימת תהליכים ב־<code>פרוייקט דוגמה/מידע מחשב/</code>.
+      </div>
 
       <h2>דפדפן בתוך חלון</h2>
       <p>

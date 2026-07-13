@@ -32,7 +32,7 @@ type windowTimer struct {
 }
 
 type controlState struct {
-	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | עמודה | מסגרת | משטח | דגם | סמל | רשימה
+	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | עמודה | מסגרת | משטח | דגם | סמל | רשימה | טבלה
 	text      string
 	textColor walk.Color
 	onClick   object.Object
@@ -68,6 +68,10 @@ type controlState struct {
 	listItems   []string
 	listMinH    int
 	onSelect    object.Object
+	// טבלה
+	tableView  *walk.TableView
+	tableModel *yodTableModel
+	tableCols  []int
 }
 
 func NewWindowsModule() *object.Module {
@@ -88,6 +92,7 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["בחר_שמירה"] = &object.Builtin{Fn: winFileSave}
 	m.Attrs["בחר_פתיחה"] = &object.Builtin{Fn: winFileOpen}
 	m.Attrs["רשימה"] = &object.Builtin{Fn: winCreateList}
+	m.Attrs["טבלה"] = &object.Builtin{Fn: winCreateTable}
 	m.Attrs["שאל"] = &object.Builtin{Fn: winAsk}
 	return m
 }
