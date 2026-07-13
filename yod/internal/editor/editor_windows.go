@@ -82,7 +82,6 @@ func Run(path string) error {
 	var (
 		mw           *walk.MainWindow
 		codeHost     *walk.Composite
-		editorsHost  *walk.Composite
 		docTabBar    *walk.Composite
 		codeEdit     *CodeEdit
 		lineEdit     *walk.TextEdit
@@ -157,13 +156,12 @@ func Run(path string) error {
 
 	syncFromActiveTab = func() {
 		if docs == nil || docs.Active == nil {
-			codeEdit = nil
 			currentPath = ""
 			dirty = false
 			updateTitle()
 			return
 		}
-		codeEdit = docs.Active.Editor
+		// עורך יחיד משותף — רק path/dirty מתעדכנים
 		currentPath = docs.Active.FilePath
 		dirty = docs.Active.IsDirty
 		updateTitle()
@@ -1567,15 +1565,7 @@ func Run(path string) error {
 										StretchFactor: 1,
 										MinSize:       Size{Height: 180},
 										Children: []Widget{
-											// LTR מכוון: עורך משמאל (נמתח) · gutter מימין (צמוד לקוד)
-											Composite{
-												AssignTo:      &editorsHost,
-												Layout:        VBox{MarginsZero: true, Spacing: 0},
-												Background:    SolidColorBrush{Color: colPanel},
-												StretchFactor: 1,
-												MinSize:       Size{Width: 200, Height: 180},
-												Children:      []Widget{},
-											},
+											// RTL של החלון: gutter ראשון → מופיע מימין ליד תחילת השורה
 											TextEdit{
 												AssignTo:      &lineEdit,
 												ReadOnly:      true,
@@ -1736,81 +1726,40 @@ func Run(path string) error {
 	}
 
 	var cerr error
-	_ = cerr
-	docs = NewDocTabs(docTabBar, editorsHost)
+	codeEdit, cerr = NewCodeEdit(codeHost)
+	if cerr != nil {
+		return fmt.Errorf("עורך קוד: %w", cerr)
+	}
+	styleEditorPane(codeEdit)
+	fixCodeEdit(codeEdit)
+	clearTabStop(codeEdit)
 
-	// מיקום ידני ב־LTR: עורך משמאל · gutter צמוד לימין.
-	// בלי SetLayout(nil) — קורס ב־walk. HBox עלול לדרוס אחרי layout —
-	// לכן מתקנים בטיימר, אבל נוגעים ב־CodeEdit רק כשגודל המארח באמת השתנה.
-	const gutterW = 52
-	var lastEditorClient walk.Size
-	layoutCodePane := func() {
-		if codeHost == nil || lineEdit == nil || editorsHost == nil {
+	docs = NewDocTabs(docTabBar, codeEdit)
+
+	codeEdit.TextChanged().Attach(func() {
+		if docs == nil || docs.IsSwapping() || docs.Active == nil {
 			return
 		}
-		b := codeHost.ClientBoundsPixels()
-		if b.Width < 80 || b.Height < 40 {
-			return
+		if !docs.Active.IsDirty {
+			docs.SetActiveDirty(true)
+			dirty = true
+			updateTitle()
 		}
-		editW := b.Width - gutterW
-		wantEdit := walk.Rectangle{X: 0, Y: 0, Width: editW, Height: b.Height}
-		wantGut := walk.Rectangle{X: editW, Y: 0, Width: gutterW, Height: b.Height}
-		if editorsHost.BoundsPixels() != wantEdit {
-			_ = editorsHost.SetBoundsPixels(wantEdit)
+		n := codeEdit.LineCount()
+		if n != lastGutterLines {
+			lastGutterLines = n
+			updateLineNumbers()
+		} else if updateCaretStatus != nil {
+			updateCaretStatus()
 		}
-		if lineEdit.BoundsPixels() != wantGut {
-			_ = lineEdit.SetBoundsPixels(wantGut)
-		}
-		cs := editorsHost.ClientBoundsPixels()
-		sz := walk.Size{Width: cs.Width, Height: cs.Height}
-		if docs != nil && sz != lastEditorClient {
-			lastEditorClient = sz
-			docs.layoutEditors()
-		}
-	}
-	if codeHost != nil {
-		codeHost.SizeChanged().Attach(layoutCodePane)
+	})
+	codeEdit.onZoom = applyCodeZoom
+	codeEdit.onSelChange = func() {
+		updateCaretStatus()
 	}
 
-	docs.WireEditor = func(ce *CodeEdit, tab *OpenFileTab) {
-		ce.TextChanged().Attach(func() {
-			if tab == nil {
-				return
-			}
-			if !tab.IsDirty {
-				tab.IsDirty = true
-				if docs.Active == tab {
-					dirty = true
-					updateTitle()
-				}
-				docs.refreshBar()
-			}
-			n := ce.LineCount()
-			if docs.Active == tab {
-				if n != lastGutterLines {
-					lastGutterLines = n
-					updateLineNumbers()
-				} else if updateCaretStatus != nil {
-					updateCaretStatus()
-				}
-			}
-		})
-		ce.onZoom = applyCodeZoom
-		ce.onSelChange = func() {
-			if docs.Active == tab {
-				updateCaretStatus()
-			}
-		}
-		fixCodeEdit(ce)
-		clearTabStop(ce)
-	}
 	docs.OnActivate = func(tab *OpenFileTab) {
 		syncFromActiveTab()
-		lastEditorClient = walk.Size{} // כפה מילוי מחדש לטאב הפעיל
-		layoutCodePane()
-		if docs != nil {
-			docs.layoutEditors()
-		}
 		if tab != nil {
 			setStatus("טאב · " + tab.Title)
 		} else {
@@ -1823,7 +1772,6 @@ func Run(path string) error {
 		syncFromActiveTab()
 	}
 
-	// codeHost ב־LTR: [עורך | gutter] — gutter בימין צמוד לקוד
 	fixGutterEdit(lineEdit)
 	clearLayoutRTL := func(hwnd win.HWND) {
 		if hwnd == 0 {
@@ -1836,19 +1784,6 @@ func Run(path string) error {
 		win.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
 			win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
 	}
-	forceCodePaneLTR := func() {
-		if codeHost != nil {
-			clearLayoutRTL(codeHost.Handle())
-		}
-		if editorsHost != nil {
-			clearLayoutRTL(editorsHost.Handle())
-		}
-		if lineEdit != nil {
-			fixGutterEdit(lineEdit)
-			_ = lineEdit.SetMinMaxSizePixels(walk.Size{Width: gutterW}, walk.Size{Width: gutterW})
-		}
-		layoutCodePane()
-	}
 	// Escape ברמת החלון — אם העורך לא קיבל את המקש
 	if mw != nil {
 		mw.KeyDown().Attach(func(key walk.Key) {
@@ -1857,6 +1792,7 @@ func Run(path string) error {
 			}
 		})
 	}
+	// codeHost נשאר RTL (ירושה מהחלון): gutter מימין ליד תחילת השורה
 	disableWordWrap(lineEdit)
 	fixHebrewEdit(errEdit)
 	fixHebrewEdit(outEdit)
@@ -1887,22 +1823,25 @@ func Run(path string) error {
 	}
 
 	if treeSplit != nil {
+		// LTR על ה־splitter בלבד — גרירת סייר יציבה; codeHost נשאר RTL למספור מימין
 		clearLayoutRTL(treeSplit.Handle())
-		for i := 0; i < treeSplit.Children().Len(); i++ {
-			clearLayoutRTL(treeSplit.Children().At(i).Handle())
-		}
 		if treePane != nil {
+			clearLayoutRTL(treePane.Handle())
 			_ = treePane.SetMinMaxSizePixels(walk.Size{Width: 120}, walk.Size{})
 		}
 	}
 	if editorSplit != nil {
 		clearLayoutRTL(editorSplit.Handle())
-		for i := 0; i < editorSplit.Children().Len(); i++ {
-			clearLayoutRTL(editorSplit.Children().At(i).Handle())
-		}
 	}
-	// אחרי ניקוי RTL ב־splitters — לכפות LTR + מיקום ידני באזור הקוד
-	forceCodePaneLTR()
+	// כפיית RTL על אזור הקוד: gutter (ילד ראשון) מופיע מימין
+	if codeHost != nil {
+		ex := uint32(win.GetWindowLong(codeHost.Handle(), win.GWL_EXSTYLE))
+		ex |= win.WS_EX_LAYOUTRTL | win.WS_EX_NOINHERITLAYOUT
+		win.SetWindowLong(codeHost.Handle(), win.GWL_EXSTYLE, int32(ex))
+		win.SetWindowPos(codeHost.Handle(), 0, 0, 0, 0, 0,
+			win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
+	}
+	codeHost.RequestLayout()
 	if fileList != nil {
 		applyDarkScrollbars(fileList.Handle())
 		styleEditorPane(fileList)
@@ -1969,9 +1908,8 @@ func Run(path string) error {
 	applyCodeZoom(codeFontSize)
 	updateLineNumbers()
 	updateCaretStatus()
-	forceCodePaneLTR()
-	if mw != nil {
-		mw.Synchronize(forceCodePaneLTR)
+	if codeHost != nil {
+		codeHost.RequestLayout()
 	}
 
 	stopSync := make(chan struct{})
@@ -1984,7 +1922,6 @@ func Run(path string) error {
 				return
 			case <-t.C:
 				mw.Synchronize(func() {
-					layoutCodePane()
 					syncLineScroll()
 				})
 			}
