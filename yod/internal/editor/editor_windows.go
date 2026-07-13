@@ -99,7 +99,8 @@ func Run(path string) error {
 		fileTree     *FileTreeView
 		treeEmpty    *walk.Label
 		treePane     *walk.Composite
-		treeSplit    *walk.Splitter
+		splitHost    *walk.Composite
+		gripHost     *walk.Composite
 		editorSplit  *walk.Splitter
 		toolbar      *walk.Composite
 		tabBar       *walk.Composite
@@ -108,6 +109,39 @@ func Run(path string) error {
 		errCount     int
 		busy         bool
 	)
+
+	treePaneW := 220 // רוחב סייר בפיקסלים — נשלט ע״י גרירת הידית
+	var applyTreeWidth func()
+	applyTreeWidth = func() {
+		if treePane == nil {
+			return
+		}
+		w := treePaneW
+		if w < 140 {
+			w = 140
+		}
+		maxW := 560
+		if splitHost != nil {
+			hostW := splitHost.ClientBoundsPixels().Width
+			// מקום מינימלי לעורך + ידית
+			if room := hostW - 6 - 240; room > 140 && room < maxW {
+				maxW = room
+			}
+		}
+		if w > maxW {
+			w = maxW
+		}
+		treePaneW = w
+		_ = treePane.SetMinMaxSizePixels(
+			walk.Size{Width: w, Height: 80},
+			walk.Size{Width: w, Height: 8000},
+		)
+		if splitHost != nil {
+			splitHost.RequestLayout()
+		} else if mw != nil {
+			mw.RequestLayout()
+		}
+	}
 
 	codeFace := pickCodeFont()
 
@@ -1732,18 +1766,18 @@ func Run(path string) error {
 				},
 			},
 			Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
-			// —— סייר | (עורך+טאבים / פאנל תחתון) ——
-			HSplitter{
-				AssignTo:      &treeSplit,
+			// —— סייר | ידית | (עורך+פאנל) — HBox ב־LTR ידני, גרירה לפי מסך ——
+			Composite{
+				AssignTo:      &splitHost,
+				Layout:        HBox{MarginsZero: true, Spacing: 0},
 				StretchFactor: 1,
-				HandleWidth:   8,
 				Children: []Widget{
 					Composite{
-						AssignTo:      &treePane,
-						Layout:        VBox{MarginsZero: true, Spacing: 0},
-						Background:    SolidColorBrush{Color: colToolbar},
-						MinSize:       Size{Width: 100},
-						StretchFactor: 1,
+						AssignTo:   &treePane,
+						Layout:     VBox{MarginsZero: true, Spacing: 0},
+						Background: SolidColorBrush{Color: colToolbar},
+						MinSize:    Size{Width: 140},
+						MaxSize:    Size{Width: 560},
 						Children: []Widget{
 							Composite{
 								Layout:     HBox{Margins: Margins{Left: 8, Right: 6, Top: 6, Bottom: 4}, Spacing: 6},
@@ -1756,7 +1790,7 @@ func Run(path string) error {
 							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
 							Label{
 								AssignTo:           &treeEmpty,
-                                Text:               "פתחו תיקיית פרויקט\n(קובץ ← פתח תיקייה)\nאו גררו קובץ .יוד לכאן\nהקובץ הראשי: התחל.יוד",
+								Text:               "פתחו תיקיית פרויקט\n(קובץ ← פתח תיקייה)\nאו גררו קובץ .יוד לכאן\nהקובץ הראשי: התחל.יוד",
 								TextColor:          colMuted,
 								Font:               Font{Family: uiFont, PointSize: 9},
 								RightToLeftReading: true,
@@ -1772,9 +1806,16 @@ func Run(path string) error {
 							},
 						},
 					},
+					Composite{
+						AssignTo:   &gripHost,
+						Layout:     VBox{MarginsZero: true, Spacing: 0},
+						MinSize:    Size{Width: 6},
+						MaxSize:    Size{Width: 6},
+						Background: SolidColorBrush{Color: colBorder},
+					},
 					VSplitter{
 						AssignTo:      &editorSplit,
-						StretchFactor: 4,
+						StretchFactor: 1,
 						HandleWidth:   8,
 						Children: []Widget{
 							Composite{
@@ -2070,16 +2111,45 @@ func Run(path string) error {
 		}
 	}
 
-	if treeSplit != nil {
-		// LTR על ה־splitter בלבד — גרירת סייר יציבה; codeHost נשאר RTL למספור מימין
-		clearLayoutRTL(treeSplit.Handle())
+	if splitHost != nil {
+		// LTR קבוע לאזור הסייר+עורך — סייר משמאל, עורך מימין
+		clearLayoutRTL(splitHost.Handle())
 		if treePane != nil {
 			clearLayoutRTL(treePane.Handle())
-			_ = treePane.SetMinMaxSizePixels(walk.Size{Width: 120}, walk.Size{})
 		}
-	}
-	if editorSplit != nil {
-		clearLayoutRTL(editorSplit.Handle())
+		if editorSplit != nil {
+			clearLayoutRTL(editorSplit.Handle())
+		}
+		if gripHost != nil {
+			clearLayoutRTL(gripHost.Handle())
+			dragStartW := treePaneW
+			grip := &splitGrip{}
+			if err := grip.Mount(gripHost, func(totalDX int) {
+				// totalDX = הזזת מסך מצטברת מתחילת הגרירה (בלי קפיצות מצטברות)
+				sign := 1
+				if !treeLeftOfGrip(treePane, gripHost) {
+					// סייר מימין לידית — הרחבה כשהעכבר זז שמאלה
+					sign = -1
+				}
+				treePaneW = dragStartW + sign*totalDX
+				applyTreeWidth()
+			}); err != nil {
+				return err
+			}
+			// מאפסים את בסיס הרוחב בכל התחלת גרירה (דרך MouseDown על הידית)
+			grip.CustomWidget.MouseDown().Attach(func(x, y int, button walk.MouseButton) {
+				_ = x
+				_ = y
+				if button != walk.LeftButton || treePane == nil {
+					return
+				}
+				dragStartW = treePane.BoundsPixels().Width
+				if dragStartW < 140 {
+					dragStartW = treePaneW
+				}
+			})
+		}
+		applyTreeWidth()
 	}
 	// כפיית RTL על אזור הקוד: gutter (ילד ראשון) מופיע מימין
 	if codeHost != nil {
