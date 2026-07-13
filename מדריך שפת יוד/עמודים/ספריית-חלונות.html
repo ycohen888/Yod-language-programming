@@ -17,13 +17,13 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.36.0</span><strong>חלונות</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.52.5</span><strong>חלונות</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
       <h1>ספריית חלונות</h1>
       <p class="lead">
-        ממשק גרפי בסיסי ל־Windows: חלון, כפתור, תווית, שדה טקסט והודעות.
+        ממשק גרפי ל־Windows: חלון, כפתור, תווית, שדה, נורית, ודפדפן WebView2 להצגת אתרים ו־HTML.
         טוענים עם <code>כלול "חלונות"</code>.
       </p>
 
@@ -38,6 +38,10 @@
           <tr><td><code>חלונות.תווית(טקסט)</code></td><td>טקסט לתצוגה</td></tr>
           <tr><td><code>חלונות.שדה(טקסט)</code></td><td>שדה קלט</td></tr>
           <tr><td><code>חלונות.נורית()</code></td><td>לד סטטוס: <code>הדלק()</code> ירוק / <code>כבה()</code> אדום</td></tr>
+          <tr><td><code>חלונות.דפדפן(כתובת?)</code></td><td>תצוגת אתר/HTML (WebView2) בתוך החלון</td></tr>
+          <tr><td><code>דפדפן.נווט(כתובת)</code></td><td>מעבר לכתובת (מוסיף https:// אם חסר)</td></tr>
+          <tr><td><code>דפדפן.קבע_html(מחרוזת)</code></td><td>מציג HTML מקומי בתוך הדפדפן</td></tr>
+          <tr><td><code>דפדפן.רענן()</code> / <code>קרא_כתובת()</code></td><td>רענון וקריאת הכתובת הנוכחית</td></tr>
           <tr><td><code>תווית.קבע_צבע</code></td><td>שם צבע (ירוק/אדום…) או RGB</td></tr>
           <tr><td><code>חלונות.הודעה(כותרת, טקסט)</code></td><td>תיבת הודעה מהירה</td></tr>
           <tr><td><code>חלון.הוסף</code> / <code>קבע_גודל</code> / <code>הצג</code></td><td>סידור והצגה</td></tr>
@@ -47,6 +51,49 @@
       </table>
 
       <p>לציור צורות ותמונות — ראו <a href="ספריית-ציור.html">ספריית ציור</a>.</p>
+
+      <h2>דפדפן בתוך חלון</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "חלונות"
+
+משתנה ח = חלונות.חלון: "דפדפן יוד"
+ח.קבע_גודל: 960, 640
+
+משתנה שדה = חלונות.שדה: "example.com"
+משתנה לך = חלונות.כפתור: "עבור"
+משתנה דף = חלונות.דפדפן: "https://example.com"
+
+לך.בלחיצה: פונקציה ()
+  דף.נווט(שדה.קרא_טקסט())
+סוף
+
+ח.הוסף: שדה
+ח.הוסף: לך
+ח.הוסף: דף
+ח.הצג:</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>(חלון עם שדה כתובת + דפדפן WebView2)</pre>
+        </div>
+      </figure>
+
+      <h2>HTML מקומי</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "חלונות"
+
+משתנה ח = חלונות.חלון: "דף שלי"
+ח.קבע_גודל: 640, 420
+משתנה דף = חלונות.דפדפן()
+דף.קבע_html: "&lt;html dir=rtl&gt;&lt;body&gt;&lt;h1&gt;שלום מיוד&lt;/h1&gt;&lt;/body&gt;&lt;/html&gt;"
+ח.הוסף: דף
+ח.הצג:</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>(חלון שמציג HTML שבניתם בקוד)</pre>
+        </div>
+      </figure>
 
       <h2>חלון עם כפתור</h2>
       <figure class="example">
@@ -110,13 +157,15 @@
       </figure>
 
       <div class="callout warn">
-        <strong>Windows בלבד:</strong> הספרייה דורשת מערכת Windows.
+        <strong>Windows + WebView2:</strong> הספרייה דורשת Windows.
+        <code>דפדפן</code> דורש גם <strong>WebView2 Runtime</strong> (מגיע עם Edge ברוב המחשבים).
         ודאו ש־<code>yod.exe.manifest</code> ליד <code>yod.exe</code> (Common Controls 6).
       </div>
 
       <div class="callout ok">
-        <strong>דוגמה מלאה:</strong> <code>examples/halonot.יוד</code> —
-        וגם שרת עם ממשק: <code>examples/server_gui.יוד</code>.
+        <strong>דוגמאות:</strong> <code>examples/halonot.יוד</code>,
+        <code>examples/dafdefan.יוד</code>,
+        ושרת עם ממשק: <code>examples/server_gui.יוד</code>.
       </div>
 
       <nav class="page-nav">

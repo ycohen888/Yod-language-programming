@@ -14,6 +14,7 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["תווית"] = unsupported
 	m.Attrs["שדה"] = unsupported
 	m.Attrs["נורית"] = unsupported
+	m.Attrs["דפדפן"] = unsupported
 	m.Attrs["הודעה"] = unsupported
 	return m
 }

@@ -136,13 +136,52 @@ func focusGuideWindow() bool {
 	if !open || hwnd == 0 {
 		return false
 	}
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	showWindow := user32.NewProc("ShowWindow")
-	setForeground := user32.NewProc("SetForegroundWindow")
-	const swRestore = 9
-	_, _, _ = showWindow.Call(hwnd, swRestore)
-	_, _, _ = setForeground.Call(hwnd)
+	bringGuideToFront(hwnd, 0)
 	return true
+}
+
+func bringGuideToFront(hwnd, owner uintptr) {
+	user32 := windows.NewLazySystemDLL("user32.dll")
+	kernel32 := windows.NewLazySystemDLL("kernel32.dll")
+
+	if owner != 0 {
+		// חלון בבעלות העורך — נשאר מעליו ב־Z-order (GWLP_HWNDPARENT = -8)
+		setLong := user32.NewProc("SetWindowLongPtrW")
+		_, _, _ = setLong.Call(hwnd, ^uintptr(7), owner)
+	}
+
+	allow := user32.NewProc("AllowSetForegroundWindow")
+	_, _, _ = allow.Call(^uintptr(0)) // ASFW_ANY
+
+	getFg := user32.NewProc("GetForegroundWindow")
+	getTid := user32.NewProc("GetWindowThreadProcessId")
+	getCur := kernel32.NewProc("GetCurrentThreadId")
+	attach := user32.NewProc("AttachThreadInput")
+
+	fg, _, _ := getFg.Call()
+	fgTid, _, _ := getTid.Call(fg, 0)
+	curTid, _, _ := getCur.Call()
+	if fgTid != 0 && fgTid != curTid {
+		_, _, _ = attach.Call(curTid, fgTid, 1)
+		defer func() { _, _, _ = attach.Call(curTid, fgTid, 0) }()
+	}
+
+	const (
+		hwndTopmost   = ^uintptr(0) // HWND_TOPMOST
+		hwndNoTopmost = ^uintptr(1) // HWND_NOTOPMOST
+		swpNoMove     = 0x0002
+		swpNoSize     = 0x0001
+		swpShowWindow = 0x0040
+		swRestore     = 9
+	)
+	flags := uintptr(swpNoMove | swpNoSize | swpShowWindow)
+	setPos := user32.NewProc("SetWindowPos")
+	_, _, _ = setPos.Call(hwnd, hwndTopmost, 0, 0, 0, 0, flags)
+	_, _, _ = setPos.Call(hwnd, hwndNoTopmost, 0, 0, 0, 0, flags)
+	_, _, _ = user32.NewProc("ShowWindow").Call(hwnd, swRestore)
+	_, _, _ = user32.NewProc("BringWindowToTop").Call(hwnd)
+	_, _, _ = user32.NewProc("SetForegroundWindow").Call(hwnd)
+	_, _, _ = user32.NewProc("SetActiveWindow").Call(hwnd)
 }
 
 func guideDataPath() string {
@@ -197,6 +236,11 @@ func showGuideWindow(owner walk.Form) {
 	guideOpen = true
 	guideMu.Unlock()
 
+	var ownerHWND uintptr
+	if owner != nil {
+		ownerHWND = uintptr(owner.Handle())
+	}
+
 	go func() {
 		runtime.LockOSThread()
 		defer runtime.UnlockOSThread()
@@ -233,13 +277,17 @@ func showGuideWindow(owner walk.Form) {
 			return
 		}
 
+		hwnd := uintptr(w.Window())
 		guideMu.Lock()
-		guideHWND = uintptr(w.Window())
+		guideHWND = hwnd
 		guideMu.Unlock()
+
+		bringGuideToFront(hwnd, ownerHWND)
 
 		defer w.Destroy()
 		w.SetSize(1100, 760, webview2.HintNone)
 		w.Navigate(homeURL)
+		bringGuideToFront(hwnd, ownerHWND)
 		w.Run()
 	}()
 }

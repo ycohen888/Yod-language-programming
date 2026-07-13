@@ -5,6 +5,7 @@ package stdlib
 import (
 	"fmt"
 
+	"github.com/jchv/go-webview2/pkg/edge"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 
@@ -19,13 +20,18 @@ type windowState struct {
 }
 
 type controlState struct {
-	kind      string // כפתור | תווית | שדה | נורית
+	kind      string // כפתור | תווית | שדה | נורית | דפדפן
 	text      string
 	textColor walk.Color
 	onClick   object.Object
 	label     *walk.Label
 	edit      *walk.LineEdit
 	ledWidget *walk.CustomWidget
+	// דפדפן (WebView2)
+	url     string
+	html    string
+	host    *walk.Composite
+	browser *edge.Chromium
 }
 
 func NewWindowsModule() *object.Module {
@@ -35,6 +41,7 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["תווית"] = &object.Builtin{Fn: winCreateLabel}
 	m.Attrs["שדה"] = &object.Builtin{Fn: winCreateEdit}
 	m.Attrs["נורית"] = &object.Builtin{Fn: winCreateLED}
+	m.Attrs["דפדפן"] = &object.Builtin{Fn: winCreateBrowser}
 	m.Attrs["הודעה"] = &object.Builtin{Fn: winMessage}
 	return m
 }
@@ -293,6 +300,58 @@ func parseWalkColor(args ...object.Object) (walk.Color, error) {
 	return 0, fmt.Errorf("קבע_צבע מצפה לשם צבע, או ל־3 מספרים RGB")
 }
 
+// חלונות.דפדפן(כתובת?) — תצוגת אתר/HTML עם WebView2 בתוך החלון
+func winCreateBrowser(args ...object.Object) object.Object {
+	st := &controlState{kind: "דפדפן", url: "about:blank"}
+	if len(args) >= 1 {
+		if s, ok := asString(args[0]); ok {
+			st.url = normalizeNavURL(s)
+		} else {
+			return errObj("חלונות.דפדפן מצפה לכתובת מחרוזת")
+		}
+	}
+	if len(args) > 1 {
+		return errObj("חלונות.דפדפן מצפה ל־0 או 1 ארגומנטים")
+	}
+	w := &object.GuiWidget{Kind: "דפדפן", Data: st, Attrs: map[string]object.Object{}}
+	w.Attrs["נווט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("דפדפן.נווט מצפה לכתובת אחת")
+		}
+		s, ok := asString(a[0])
+		if !ok {
+			return errObj("דפדפן.נווט מצפה למחרוזת")
+		}
+		browserNavigate(st, s)
+		return object.Nil
+	}}
+	w.Attrs["קבע_html"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("דפדפן.קבע_html מצפה למחרוזת HTML אחת")
+		}
+		s, ok := asString(a[0])
+		if !ok {
+			return errObj("דפדפן.קבע_html מצפה למחרוזת")
+		}
+		browserSetHTML(st, s)
+		return object.Nil
+	}}
+	w.Attrs["רענן"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 0 {
+			return errObj("דפדפן.רענן מצפה ל־0 ארגומנטים")
+		}
+		browserRefresh(st)
+		return object.Nil
+	}}
+	w.Attrs["קרא_כתובת"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 0 {
+			return errObj("דפדפן.קרא_כתובת מצפה ל־0 ארגומנטים")
+		}
+		return &object.String{Value: st.url}
+	}}
+	return w
+}
+
 func winCreateEdit(args ...object.Object) object.Object {
 	text := ""
 	if len(args) >= 1 {
@@ -341,7 +400,7 @@ func winAdd(st *windowState, args ...object.Object) object.Object {
 	}
 	gw, ok := args[0].(*object.GuiWidget)
 	if !ok {
-		return errObj("חלון.הוסף מצפה לרכיב ממשק (כפתור/תווית/שדה)")
+		return errObj("חלון.הוסף מצפה לרכיב ממשק (כפתור/תווית/שדה/דפדפן)")
 	}
 	cs, ok := gw.Data.(*controlState)
 	if !ok {
@@ -366,6 +425,7 @@ func winSetSize(st *windowState, args ...object.Object) object.Object {
 }
 
 func winShow(st *windowState) object.Object {
+	var mw *walk.MainWindow
 	children := make([]Widget, 0, len(st.children))
 	for _, ch := range st.children {
 		ch := ch
@@ -411,19 +471,50 @@ func winShow(st *windowState) object.Object {
 				AssignTo: &ch.edit,
 				Text:     ch.text,
 			})
+		case "דפדפן":
+			children = append(children, Composite{
+				AssignTo:      &ch.host,
+				StretchFactor: 1,
+				MinSize:       Size{Width: 120, Height: 180},
+				Layout:        VBox{MarginsZero: true},
+			})
 		}
 	}
 
-	_, err := (MainWindow{
-		Title:    st.title,
-		MinSize:  Size{Width: st.width, Height: st.height},
-		Size:     Size{Width: st.width, Height: st.height},
-		Layout:   VBox{},
-		Children: children,
-	}).Run()
-	if err != nil {
+	if err := (MainWindow{
+		AssignTo:  &mw,
+		Title:     st.title,
+		MinSize:   Size{Width: st.width, Height: st.height},
+		Size:      Size{Width: st.width, Height: st.height},
+		Layout:    VBox{},
+		Children:  children,
+	}).Create(); err != nil {
 		return errObj("הצגת חלון נכשלה: " + err.Error())
 	}
+
+	for _, ch := range st.children {
+		if ch.kind != "דפדפן" || ch.host == nil {
+			continue
+		}
+		br, err := attachWebView2(ch.host, ch.url, ch.html)
+		if err != nil {
+			mw.Dispose()
+			return errObj(err.Error())
+		}
+		ch.browser = br
+	}
+
+	mw.SizeChanged().Attach(func() {
+		for _, ch := range st.children {
+			if ch.browser == nil {
+				continue
+			}
+			ch.browser.Resize()
+			_ = ch.browser.NotifyParentWindowPositionChanged()
+		}
+	})
+
+	mw.Run()
 	return &object.Null{}
 }
 
