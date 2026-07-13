@@ -21,6 +21,7 @@ led_out.txt
 Thumbs.db
 desktop.ini
 **/drawing_out.png
+**/ציור_שלי.png
 
 # SQLite / local DBs (demo data)
 *.db
