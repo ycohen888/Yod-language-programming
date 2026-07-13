@@ -333,8 +333,24 @@ func boardDrawImage(st *drawBoard, args ...object.Object) object.Object {
 	return object.Nil
 }
 
+func resolveAppPath(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	base := AppBaseDir()
+	if base == "" {
+		if wd, err := os.Getwd(); err == nil {
+			base = wd
+		}
+	}
+	if base != "" {
+		return filepath.Join(base, path)
+	}
+	return path
+}
+
 func loadImageFile(path string) (image.Image, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(resolveAppPath(path))
 	if err != nil {
 		return nil, fmt.Errorf("לא הצלחתי לפתוח תמונה: %v", err)
 	}

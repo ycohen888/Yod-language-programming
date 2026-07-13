@@ -373,6 +373,14 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		invalidateCanvas(st)
 		return object.Nil
 	}}
+	w.Attrs["תמונה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		res := boardDrawImage(board, a...)
+		if res != nil && res.Type() == object.ErrorObj {
+			return res
+		}
+		invalidateCanvas(st)
+		return object.Nil
+	}}
 	w.Attrs["קרא_צבע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		x, y, err := twoInts("קרא_צבע", a)
 		if err != nil {

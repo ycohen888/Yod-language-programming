@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספריית דוגמה · 0.65.1</span><strong>רכיבים</strong></div>
+      <div class="brand"><span class="eyebrow">ספריית דוגמה · 0.65.2</span><strong>רכיבים</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
@@ -63,7 +63,8 @@
         </thead>
         <tbody>
           <tr><td><code>כפתור_משטח</code></td><td>כפתור מעוגל; <code>בלחיצה</code>, <code>קבע_ראשי</code></td></tr>
-          <tr><td><code>כפתור_צלמית</code></td><td>כפתור ריבועי לסרגל כלים; <code>קבע_פעיל</code></td></tr>
+          <tr><td><code>כפתור_איקון</code></td><td>כפתור 32×32 עם תמונת PNG/JPG; <code>קבע_נתיב</code>, <code>קבע_פעיל</code>, טקסט אופציונלי. ציור דרך <code>משטח.תמונה(נתיב, x, y, רחב, גבה)</code></td></tr>
+          <tr><td><code>כפתור_צלמית</code></td><td>כפתור ריבועי עם תו/טקסט לסרגל; <code>קבע_פעיל</code></td></tr>
           <tr><td><code>סליידר</code></td><td>ערך בצעד שלם; <code>בשינוי</code>, <code>קבע_ערך_שקט</code></td></tr>
           <tr><td><code>מספר_מדרגה</code></td><td>כפתורי − / +</td></tr>
           <tr><td><code>מתג</code></td><td>הפעלה/כיבוי בסגנון מעוגל</td></tr>
@@ -91,6 +92,23 @@
         פתחו את <code>פרוייקט דוגמה/רכיבים/</code> בעורך יוד (<code>התחל.יוד</code>) והריצו ב־F5.
         גם <code>צייר</code>, <code>מידע מחשב</code> ו־<code>גרפים</code> משתמשים בספרייה
         עם <code>כלול "../רכיבים/רכיבים.יוד"</code> (סרגלי ממשק על משטח; גרפים/טבלה/הקלדה נשארים Win32).
+        ב־<code>צייר</code> סרגל הכלים הוא <code>כפתור_איקון</code> + קבצי PNG ב־<code>צייר/איקונים/</code>
+        (Material Icons, Apache 2.0).
+      </p>
+
+      <h2>כפתור עם תמונה</h2>
+      <figure class="example">
+        <span class="example-label">כפתור_איקון</span>
+        <pre class="code-block">משתנה כ = חדש כפתור_איקון: 16, 8, "איקונים/pencil.png"
+כ.בלחיצה = פונקציה ()
+  הדפס("עיפרון")
+סוף
+כ.קבע_פעיל(אמת)
+לוח.הוסף(כ)</pre>
+      </figure>
+      <p>
+        נתיב יחסי נפתח מול תיקיית קובץ ההרצה. אפשר גם נתיב מלא.
+        על המשטח: <code>משטח.תמונה(נתיב_או_תמונה, x, y [, רוחב, גובה])</code>.
       </p>
 
       <nav class="page-nav">
