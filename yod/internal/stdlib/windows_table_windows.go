@@ -50,7 +50,6 @@ func (m *yodTableModel) Sort(col int, order walk.SortOrder) error {
 	if col < 0 || col >= len(m.fields) {
 		return m.SorterBase.Sort(col, order)
 	}
-	m.hasUserSort = true
 	sort.SliceStable(m.items, func(i, j int) bool {
 		less := cellLess(m.items[i].sortKey[col], m.items[j].sortKey[col])
 		if order == walk.SortAscending {
@@ -58,7 +57,25 @@ func (m *yodTableModel) Sort(col int, order walk.SortOrder) error {
 		}
 		return !less
 	})
+	// רק אחרי מיון עם נתונים — אחרת Create/SetModel קורא Sort(0) על טבלה ריקה
+	// ואז SortChanged מצייר מחדש בלי LVM_SETITEMCOUNT → טבלה נשארת ריקה.
+	if len(m.items) > 0 {
+		m.hasUserSort = true
+	}
 	return m.SorterBase.Sort(col, order)
+}
+
+func (m *yodTableModel) sortInPlace(col int, order walk.SortOrder) {
+	if col < 0 || col >= len(m.fields) {
+		return
+	}
+	sort.SliceStable(m.items, func(i, j int) bool {
+		less := cellLess(m.items[i].sortKey[col], m.items[j].sortKey[col])
+		if order == walk.SortAscending {
+			return less
+		}
+		return !less
+	})
 }
 
 func cellLess(a, b interface{}) bool {
@@ -269,17 +286,14 @@ func tableSetRows(st *controlState, args ...object.Object) object.Object {
 		rows = append(rows, row)
 	}
 	st.tableModel.items = rows
+	// מיון במקום אם המשתמש בחר עמודה — ואז תמיד PublishRowsReset
+	// (SortChanged לבד לא קורא ל־LVM_SETITEMCOUNT כשמספר השורות משתנה מ־0).
 	if st.tableModel.hasUserSort {
 		col := st.tableModel.SorterBase.SortedColumn()
 		order := st.tableModel.SortOrder()
-		if col >= 0 && col < len(st.tableModel.fields) {
-			_ = st.tableModel.Sort(col, order)
-		} else {
-			st.tableModel.PublishRowsReset()
-		}
-	} else {
-		st.tableModel.PublishRowsReset()
+		st.tableModel.sortInPlace(col, order)
 	}
+	st.tableModel.PublishRowsReset()
 	if st.tableView != nil {
 		_ = st.tableView.SetCurrentIndex(-1)
 	}

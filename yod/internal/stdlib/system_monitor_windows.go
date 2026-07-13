@@ -4,7 +4,6 @@ package stdlib
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -190,7 +189,7 @@ func listOSDrives() ([]osDrive, error) {
 			continue
 		}
 		out = append(out, osDrive{
-			Letter: strings.TrimSuffix(letter, `\`),
+			Letter: string(rune('A' + i)), // אות בלבד — בלי ":"
 			Total:  total,
 			Free:   free,
 		})
