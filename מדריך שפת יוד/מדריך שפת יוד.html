@@ -9,266 +9,139 @@
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/guide.css" />
 </head>
-<body>
-  <div class="wrap">
-    <header class="hero">
-      <div class="badge">מדריך רשמי · יוד 0.41.0</div>
-      <h1>מדריך שפת יוד</h1>
-      <p>
-        יוד היא שפת תכנות בעברית — תחביר קריא מימין לשמאל, מתודות עשירות, וספריות מובנות.
-        בחרו נושא, קראו הסבר קצר, והריצו את הדוגמה (עם פלט צפוי) בעצמכם.
-      </p>
-      <div class="chips">
-        <span class="chip">סיומת .יוד</span>
-        <span class="chip">yod הרץ קובץ.יוד</span>
-        <span class="chip">בלוקים עם סוף</span>
-        <span class="chip">גרסה 0.41.0</span>
-      </div>
-      <nav class="toc" aria-label="ניווט מהיר">
-        <a href="#start">התחלה</a>
-        <a href="#keywords">מילות מפתח</a>
-        <a href="#types">טיפוסים</a>
-        <a href="#builtins">פונקציות מובנות</a>
-        <a href="#libs">ספריות</a>
-      </nav>
-    </header>
+<body class="has-sidebar" data-guide-base="." data-guide-home="true">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
 
-    <section class="section" id="start">
-      <h2>התחלה</h2>
-      <p class="hint">התקנה, הרצה ראשונה, עורך ומכונה.</p>
-      <div class="grid">
-        <a class="card" href="עמודים/מתחילים.html">
-          <div class="code">מדריך למתחילים</div>
-          <p>מ־אפס לתוכנית ראשונה עם פלט.</p>
-          <div class="meta ready">התחילו כאן · 0.36</div>
-        </a>
-        <a class="card" href="עמודים/התחלה.html">
-          <div class="code">התחלה מהירה</div>
-          <p>בניית yod.exe והרצת קובץ.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/עורך.html">
-          <div class="code">עורך</div>
-          <p>IDE עברי — סייר קבצים, RTL, השלמה והרצה.</p>
-          <div class="meta ready">מוכן · 0.51</div>
-        </a>
-        <a class="card" href="עמודים/מכונה.html">
-          <div class="code">מכונה</div>
-          <p>הרצה דרך bytecode VM.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/ארוז.html">
-          <div class="code">ארוז</div>
-          <p>קובץ EXE בודד להפצה ב־Windows.</p>
-          <div class="meta ready">מוכן · 0.47</div>
-        </a>
-        <a class="card" href="עמודים/אופרטורים.html">
-          <div class="code">אופרטורים</div>
-          <p>חשבון, וגם/או, ??, ** והשמה.</p>
-          <div class="meta ready">מוכן · 0.36</div>
-        </a>
-        <a class="card" href="עמודים/הערות.html">
-          <div class="code">// הערות</div>
-          <p>הערות שלא רצות עם הקוד.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/זיכרון.html">
-          <div class="code">זיכרון / סגירות</div>
-          <p>הפניות, GC ולכידת משתנים.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-      </div>
-    </section>
+  <div class="guide-main">
+    <div class="wrap">
+      <header class="hero">
+        <div class="badge">מדריך רשמי · יוד 0.52.0</div>
+        <h1>מדריך שפת יוד</h1>
+        <p>
+          יוד היא שפת תכנות בעברית — תחביר קריא מימין לשמאל, מתודות עשירות, וספריות מובנות.
+          השתמשו בתפריט הימני לניווט בין פרקים, חפשו נושא, וגללו — התפריט עוקב אחריכם.
+        </p>
+        <div class="chips">
+          <span class="chip">סיומת .יוד</span>
+          <span class="chip">התחל.יוד · קובץ ראשי</span>
+          <span class="chip">כלול "מודול"</span>
+          <span class="chip">גרסה 0.52.0</span>
+        </div>
+      </header>
 
-    <section class="section" id="keywords">
-      <h2>מילות מפתח</h2>
-      <p class="hint">בקרה, פונקציות, מחלקות וטיפול בשגיאות.</p>
-      <div class="grid">
-        <a class="card" href="עמודים/משתנה.html">
-          <div class="code">משתנה</div>
-          <p>שמירת ערך בשם והשמה מחדש.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/אם.html">
-          <div class="code">אם / אחרת</div>
-          <p>תנאים והחלטות עם סוף.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/בחר.html">
-          <div class="code">בחר / מקרה</div>
-          <p>בחירה לפי ערך עם כמה מקרים.</p>
-          <div class="meta ready">מוכן · 0.36</div>
-        </a>
-        <a class="card" href="עמודים/כל_עוד.html">
-          <div class="code">כל_עוד</div>
-          <p>לולאה כל עוד התנאי מתקיים.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/עבור.html">
-          <div class="code">עבור / בתוך</div>
-          <p>מעבר על רשימה, מילון או מחרוזת.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/עצור-המשך.html">
-          <div class="code">עצור / המשך</div>
-          <p>יציאה או דילוג בלולאה.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/פונקציה.html">
-          <div class="code">פונקציה / החזר</div>
-          <p>הגדרה, קריאה וסגירות.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/מחלקה.html">
-          <div class="code">מחלקה / חדש / זה</div>
-          <p>תכנות מונחה עצמים.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/מרחיב.html">
-          <div class="code">מרחיב / הורה</div>
-          <p>ירושה בין מחלקות.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/פרטי-ציבורי.html">
-          <div class="code">פרטי / ציבורי</div>
-          <p>הגבלת גישה לשדות ומתודות.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/כלול.html">
-          <div class="code">כלול</div>
-          <p>טעינת ספריות ומודולים.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/נסה-תפוס.html">
-          <div class="code">נסה / תפוס / זרוק</div>
-          <p>טיפול בשגיאות בזמן ריצה.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-      </div>
-    </section>
+      <section class="section" id="start">
+        <h2>התחלה</h2>
+        <p class="hint">התקנה, הרצה ראשונה, עורך, מכונה ואריזה.</p>
+        <div class="grid">
+          <a class="card" href="עמודים/מתחילים.html">
+            <div class="code">מדריך למתחילים</div>
+            <p>מ־אפס לתוכנית ראשונה עם פלט.</p>
+            <div class="meta ready">התחילו כאן</div>
+          </a>
+          <a class="card" href="עמודים/התחלה.html">
+            <div class="code">התחלה מהירה</div>
+            <p>בניית yod.exe והרצת קובץ.</p>
+            <div class="meta ready">מוכן</div>
+          </a>
+          <a class="card" href="עמודים/עורך.html">
+            <div class="code">עורך</div>
+            <p>IDE עברי — סייר, RTL, השלמה והרצה מ־התחל.יוד.</p>
+            <div class="meta ready">מוכן · 0.52</div>
+          </a>
+          <a class="card" href="עמודים/מכונה.html">
+            <div class="code">מכונה</div>
+            <p>הרצה דרך bytecode VM.</p>
+            <div class="meta ready">מוכן</div>
+          </a>
+          <a class="card" href="עמודים/ארוז.html">
+            <div class="code">ארוז</div>
+            <p>קובץ EXE בודד להפצה ב־Windows.</p>
+            <div class="meta ready">מוכן</div>
+          </a>
+          <a class="card" href="עמודים/אופרטורים.html">
+            <div class="code">אופרטורים</div>
+            <p>חשבון, וגם/או, ??, ** והשמה.</p>
+            <div class="meta ready">מוכן</div>
+          </a>
+          <a class="card" href="עמודים/הערות.html">
+            <div class="code">// הערות</div>
+            <p>הערות שלא רצות עם הקוד.</p>
+            <div class="meta ready">מוכן</div>
+          </a>
+          <a class="card" href="עמודים/זיכרון.html">
+            <div class="code">זיכרון / סגירות</div>
+            <p>הפניות, GC ולכידת משתנים.</p>
+            <div class="meta ready">מוכן</div>
+          </a>
+        </div>
+      </section>
 
-    <section class="section" id="types">
-      <h2>טיפוסים</h2>
-      <p class="hint">ערכים ומבני נתונים — עם מתודות מובנות.</p>
-      <div class="grid">
-        <a class="card" href="עמודים/מחרוזת.html">
-          <div class="code">מחרוזת</div>
-          <p>טקסט, פורמט, regex ונתיבים.</p>
-          <div class="meta ready">מוכן · 0.36</div>
-        </a>
-        <a class="card" href="עמודים/מספר.html">
-          <div class="code">מספר</div>
-          <p>עיגול, חזקה, זוגי ובין.</p>
-          <div class="meta ready">מוכן · 0.36</div>
-        </a>
-        <a class="card" href="עמודים/רשימה.html">
-          <div class="code">רשימה [ ]</div>
-          <p>מפה, סנן, צמצם, מיון ועוד.</p>
-          <div class="meta ready">מוכן · 0.36</div>
-        </a>
-        <a class="card" href="עמודים/מילון.html">
-          <div class="code">מילון { }</div>
-          <p>מפתחות, ערכים ומפה/סנן.</p>
-          <div class="meta ready">מוכן · 0.36</div>
-        </a>
-        <a class="card" href="עמודים/אמת-שקר-ריק.html">
-          <div class="code">אמת / שקר / ריק</div>
-          <p>לוגיקה וערך ריק עם ??.</p>
-          <div class="meta ready">מוכן · 0.36</div>
-        </a>
-      </div>
-    </section>
+      <section class="section" id="keywords">
+        <h2>מילות מפתח</h2>
+        <p class="hint">בקרה, פונקציות, מחלקות וטיפול בשגיאות.</p>
+        <div class="grid">
+          <a class="card" href="עמודים/משתנה.html"><div class="code">משתנה</div><p>שמירת ערך בשם והשמה מחדש.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/אם.html"><div class="code">אם / אחרת</div><p>תנאים והחלטות עם סוף.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/בחר.html"><div class="code">בחר / מקרה</div><p>בחירה לפי ערך עם כמה מקרים.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/כל_עוד.html"><div class="code">כל_עוד</div><p>לולאה כל עוד התנאי מתקיים.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/עבור.html"><div class="code">עבור / בתוך</div><p>מעבר על רשימה, מילון או מחרוזת.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/עצור-המשך.html"><div class="code">עצור / המשך</div><p>יציאה או דילוג בלולאה.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/פונקציה.html"><div class="code">פונקציה / החזר</div><p>הגדרה, קריאה וסגירות.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/מחלקה.html"><div class="code">מחלקה / חדש / זה</div><p>תכנות מונחה עצמים.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/מרחיב.html"><div class="code">מרחיב / הורה</div><p>ירושה בין מחלקות.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/פרטי-ציבורי.html"><div class="code">פרטי / ציבורי</div><p>הגבלת גישה לשדות ומתודות.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/כלול.html"><div class="code">כלול</div><p>ספריות, מודולים וקבצי פרויקט.</p><div class="meta ready">מוכן · 0.52</div></a>
+          <a class="card" href="עמודים/נסה-תפוס.html"><div class="code">נסה / תפוס / זרוק</div><p>טיפול בשגיאות בזמן ריצה.</p><div class="meta ready">מוכן</div></a>
+        </div>
+      </section>
 
-    <section class="section" id="builtins">
-      <h2>פונקציות מובנות</h2>
-      <p class="hint">זמינות גלובלית — בלי כלול.</p>
-      <div class="grid">
-        <a class="card" href="עמודים/הדפס.html">
-          <div class="code">הדפס</div>
-          <p>הדפסה למסך (קונסול).</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/קלט.html">
-          <div class="code">קלט</div>
-          <p>קריאת טקסט מהמשתמש.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-בסיס.html">
-          <div class="code">טווח / אקראי / אורך</div>
-          <p>עזרים יומיומיים גלובליים.</p>
-          <div class="meta ready">מוכן · 0.36</div>
-        </a>
-      </div>
-    </section>
+      <section class="section" id="types">
+        <h2>טיפוסים</h2>
+        <p class="hint">ערכים ומבני נתונים — עם מתודות מובנות.</p>
+        <div class="grid">
+          <a class="card" href="עמודים/מחרוזת.html"><div class="code">מחרוזת</div><p>טקסט, פורמט, regex ונתיבים.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/מספר.html"><div class="code">מספר</div><p>עיגול, חזקה, זוגי ובין.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/רשימה.html"><div class="code">רשימה [ ]</div><p>מפה, סנן, צמצם, מיון ועוד.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/מילון.html"><div class="code">מילון { }</div><p>מפתחות, ערכים ומפה/סנן.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/אמת-שקר-ריק.html"><div class="code">אמת / שקר / ריק</div><p>לוגיקה וערך ריק עם ??.</p><div class="meta ready">מוכן</div></a>
+        </div>
+      </section>
 
-    <section class="section" id="libs">
-      <h2>ספריות</h2>
-      <p class="hint">נטענות עם <code>כלול "שם"</code>.</p>
-      <div class="grid">
-        <a class="card" href="עמודים/ספריית-בסיס.html">
-          <div class="code">בסיס</div>
-          <p>הדפס, קלט, טווח, אקראי, המרות.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-קבצים.html">
-          <div class="code">קבצים</div>
-          <p>קריאה, כתיבה, העתקה ואריזה.</p>
-          <div class="meta ready">מוכן · 0.49</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-JSON.html">
-          <div class="code">JSON</div>
-          <p>פרסר ומחרוזת JSON.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-זמן.html">
-          <div class="code">זמן</div>
-          <p>תאריך, שעון, פרסור והפרשים.</p>
-          <div class="meta ready">מוכן · 0.49</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-מתמטיקה.html">
-          <div class="code">מתמטיקה</div>
-          <p>פי, אי, סינוס וחזקה.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-מערכת.html">
-          <div class="code">מערכת</div>
-          <p>ארגומנטים, סביבה, הפעלת תהליכים ו־IP.</p>
-          <div class="meta ready">מוכן · 0.49</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-רשת.html">
-          <div class="code">רשת</div>
-          <p>HTTP בשמות עבריים.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-SQL.html">
-          <div class="code">SQL</div>
-          <p>SQLite, MySQL ו־PostgreSQL.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-חלונות.html">
-          <div class="code">חלונות</div>
-          <p>ממשק גרפי ל־Windows.</p>
-          <div class="meta ready">מוכן</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-ציור.html">
-          <div class="code">ציור</div>
-          <p>צורות, צבעים ותמונות PNG/JPG/GIF.</p>
-          <div class="meta ready">מוכן · 0.48</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-הצפנה.html">
-          <div class="code">הצפנה</div>
-          <p>Base64, MD5, SHA-256 ו־HMAC.</p>
-          <div class="meta ready">מוכן · 0.49</div>
-        </a>
-        <a class="card" href="עמודים/ספריית-לוח.html">
-          <div class="code">לוח</div>
-          <p>העתקה והדבקה ב־Windows.</p>
-          <div class="meta ready">מוכן · 0.49</div>
-        </a>
-      </div>
-    </section>
+      <section class="section" id="builtins">
+        <h2>פונקציות מובנות</h2>
+        <p class="hint">זמינות גלובלית — בלי כלול.</p>
+        <div class="grid">
+          <a class="card" href="עמודים/הדפס.html"><div class="code">הדפס</div><p>הדפסה למסך (קונסול).</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/קלט.html"><div class="code">קלט</div><p>קריאת טקסט מהמשתמש.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-בסיס.html"><div class="code">טווח / אקראי / אורך</div><p>עזרים יומיומיים גלובליים.</p><div class="meta ready">מוכן</div></a>
+        </div>
+      </section>
 
-    <p class="footer">מדריך שפת יוד · מעודכן לגרסה 0.51.0 · דוגמאות כוללות פלט צפוי</p>
+      <section class="section" id="libs">
+        <h2>ספריות</h2>
+        <p class="hint">נטענות עם <code>כלול "שם"</code>.</p>
+        <div class="grid">
+          <a class="card" href="עמודים/ספריית-בסיס.html"><div class="code">בסיס</div><p>הדפס, קלט, טווח, אקראי, המרות.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-קבצים.html"><div class="code">קבצים</div><p>קריאה, כתיבה, העתקה ואריזה.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-JSON.html"><div class="code">JSON</div><p>פרסר ומחרוזת JSON.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-זמן.html"><div class="code">זמן</div><p>תאריך, שעון, פרסור והפרשים.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-מתמטיקה.html"><div class="code">מתמטיקה</div><p>פי, אי, סינוס וחזקה.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-מערכת.html"><div class="code">מערכת</div><p>ארגומנטים, סביבה, תהליכים ו־IP.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-רשת.html"><div class="code">רשת</div><p>HTTP בשמות עבריים.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-SQL.html"><div class="code">SQL</div><p>SQLite, MySQL ו־PostgreSQL.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-חלונות.html"><div class="code">חלונות</div><p>ממשק גרפי ל־Windows.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-ציור.html"><div class="code">ציור</div><p>צורות, צבעים ותמונות.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-הצפנה.html"><div class="code">הצפנה</div><p>Base64, MD5, SHA-256 ו־HMAC.</p><div class="meta ready">מוכן</div></a>
+          <a class="card" href="עמודים/ספריית-לוח.html"><div class="code">לוח</div><p>העתקה והדבקה ב־Windows.</p><div class="meta ready">מוכן</div></a>
+        </div>
+      </section>
+
+      <p class="footer">מדריך שפת יוד · מעודכן לגרסה 0.52.0 · תפריט צד עם חיפוש וגלילה עוקבת</p>
+    </div>
   </div>
+
+  <script src="js/guide-nav.js"></script>
 </body>
 </html>

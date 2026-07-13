@@ -9,11 +9,16 @@
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/guide.css" />
 </head>
-<body>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
   <div class="wrap">
     <div class="topbar">
       <div class="brand"><span class="eyebrow">ספרייה · 0.48.0</span><strong>ציור</strong></div>
-      <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
 
     <article class="article">
@@ -96,5 +101,7 @@
       </nav>
     </article>
   </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
 </body>
 </html>
