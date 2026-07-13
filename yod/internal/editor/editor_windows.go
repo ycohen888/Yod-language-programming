@@ -1567,6 +1567,15 @@ func Run(path string) error {
 										StretchFactor: 1,
 										MinSize:       Size{Height: 180},
 										Children: []Widget{
+											// LTR מכוון: עורך משמאל (נמתח) · gutter מימין (צמוד לקוד)
+											Composite{
+												AssignTo:      &editorsHost,
+												Layout:        VBox{MarginsZero: true, Spacing: 0},
+												Background:    SolidColorBrush{Color: colPanel},
+												StretchFactor: 1,
+												MinSize:       Size{Width: 200, Height: 180},
+												Children:      []Widget{},
+											},
 											TextEdit{
 												AssignTo:      &lineEdit,
 												ReadOnly:      true,
@@ -1575,8 +1584,8 @@ func Run(path string) error {
 												TextColor:     colLineNum,
 												Background:    SolidColorBrush{Color: colGutter},
 												Font:          Font{Family: codeFace, PointSize: 14},
-												MinSize:       Size{Width: 56, Height: 180},
-												MaxSize:       Size{Width: 72},
+												MinSize:       Size{Width: 48, Height: 180},
+												MaxSize:       Size{Width: 56},
 												OnMouseDown: func(x, y int, button walk.MouseButton) {
 													if button != walk.LeftButton || codeEdit == nil || lineEdit == nil {
 														return
@@ -1591,14 +1600,6 @@ func Run(path string) error {
 														gotoLine(ln)
 													}
 												},
-											},
-											Composite{
-												AssignTo:      &editorsHost,
-												Layout:        VBox{MarginsZero: true, Spacing: 0},
-												Background:    SolidColorBrush{Color: colPanel},
-												StretchFactor: 1,
-												MinSize:       Size{Width: 200, Height: 180},
-												Children:      []Widget{},
 											},
 										},
 									},
@@ -1737,6 +1738,13 @@ func Run(path string) error {
 	var cerr error
 	_ = cerr
 	docs = NewDocTabs(docTabBar, editorsHost)
+	if editorsHost != nil {
+		editorsHost.SizeChanged().Attach(func() {
+			if docs != nil {
+				docs.layoutEditors()
+			}
+		})
+	}
 	docs.WireEditor = func(ce *CodeEdit, tab *OpenFileTab) {
 		ce.TextChanged().Attach(func() {
 			if tab == nil {
@@ -1783,7 +1791,23 @@ func Run(path string) error {
 		syncFromActiveTab()
 	}
 
+	// codeHost ב־LTR: editorsHost משמאל, gutter מימין צמוד לקוד
 	fixGutterEdit(lineEdit)
+	clearLayoutRTL := func(hwnd win.HWND) {
+		if hwnd == 0 {
+			return
+		}
+		ex := win.GetWindowLong(hwnd, win.GWL_EXSTYLE)
+		win.SetWindowLong(hwnd, win.GWL_EXSTYLE, ex&^win.WS_EX_LAYOUTRTL)
+		win.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+			win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
+	}
+	if codeHost != nil {
+		clearLayoutRTL(codeHost.Handle())
+	}
+	if editorsHost != nil {
+		clearLayoutRTL(editorsHost.Handle())
+	}
 	// Escape ברמת החלון — אם העורך לא קיבל את המקש
 	if mw != nil {
 		mw.KeyDown().Attach(func(key walk.Key) {
@@ -1792,11 +1816,9 @@ func Run(path string) error {
 			}
 		})
 	}
-	// codeHost נשאר RTL: gutter מימין ליד תחילת השורה (יישור ימין)
 	disableWordWrap(lineEdit)
 	fixHebrewEdit(errEdit)
 	fixHebrewEdit(outEdit)
-	// Tab רק להזחת קוד בעורך — לא מעבר לפאנל שגיאות/פלט
 	clearTabStop(lineEdit)
 	clearTabStop(errEdit)
 	clearTabStop(outEdit)
@@ -1824,13 +1846,6 @@ func Run(path string) error {
 	}
 	codeHost.RequestLayout()
 
-	clearLayoutRTL := func(hwnd win.HWND) {
-		if hwnd == 0 {
-			return
-		}
-		ex := win.GetWindowLong(hwnd, win.GWL_EXSTYLE)
-		win.SetWindowLong(hwnd, win.GWL_EXSTYLE, ex&^win.WS_EX_LAYOUTRTL)
-	}
 	if treeSplit != nil {
 		clearLayoutRTL(treeSplit.Handle())
 		for i := 0; i < treeSplit.Children().Len(); i++ {
@@ -1845,6 +1860,16 @@ func Run(path string) error {
 		for i := 0; i < editorSplit.Children().Len(); i++ {
 			clearLayoutRTL(editorSplit.Children().At(i).Handle())
 		}
+	}
+	// אחרי ניקוי RTL ב־splitters — לכפות LTR על אזור הקוד (gutter מימין)
+	if codeHost != nil {
+		clearLayoutRTL(codeHost.Handle())
+	}
+	if editorsHost != nil {
+		clearLayoutRTL(editorsHost.Handle())
+	}
+	if lineEdit != nil {
+		fixGutterEdit(lineEdit)
 	}
 	if fileList != nil {
 		applyDarkScrollbars(fileList.Handle())

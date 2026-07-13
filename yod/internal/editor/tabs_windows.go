@@ -150,12 +150,7 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 		return
 	}
 	d.Active = tab
-	for _, t := range d.Order {
-		if t.Editor == nil {
-			continue
-		}
-		t.Editor.SetVisible(t == tab)
-	}
+	d.layoutEditors()
 	if tab.Editor != nil {
 		tab.Editor.SetFocus()
 	}
@@ -163,6 +158,30 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 	if d.OnActivate != nil {
 		d.OnActivate(tab)
 	}
+}
+
+// layoutEditors ממלא את המארח בעורך הפעיל בלבד (בלי רווחים מטאבים מוסתרים).
+func (d *DocTabs) layoutEditors() {
+	if d == nil || d.EditorsHost == nil {
+		return
+	}
+	bounds := d.EditorsHost.ClientBoundsPixels()
+	for _, t := range d.Order {
+		if t.Editor == nil {
+			continue
+		}
+		if t == d.Active {
+			t.Editor.SetVisible(true)
+			if bounds.Width > 0 && bounds.Height > 0 {
+				_ = t.Editor.SetBoundsPixels(walk.Rectangle{
+					X: 0, Y: 0, Width: bounds.Width, Height: bounds.Height,
+				})
+			}
+		} else {
+			t.Editor.SetVisible(false)
+		}
+	}
+	d.EditorsHost.RequestLayout()
 }
 
 func (d *DocTabs) refreshBar() {
