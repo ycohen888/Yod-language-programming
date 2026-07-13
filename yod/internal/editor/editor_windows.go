@@ -830,6 +830,11 @@ func Run(path string) error {
 	}
 
 	openFolder := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				walk.MsgBox(mw, "שגיאה", fmt.Sprintf("פתיחת תיקייה נכשלה:\n%v", r), walk.MsgBoxIconError)
+			}
+		}()
 		initial := ""
 		if projectRoot != "" {
 			initial = projectRoot
@@ -838,8 +843,14 @@ func Run(path string) error {
 		}
 		path, ok, err := pickFolder(mw, "פתיחת תיקיית פרויקט", initial)
 		if err != nil {
-			walk.MsgBox(mw, "שגיאה", "לא ניתן לפתוח דיאלוג תיקייה:\n"+err.Error(), walk.MsgBoxIconError)
-			return
+			// גיבוי: הזנת נתיב ידנית אם הדיאלוג נכשל
+			typed, typedOK := promptTextDialog(mw, "פתיחת תיקייה", "נתיב מלא לתיקייה:", initial)
+			if !typedOK || typed == "" {
+				walk.MsgBox(mw, "שגיאה", "לא ניתן לפתוח דיאלוג תיקייה:\n"+err.Error(), walk.MsgBoxIconError)
+				return
+			}
+			path = typed
+			ok = true
 		}
 		if !ok || path == "" {
 			return
@@ -853,8 +864,28 @@ func Run(path string) error {
 		if err == nil {
 			path = abs
 		}
+		// מסתירים ומחליפים מודל — מונע קריסות ב־TreeView על ItemsReset
+		if treeView != nil {
+			treeView.SetVisible(false)
+			treeView.SetSuspended(true)
+		}
+		if treeEmpty != nil {
+			treeEmpty.SetVisible(true)
+		}
 		projectRoot = path
-		treeModel.SetRoot(projectRoot)
+		newModel := NewFileTreeModel()
+		newModel.SetRoot(projectRoot)
+		if treeView != nil {
+			if err := treeView.SetModel(newModel); err != nil {
+				treeView.SetSuspended(false)
+				walk.MsgBox(mw, "שגיאה", "טעינת סייר נכשלה:\n"+err.Error(), walk.MsgBoxIconError)
+				return
+			}
+		}
+		treeModel = newModel
+		if treeView != nil {
+			treeView.SetSuspended(false)
+		}
 		refreshProjectUI()
 		updateTitle()
 		setStatus("תיקייה · " + filepath.Base(projectRoot))
