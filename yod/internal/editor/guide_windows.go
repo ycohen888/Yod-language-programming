@@ -5,15 +5,25 @@ package editor
 import (
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"sync"
+	"syscall"
 
+	"github.com/jchv/go-webview2"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
+	"golang.org/x/sys/windows"
 
 	"yod/internal/version"
 )
 
-var guideWindow *walk.MainWindow
+var (
+	guideMu   sync.Mutex
+	guideOpen bool
+	guideHWND uintptr
+)
 
 func findGuideHTML() string {
 	rel := filepath.Join("מדריך שפת יוד", "מדריך שפת יוד.html")
@@ -59,12 +69,14 @@ func fileURL(path string) string {
 	if err != nil {
 		abs = path
 	}
-	abs = filepath.ToSlash(abs)
-	if len(abs) >= 2 && abs[1] == ':' {
-		// Windows: F:/foo → file:///F:/foo
-		return "file:///" + abs
+	abs = filepath.Clean(abs)
+	slash := filepath.ToSlash(abs)
+	if len(slash) >= 2 && slash[1] == ':' {
+		// Windows: F:/foo → file:///F:/foo (עם אחוזי־קידוד לעברית/רווחים)
+		u := &url.URL{Scheme: "file", Path: "/" + slash}
+		return u.String()
 	}
-	u := url.URL{Scheme: "file", Path: abs}
+	u := &url.URL{Scheme: "file", Path: slash}
 	return u.String()
 }
 
@@ -116,6 +128,52 @@ func showAboutDialog(owner walk.Form) {
 	}.Run(owner)
 }
 
+func focusGuideWindow() bool {
+	guideMu.Lock()
+	hwnd := guideHWND
+	open := guideOpen
+	guideMu.Unlock()
+	if !open || hwnd == 0 {
+		return false
+	}
+	user32 := windows.NewLazySystemDLL("user32.dll")
+	showWindow := user32.NewProc("ShowWindow")
+	setForeground := user32.NewProc("SetForegroundWindow")
+	const swRestore = 9
+	_, _, _ = showWindow.Call(hwnd, swRestore)
+	_, _, _ = setForeground.Call(hwnd)
+	return true
+}
+
+func guideDataPath() string {
+	base := os.Getenv("LOCALAPPDATA")
+	if base == "" {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "Yod", "guide-webview")
+}
+
+func openGuideExternal(fileURLStr, path string) bool {
+	edgeCands := []string{
+		filepath.Join(os.Getenv("ProgramFiles"), `Microsoft\Edge\Application\msedge.exe`),
+		filepath.Join(os.Getenv("ProgramFiles(x86)"), `Microsoft\Edge\Application\msedge.exe`),
+	}
+	for _, edge := range edgeCands {
+		if _, err := os.Stat(edge); err != nil {
+			continue
+		}
+		cmd := exec.Command(edge, "--app="+fileURLStr)
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+		if err := cmd.Start(); err == nil {
+			return true
+		}
+	}
+	// דפדפן ברירת מחדל
+	cmd := exec.Command("cmd", "/c", "start", "", path)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Start() == nil
+}
+
 func showGuideWindow(owner walk.Form) {
 	path := findGuideHTML()
 	if path == "" {
@@ -126,73 +184,62 @@ func showGuideWindow(owner walk.Form) {
 	}
 	homeURL := fileURL(path)
 
-	if guideWindow != nil {
-		_ = guideWindow.SetFocus()
-		guideWindow.Show()
+	if focusGuideWindow() {
 		return
 	}
 
-	var mw *walk.MainWindow
-	var wv *walk.WebView
-
-	if err := (MainWindow{
-		AssignTo:           &mw,
-		Title:              "מדריך שפת יוד · " + version.String,
-		MinSize:            Size{Width: 920, Height: 640},
-		Size:               Size{Width: 1100, Height: 760},
-		Layout:             VBox{MarginsZero: true, Spacing: 0},
-		RightToLeftReading: true,
-		Children: []Widget{
-			Composite{
-				Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 8, Bottom: 8}, Spacing: 8},
-				Background: SolidColorBrush{Color: walk.RGB(15, 21, 32)},
-				Children: []Widget{
-					Label{
-						Text:               "מדריך שפת יוד",
-						TextColor:          walk.RGB(47, 212, 194),
-						Font:               Font{Family: "Assistant", PointSize: 11, Bold: true},
-						RightToLeftReading: true,
-					},
-					Label{
-						Text:      "גרסה " + version.String,
-						TextColor: walk.RGB(107, 124, 145),
-						Font:      Font{Family: "Assistant", PointSize: 9},
-					},
-					HSpacer{},
-					PushButton{
-						Text: "דף הבית",
-						OnClicked: func() {
-							if wv != nil {
-								_ = wv.SetURL(homeURL)
-							}
-						},
-					},
-					PushButton{
-						Text: "סגור",
-						OnClicked: func() {
-							if mw != nil {
-								mw.Close()
-							}
-						},
-					},
-				},
-			},
-			WebView{
-				AssignTo:      &wv,
-				URL:           homeURL,
-				StretchFactor: 1,
-				MinSize:       Size{Height: 400},
-			},
-		},
-	}).Create(); err != nil {
-		walk.MsgBox(owner, "מדריך", "לא ניתן לפתוח חלון מדריך:\n"+err.Error(), walk.MsgBoxIconError)
+	guideMu.Lock()
+	if guideOpen {
+		guideMu.Unlock()
+		_ = focusGuideWindow()
 		return
 	}
+	guideOpen = true
+	guideMu.Unlock()
 
-	guideWindow = mw
-	mw.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
-		guideWindow = nil
-	})
-	mw.Show()
-	_ = owner // שומר על הקשר לחלון הראשי
+	go func() {
+		runtime.LockOSThread()
+		defer runtime.UnlockOSThread()
+		defer func() {
+			guideMu.Lock()
+			guideOpen = false
+			guideHWND = 0
+			guideMu.Unlock()
+		}()
+
+		_ = os.MkdirAll(guideDataPath(), 0o755)
+
+		w := webview2.NewWithOptions(webview2.WebViewOptions{
+			Debug:     false,
+			AutoFocus: true,
+			DataPath:  guideDataPath(),
+			WindowOptions: webview2.WindowOptions{
+				Title:  "מדריך שפת יוד · " + version.String,
+				Width:  1100,
+				Height: 760,
+				Center: true,
+			},
+		})
+		if w == nil {
+			if !openGuideExternal(homeURL, path) {
+				if owner != nil {
+					owner.Synchronize(func() {
+						walk.MsgBox(owner, "מדריך",
+							"לא ניתן לפתוח את המדריך.\nהתקינו את WebView2 Runtime או Edge, או פתחו ידנית את קובץ ה־HTML.",
+							walk.MsgBoxIconWarning)
+					})
+				}
+			}
+			return
+		}
+
+		guideMu.Lock()
+		guideHWND = uintptr(w.Window())
+		guideMu.Unlock()
+
+		defer w.Destroy()
+		w.SetSize(1100, 760, webview2.HintNone)
+		w.Navigate(homeURL)
+		w.Run()
+	}()
 }
