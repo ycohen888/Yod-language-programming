@@ -3,6 +3,7 @@
 package editor
 
 import (
+	"runtime"
 	"syscall"
 	"unsafe"
 
@@ -17,16 +18,28 @@ const (
 	bffmSetSelectionW   = win.WM_USER + 103
 )
 
-// pickFolder פותח דיאלוג בחירת תיקייה (מודרני).
-// לא משתמש ב־walk.ShowBrowseFolder — שם יש באג OleUninitialize + PidlRoot ששובר את הבחירה.
+// נתיב התחלתי לדיאלוג — חייב להיות גלובלי כי NewCallback אוסר closures.
+var browseInitialUTF16 *uint16
+
+func browseFolderCallback(hwnd win.HWND, msg uint32, lp, wp uintptr) uintptr {
+	if msg == bffmInitialized && browseInitialUTF16 != nil {
+		win.SendMessage(hwnd, bffmSetSelectionW, 1, uintptr(unsafe.Pointer(browseInitialUTF16)))
+	}
+	return 0
+}
+
+var browseFolderCallbackPtr uintptr
+
+func init() {
+	browseFolderCallbackPtr = syscall.NewCallback(browseFolderCallback)
+}
+
+// pickFolder פותח דיאלוג בחירת תיקייה.
+// לא קוראים ל־OleUninitialize — זה הורס COM ואז טעינת אייקוני העץ קורסת.
 func pickFolder(owner walk.Form, title, initial string) (string, bool, error) {
 	hr := win.OleInitialize()
-	weInitialized := hr == win.S_OK
 	if hr != win.S_OK && hr != win.S_FALSE {
 		return "", false, syscall.Errno(hr)
-	}
-	if weInitialized {
-		defer win.OleUninitialize()
 	}
 
 	var ownerHwnd win.HWND
@@ -34,27 +47,25 @@ func pickFolder(owner walk.Form, title, initial string) (string, bool, error) {
 		ownerHwnd = owner.Handle()
 	}
 
-	var initialUTF16 *uint16
+	titleBuf := syscall.StringToUTF16(title)
+	var initialBuf []uint16
+	browseInitialUTF16 = nil
 	if initial != "" {
-		initialUTF16 = syscall.StringToUTF16Ptr(initial)
+		initialBuf = syscall.StringToUTF16(initial)
+		browseInitialUTF16 = &initialBuf[0]
 	}
-
-	cb := syscall.NewCallback(func(hwnd win.HWND, msg uint32, lp, wp uintptr) uintptr {
-		if msg == bffmInitialized && initialUTF16 != nil {
-			win.SendMessage(hwnd, bffmSetSelectionW, 1, uintptr(unsafe.Pointer(initialUTF16)))
-		}
-		return 0
-	})
+	defer func() { browseInitialUTF16 = nil }()
 
 	bi := win.BROWSEINFO{
 		HwndOwner: ownerHwnd,
-		LpszTitle: syscall.StringToUTF16Ptr(title),
+		LpszTitle: &titleBuf[0],
 		UlFlags:   bifReturnOnlyFSDirs | bifNewDialogStyle,
-		Lpfn:      cb,
-		// לא מגדירים PidlRoot — זה מגביל את העץ ושובר בחירה
+		Lpfn:      browseFolderCallbackPtr,
 	}
 
 	pidl := win.SHBrowseForFolder(&bi)
+	runtime.KeepAlive(titleBuf)
+	runtime.KeepAlive(initialBuf)
 	if pidl == 0 {
 		return "", false, nil
 	}
