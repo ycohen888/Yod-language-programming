@@ -27,6 +27,7 @@ import (
 	"yod/internal/object"
 	"yod/internal/pack"
 	"yod/internal/parser"
+	"yod/internal/project"
 	"yod/internal/vm"
 )
 
@@ -67,7 +68,8 @@ const welcomeTemplate = `// ברוכים הבאים לעורך יוד
 שלום: הודעה
 `
 
-const newFileTemplate = `// קובץ יוד חדש
+const newFileTemplate = `// קובץ יוד — ניתן לכלול מתוך התחל.יוד או קבצים אחרים
+// כלול "שם_הקובץ.יוד"
 
 הדפס: "שלום עולם"
 `
@@ -106,6 +108,7 @@ func Run(path string) error {
 
 	currentPath := path
 	projectRoot := ""
+	projectMode := false // true אחרי «פתח תיקייה» — הרצה מ־התחל.יוד
 	fileModel := NewFileListModel()
 	dirty := false
 	var errLines []int
@@ -116,6 +119,10 @@ func Run(path string) error {
 	var refreshProjectUI func()
 	var selectPathInTree func(string)
 	lastGutterLines := 0
+
+	setCompleteProjectRoot := func(root string) {
+		completeProjectRoot = root
+	}
 
 	fileName := func() string {
 		if currentPath == "" {
@@ -150,6 +157,8 @@ func Run(path string) error {
 		if projLbl != nil {
 			if projectRoot == "" {
 				projLbl.SetText("אין תיקייה פתוחה")
+			} else if projectMode {
+				projLbl.SetText("פרויקט: " + projectRoot + " · ראשי: " + project.MainFileName)
 			} else {
 				projLbl.SetText("תיקייה: " + projectRoot)
 			}
@@ -421,9 +430,9 @@ func Run(path string) error {
 			if p != "" {
 				dlg.FilePath = p
 			} else if projectRoot != "" {
-				dlg.FilePath = filepath.Join(projectRoot, "תוכנית.יוד")
+				dlg.FilePath = filepath.Join(projectRoot, project.MainFileName)
 			} else {
-				dlg.FilePath = "תוכנית.יוד"
+				dlg.FilePath = project.MainFileName
 			}
 			ok, err := dlg.ShowSave(mw)
 			if err != nil {
@@ -497,9 +506,42 @@ func Run(path string) error {
 		fn()
 	}
 
+	// sourceForRun — בפרויקט פתוח מריצים תמיד את התחל.יוד; אחרת את העורך הנוכחי.
+	sourceForRun := func() (source, runPath string, ok bool) {
+		if projectMode && projectRoot != "" {
+			main := project.MainPath(projectRoot)
+			if dirty && currentPath != "" {
+				if err := saveFile(false); err != nil {
+					walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+					return "", "", false
+				}
+			}
+			if currentPath != "" && filepath.Clean(currentPath) == filepath.Clean(main) {
+				return codeEdit.Text(), main, true
+			}
+			data, err := os.ReadFile(main)
+			if err != nil {
+				walk.MsgBox(mw, "הרצה",
+					fmt.Sprintf("חסר קובץ ראשי %s בפרויקט.\n%v", project.MainFileName, err),
+					walk.MsgBoxIconError)
+				return "", "", false
+			}
+			return string(data), main, true
+		}
+		path := currentPath
+		if path == "" {
+			path = filepath.Join(baseDir(), ".yod-run-temp.יוד")
+		}
+		return codeEdit.Text(), path, true
+	}
+
 	compileCheck := func() {
 		withBusy("בודק קומפילציה…", func() {
-			source := codeEdit.Text()
+			source, runPath, ok := sourceForRun()
+			if !ok {
+				return
+			}
+			_ = runPath
 			clearPanels()
 			pr := parser.New(lexer.New(source))
 			program := pr.ParseProgram()
@@ -517,13 +559,20 @@ func Run(path string) error {
 				return
 			}
 			setErrors(nil)
-			setOutput("✓ הקומפילציה למכונה הצליחה.\nאין שגיאות — אפשר להריץ עם «מכונה» (F6).")
+			tip := "✓ הקומפילציה למכונה הצליחה.\nאין שגיאות — אפשר להריץ עם «מכונה» (F6)."
+			if projectMode {
+				tip += "\n(קומפל קובץ ראשי: " + project.MainFileName + ")"
+			}
+			setOutput(tip)
 			setStatus("✓ קומפילציה תקינה")
 		})
 	}
 
 	runInterpreter := func() {
-		source := codeEdit.Text()
+		source, runPath, ok := sourceForRun()
+		if !ok {
+			return
+		}
 		clearPanels()
 
 		pr := parser.New(lexer.New(source))
@@ -545,28 +594,49 @@ func Run(path string) error {
 				return
 			}
 			dir := baseDir()
-			runPath := filepath.Join(dir, ".yod-run-temp.יוד")
-			if err := os.WriteFile(runPath, []byte(source), 0644); err != nil {
-				setErrors([]string{"לא הצלחתי לכתוב קובץ הרצה זמני: " + err.Error()})
-				setStatus("✗ הרצה נכשלה")
-				return
+			tempRun := false
+			diskPath := runPath
+			if diskPath == "" || strings.HasSuffix(diskPath, ".yod-run-temp.יוד") ||
+				(currentPath != "" && filepath.Clean(currentPath) == filepath.Clean(runPath) && dirty) {
+				diskPath = filepath.Join(dir, ".yod-run-temp.יוד")
+				if err := os.WriteFile(diskPath, []byte(source), 0644); err != nil {
+					setErrors([]string{"לא הצלחתי לכתוב קובץ הרצה זמני: " + err.Error()})
+					setStatus("✗ הרצה נכשלה")
+					return
+				}
+				tempRun = true
+			} else if projectMode {
+				// הרצה מקובץ הראשי על הדיסק
+				if err := os.WriteFile(diskPath, []byte(source), 0644); err != nil {
+					setErrors([]string{"לא הצלחתי לעדכן את הקובץ הראשי: " + err.Error()})
+					setStatus("✗ הרצה נכשלה")
+					return
+				}
 			}
-			cmd := exec.Command(exe, "run", runPath)
+			cmd := exec.Command(exe, "run", diskPath)
 			cmd.Dir = dir
 			var outBuf, errBuf bytes.Buffer
 			cmd.Stdout = &outBuf
 			cmd.Stderr = &errBuf
 			if err := cmd.Start(); err != nil {
-				_ = os.Remove(runPath)
+				if tempRun {
+					_ = os.Remove(diskPath)
+				}
 				setErrors([]string{"לא הצלחתי להפעיל תהליך נפרד: " + err.Error()})
 				setStatus("✗ הרצה נכשלה")
 				return
 			}
 			setOutput("הופעל חלון נפרד (ספריית חלונות).\nסגירת חלון התוכנית לא סוגרת את העורך.")
-			setStatus("✓ רץ בחלון נפרד")
-			go func(c *exec.Cmd, tmp string) {
+			if projectMode {
+				setStatus("✓ רץ בחלון נפרד · " + project.MainFileName)
+			} else {
+				setStatus("✓ רץ בחלון נפרד")
+			}
+			go func(c *exec.Cmd, tmp string, remove bool) {
 				waitErr := c.Wait()
-				_ = os.Remove(tmp)
+				if remove {
+					_ = os.Remove(tmp)
+				}
 				stdout := strings.TrimSpace(outBuf.String())
 				stderr := strings.TrimSpace(errBuf.String())
 				mw.Synchronize(func() {
@@ -588,7 +658,7 @@ func Run(path string) error {
 					}
 					setStatus("✓ חלון התוכנית נסגר")
 				})
-			}(cmd, runPath)
+			}(cmd, diskPath, tempRun)
 			return
 		}
 
@@ -622,13 +692,20 @@ func Run(path string) error {
 				out = "(אין פלט)"
 			}
 			setOutput(out)
-			setStatus("✓ הושלם · מפרש")
+			if projectMode {
+				setStatus("✓ הושלם · מפרש · " + project.MainFileName)
+			} else {
+				setStatus("✓ הושלם · מפרש")
+			}
 		})
 	}
 
 	runMachine := func() {
 		withBusy("מריץ · מכונה…", func() {
-			source := codeEdit.Text()
+			source, _, ok := sourceForRun()
+			if !ok {
+				return
+			}
 			clearPanels()
 			var buf bytes.Buffer
 			console.SetStdout(&buf)
@@ -681,7 +758,11 @@ func Run(path string) error {
 				out = "(אין פלט)"
 			}
 			setOutput(out)
-			setStatus("✓ הושלם · מכונה")
+			if projectMode {
+				setStatus("✓ הושלם · מכונה · " + project.MainFileName)
+			} else {
+				setStatus("✓ הושלם · מכונה")
+			}
 		})
 	}
 
@@ -716,17 +797,37 @@ func Run(path string) error {
 
 	packProgram := func() {
 		withBusy("אורז להפצה…", func() {
-			if currentPath == "" || dirty {
+			packPath := currentPath
+			if projectMode && projectRoot != "" {
+				packPath = project.MainPath(projectRoot)
+				if dirty && currentPath != "" {
+					if err := saveFile(false); err != nil {
+						walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+						return
+					}
+				}
+				if currentPath != "" && filepath.Clean(currentPath) == filepath.Clean(packPath) && dirty {
+					if err := saveFile(false); err != nil {
+						walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+						return
+					}
+				}
+			} else if currentPath == "" || dirty {
 				if err := saveFile(currentPath == ""); err != nil {
 					walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 					return
 				}
-				if currentPath == "" {
+				packPath = currentPath
+				if packPath == "" {
 					walk.MsgBox(mw, "ארוז", "צריך לשמור את הקובץ לפני אריזה.", walk.MsgBoxIconWarning)
 					return
 				}
 			}
-			outPath, err := pack.EXEWithOptions(currentPath, "", pack.EXEOptions{})
+			if packPath == "" {
+				walk.MsgBox(mw, "ארוז", "אין קובץ לאריזה.", walk.MsgBoxIconWarning)
+				return
+			}
+			outPath, err := pack.EXEWithOptions(packPath, "", pack.EXEOptions{})
 			if err != nil {
 				setErrors([]string{err.Error()})
 				setStatus("✗ אריזה נכשלה")
@@ -734,6 +835,9 @@ func Run(path string) error {
 				return
 			}
 			msg := "נוצר קובץ EXE (בלי חלון CMD):\n" + outPath + "\n\nלחיצה כפולה מריצה את התוכנית."
+			if projectMode {
+				msg = "נארז הקובץ הראשי (" + project.MainFileName + "):\n" + outPath + "\n\nלחיצה כפולה מריצה את התוכנית."
+			}
 			setErrors(nil)
 			setOutput(msg)
 			setStatus("✓ נארז · " + filepath.Base(outPath))
@@ -745,9 +849,11 @@ func Run(path string) error {
 	showAbout := func() {
 		walk.MsgBox(mw, "עורך יוד",
 			"עורך יוד — סביבת פיתוח בעברית\n\n"+
-				"סייר קבצים: קובץ ← פתח תיקייה (Ctrl+Shift+O)\n"+
+				"פרויקט: קובץ ← פתח תיקייה (Ctrl+Shift+O)\n"+
+				"הקובץ הראשי הוא תמיד התחל.יוד — ממנו מריצים (F5)\n"+
+				"קבצים אחרים נכללים עם: כלול \"שם.יוד\"\n\n"+
 				"לחיצה כפולה על קובץ · תפריט ימני: חדש/מחק/שנה שם\n\n"+
-				"השלמת קוד: מילות מפתח, מתודות אחרי נקודה, ספריות ב־כלול\n"+
+				"השלמת קוד: מילות מפתח, מתודות אחרי נקודה, ספריות/קבצי פרויקט ב־כלול\n"+
 				"חצים · Tab/Enter אישור · Esc · Ctrl+Space\n\n"+
 				"F5 / F6 / F7  הרץ / מכונה / בדוק\n"+
 				"Ctrl+Shift+P  ארוז ל־EXE\n"+
@@ -867,14 +973,27 @@ func Run(path string) error {
 			path = abs
 		}
 		projectRoot = path
+		projectMode = true
+		setCompleteProjectRoot(projectRoot)
+		mainPath, err := project.EnsureMain(projectRoot)
+		if err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
 		fileModel.SetRoot(projectRoot)
 		refreshProjectUI()
 		updateTitle()
-		setStatus("תיקייה · " + filepath.Base(projectRoot))
+		if err := loadFile(mainPath); err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		setStatus("פרויקט · " + filepath.Base(projectRoot) + " · " + project.MainFileName)
 	}
 
 	closeFolder := func() {
 		projectRoot = ""
+		projectMode = false
+		setCompleteProjectRoot("")
 		fileModel.SetRoot("")
 		refreshProjectUI()
 		updateTitle()
@@ -1184,7 +1303,7 @@ func Run(path string) error {
 							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
 							Label{
 								AssignTo:           &treeEmpty,
-								Text:               "פתחו תיקייה\n(קובץ ← פתח תיקייה)\nכדי לראות את העץ",
+								Text:               "פתחו תיקיית פרויקט\n(קובץ ← פתח תיקייה)\nהקובץ הראשי: התחל.יוד",
 								TextColor:          colMuted,
 								Font:               Font{Family: uiFont, PointSize: 9},
 								RightToLeftReading: true,
@@ -1470,10 +1589,12 @@ func Run(path string) error {
 		styleEditorPane(fileList)
 	}
 	refreshProjectUI()
-	// אם נפתח קובץ מה־CLI — תיקיית האב כפרויקט
+	// אם נפתח קובץ מה־CLI — תיקיית האב בסייר (בלי מצב פרויקט מלא)
 	if currentPath != "" {
 		if abs, err := filepath.Abs(currentPath); err == nil {
 			projectRoot = filepath.Dir(abs)
+			projectMode = false
+			setCompleteProjectRoot(projectRoot)
 			fileModel.SetRoot(projectRoot)
 			refreshProjectUI()
 			selectPathInTree(abs)

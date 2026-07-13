@@ -14,13 +14,14 @@ import (
 	"yod/internal/object"
 	"yod/internal/pack"
 	"yod/internal/parser"
+	"yod/internal/project"
 	"yod/internal/vm"
 )
 
 //go:generate go run ../../tools/mkico.go ../../assets/yod-icon-source.png ../../assets/yod.ico
 //go:generate rsrc -arch amd64 -ico ../../assets/yod.ico -manifest yod.exe.manifest -o rsrc_windows_amd64.syso
 
-const version = "0.50.9"
+const version = "0.51.0"
 
 func main() {
 	console.Init()
@@ -127,6 +128,17 @@ func main() {
 		}
 		openEditor(path)
 	default:
+		// תיקיית פרויקט או קובץ .יוד
+		if fi, err := os.Stat(cmd); err == nil && fi.IsDir() {
+			if len(os.Args) > 2 {
+				object.ProgramArgs = append([]string{}, os.Args[2:]...)
+			}
+			if err := runSmart(cmd, false); err != nil {
+				console.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+			return
+		}
 		if strings.HasSuffix(cmd, ".יוד") || strings.HasSuffix(cmd, ".yod") {
 			if len(os.Args) > 2 {
 				object.ProgramArgs = append([]string{}, os.Args[2:]...)
@@ -159,6 +171,7 @@ func printHelp() {
 	console.Println("  yod                    (פותח את העורך)")
 	console.Println("  yod עורך [תוכנית.יוד]")
 	console.Println("  yod הרץ תוכנית.יוד")
+	console.Println("  yod הרץ תיקיית_פרויקט   (מריץ התחל.יוד)")
 	console.Println("  yod הרץ --מכונה תוכנית.יוד")
 	console.Println("  yod מכונה תוכנית.יוד   (bytecode VM)")
 	console.Println("  yod תוכנית.יוד         (מכונה → נפילה למפרש)")
@@ -167,6 +180,8 @@ func printHelp() {
 	console.Println("  yod ארוז תוכנית.יוד --תיקייה [יעד] → תיקיית הפצה")
 	console.Println("  yod גרסה")
 	console.Println("  yod עזרה")
+	console.Println()
+	console.Println("פרויקט: הקובץ הראשי הוא תמיד התחל.יוד — ממנו כוללים קבצים אחרים עם כלול.")
 }
 
 // runSmart — מנסה VM; אם הקומפילציה נכשלת בגלל צומת לא נתמך — נופל למפרש
@@ -186,6 +201,10 @@ func runSmart(path string, forceVM bool) error {
 }
 
 func runFile(path string) error {
+	path, err := project.ResolveEntry(path)
+	if err != nil {
+		return fmt.Errorf("שגיאה: %v", err)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("שגיאה: לא הצלחתי לקרוא את הקובץ %s: %v", path, err)
@@ -226,6 +245,10 @@ func runSource(source, pathForBase string) error {
 }
 
 func runVM(path string) error {
+	path, err := project.ResolveEntry(path)
+	if err != nil {
+		return fmt.Errorf("שגיאה: %v", err)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("שגיאה: לא הצלחתי לקרוא את הקובץ %s: %v", path, err)

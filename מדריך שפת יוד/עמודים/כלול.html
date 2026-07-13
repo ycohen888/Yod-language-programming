@@ -12,7 +12,7 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>כלול</strong></div>
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.51.0</span><strong>כלול</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">← חזרה למדריך</a>
     </div>
     <article class="article">
@@ -29,8 +29,31 @@
         קובץ משתמש רץ באותה סביבה — הפונקציות והמחלקות שלו זמינות אחרי ההכללה.
       </p>
       <p>
-        הנתיב לקובץ יחסי לתיקיית הקובץ שמריצים.
+        הנתיב לקובץ יחסי לתיקיית הקובץ שממנו כוללים (ובפרויקט — לתיקיית הפרויקט).
         אותו קובץ לא ייכלל פעמיים (הגנה מפני לולאות).
+      </p>
+
+      <h2>פרויקט: התחל.יוד</h2>
+      <p>
+        בכל פרויקט יוד הקובץ הראשי הוא תמיד <code>התחל.יוד</code> — ממנו מתחילה ההרצה.
+        את שאר הקבצים בפרויקט כוללים ממנו (או מקבצים אחרים שכבר נכללו):
+      </p>
+      <figure class="example">
+        <span class="example-label">דוגמה — מבנה פרויקט</span>
+        <pre class="code-block">פרויקט_שלי/
+  התחל.יוד      ← נקודת כניסה (F5 / yod הרץ תיקייה)
+  עזר.יוד
+  מודול.יוד
+
+// התחל.יוד:
+כלול "עזר.יוד"
+כלול "מודול.יוד"
+
+הדפס: ברכה("עולם")</pre>
+      </figure>
+      <p>
+        אפשר גם לכלול קובץ מתוך קובץ אחר בפרויקט (לא רק מהראשי),
+        כל עוד הנתיב היחסי תקין והקובץ עדיין לא נכלל.
       </p>
 
       <h2>ספרייה מובנית</h2>
@@ -77,13 +100,14 @@
       </table>
 
       <div class="callout tip">
-        <strong>טיפ:</strong> פיצלו לוגיקה לקבצים קצרים וכללו אותם —
+        <strong>טיפ:</strong> פיצלו לוגיקה לקבצים קצרים וכללו אותם מ־<code>התחל.יוד</code> —
         קל יותר לתחזק מאשר קובץ ענק אחד.
       </div>
 
       <div class="callout ok">
-        <strong>דוגמאות:</strong> <code>examples/include_file.יוד</code>,
-        <code>examples/files.יוד</code>, <code>examples/net.יוד</code>.
+        <strong>דוגמאות:</strong> <code>examples/פרויקט_דוגמה/</code>,
+        <code>examples/include_file.יוד</code>,
+        <code>examples/files.יוד</code>.
       </div>
 
       <nav class="page-nav">

@@ -9,6 +9,7 @@ import (
 	"unicode/utf16"
 
 	"yod/internal/object"
+	"yod/internal/project"
 	"yod/internal/stdlib"
 	"yod/internal/token"
 )
@@ -76,6 +77,8 @@ var (
 	methodCache    map[string][]completeItem
 	allMethods     []completeItem
 	libraryItems   []completeItem
+	// completeProjectRoot — תיקיית פרויקט להשלמת כלול "קובץ.יוד"
+	completeProjectRoot string
 )
 
 func ensureCompleteData() {
@@ -226,7 +229,20 @@ func identSuggestions(prefix string) []completeItem {
 
 func librarySuggestions(prefix string) []completeItem {
 	ensureCompleteData()
-	return filterComplete(prefix, libraryItems)
+	items := filterComplete(prefix, libraryItems)
+	if completeProjectRoot == "" {
+		return items
+	}
+	files, err := project.ListYodFiles(completeProjectRoot)
+	if err != nil || len(files) == 0 {
+		return items
+	}
+	var fileItems []completeItem
+	for _, f := range files {
+		fileItems = append(fileItems, completeItem{Text: f, Kind: kindLibrary, Detail: "קובץ פרויקט"})
+	}
+	fileItems = filterComplete(prefix, fileItems)
+	return append(items, fileItems...)
 }
 
 func memberSuggestions(typeHint, receiver, prefix string) []completeItem {
