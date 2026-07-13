@@ -60,10 +60,6 @@ func (n *fileNode) HasChild() bool {
 	return len(n.children) > 0
 }
 
-func (n *fileNode) Image() interface{} {
-	return n.path
-}
-
 func (n *fileNode) ensureChildren() {
 	if !n.isDir || n.loaded {
 		return

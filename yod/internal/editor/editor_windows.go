@@ -858,18 +858,6 @@ func Run(path string) error {
 		refreshProjectUI()
 		updateTitle()
 		setStatus("תיקייה · " + filepath.Base(projectRoot))
-		if treeView != nil && treeModel.root != nil {
-			// SetCurrentItem/SetExpanded אחרי PublishItemsReset עלולים לקרוס —
-			// נדחים לסיבוב הבא של ה־message loop.
-			root := treeModel.root
-			mw.Synchronize(func() {
-				if treeView == nil || treeModel.root != root {
-					return
-				}
-				_ = treeView.SetCurrentItem(root)
-				_ = treeView.SetExpanded(root, true)
-			})
-		}
 	}
 
 	closeFolder := func() {
