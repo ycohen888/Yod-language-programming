@@ -4,6 +4,7 @@ package stdlib
 
 import (
 	"fmt"
+	"image"
 
 	"github.com/jchv/go-webview2/pkg/edge"
 	"github.com/lxn/walk"
@@ -20,7 +21,7 @@ type windowState struct {
 }
 
 type controlState struct {
-	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | משטח
+	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | עמודה | מסגרת | משטח
 	text      string
 	textColor walk.Color
 	onClick   object.Object
@@ -32,8 +33,9 @@ type controlState struct {
 	html    string
 	host    *walk.Composite
 	browser *edge.Chromium
-	// שורה — ילדים אופקיים
-	children []*controlState
+	// שורה / עמודה / מסגרת
+	children  []*controlState
+	frameDir  string // אופקי | אנכי (למסגרת)
 	// משטח ציור
 	board       *drawBoard
 	canvas      *walk.CustomWidget
@@ -43,6 +45,8 @@ type controlState struct {
 	onMouseDown object.Object
 	onMouseDrag object.Object
 	onMouseUp   object.Object
+	undoStack   []*image.RGBA
+	backup      *image.RGBA
 }
 
 func NewWindowsModule() *object.Module {
@@ -54,8 +58,12 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["נורית"] = &object.Builtin{Fn: winCreateLED}
 	m.Attrs["דפדפן"] = &object.Builtin{Fn: winCreateBrowser}
 	m.Attrs["שורה"] = &object.Builtin{Fn: winCreateRow}
+	m.Attrs["עמודה"] = &object.Builtin{Fn: winCreateColumn}
+	m.Attrs["מסגרת"] = &object.Builtin{Fn: winCreateFrame}
 	m.Attrs["משטח"] = &object.Builtin{Fn: winCreateCanvas}
 	m.Attrs["הודעה"] = &object.Builtin{Fn: winMessage}
+	m.Attrs["בחר_שמירה"] = &object.Builtin{Fn: winFileSave}
+	m.Attrs["בחר_פתיחה"] = &object.Builtin{Fn: winFileOpen}
 	return m
 }
 

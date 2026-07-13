@@ -721,3 +721,31 @@ func floodFill(img *image.RGBA, x, y int, repl color.RGBA) {
 func rgbaEq(a, b color.RGBA) bool {
 	return a.R == b.R && a.G == b.G && a.B == b.B && a.A == b.A
 }
+
+func cloneRGBA(src *image.RGBA) *image.RGBA {
+	dst := image.NewRGBA(src.Bounds())
+	draw.Draw(dst, dst.Bounds(), src, src.Bounds().Min, draw.Src)
+	return dst
+}
+
+func drawEllipseOutline(img *image.RGBA, cx, cy, rx, ry, thickness int, c color.RGBA) {
+	if rx < 1 {
+		rx = 1
+	}
+	if ry < 1 {
+		ry = 1
+	}
+	steps := (rx + ry) * 4
+	if steps < 48 {
+		steps = 48
+	}
+	for i := 0; i <= steps; i++ {
+		ang := 2 * math.Pi * float64(i) / float64(steps)
+		x := cx + int(float64(rx)*math.Cos(ang))
+		y := cy + int(float64(ry)*math.Sin(ang))
+		drawDisk(img, x, y, thickness/2, c)
+		if thickness < 2 {
+			img.Set(x, y, c)
+		}
+	}
+}

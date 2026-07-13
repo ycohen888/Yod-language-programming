@@ -6,12 +6,32 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"path/filepath"
 
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
+	xdraw "golang.org/x/image/draw"
 
 	"yod/internal/object"
 )
+
+const canvasUndoMax = 40
+
+func addChildControl(st *controlState, a []object.Object, owner string) object.Object {
+	if len(a) != 1 {
+		return errObj(owner + ".הוסף מצפה לרכיב אחד")
+	}
+	gw, ok := a[0].(*object.GuiWidget)
+	if !ok {
+		return errObj(owner + ".הוסף מצפה לרכיב ממשק")
+	}
+	cs, ok := gw.Data.(*controlState)
+	if !ok {
+		return errObj(owner + ".הוסף: רכיב לא תקין")
+	}
+	st.children = append(st.children, cs)
+	return object.Nil
+}
 
 // חלונות.שורה() — מקבץ רכיבים אופקית (סרגל כלים / צבעים)
 func winCreateRow(args ...object.Object) object.Object {
@@ -21,19 +41,46 @@ func winCreateRow(args ...object.Object) object.Object {
 	st := &controlState{kind: "שורה", children: nil}
 	w := &object.GuiWidget{Kind: "שורה", Data: st, Attrs: map[string]object.Object{}}
 	w.Attrs["הוסף"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
-		if len(a) != 1 {
-			return errObj("שורה.הוסף מצפה לרכיב אחד")
-		}
-		gw, ok := a[0].(*object.GuiWidget)
+		return addChildControl(st, a, "שורה")
+	}}
+	return w
+}
+
+// חלונות.עמודה() — סרגל כלים אנכי
+func winCreateColumn(args ...object.Object) object.Object {
+	if len(args) != 0 {
+		return errObj("חלונות.עמודה מצפה ל־0 ארגומנטים")
+	}
+	st := &controlState{kind: "עמודה", children: nil}
+	w := &object.GuiWidget{Kind: "עמודה", Data: st, Attrs: map[string]object.Object{}}
+	w.Attrs["הוסף"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return addChildControl(st, a, "עמודה")
+	}}
+	return w
+}
+
+// חלונות.מסגרת(כיוון) — "אופקי" | "אנכי", בלי הגבלת גובה
+func winCreateFrame(args ...object.Object) object.Object {
+	dir := "אנכי"
+	if len(args) >= 1 {
+		s, ok := asString(args[0])
 		if !ok {
-			return errObj("שורה.הוסף מצפה לרכיב ממשק")
+			return errObj("חלונות.מסגרת מצפה לכיוון מחרוזת: אופקי / אנכי")
 		}
-		cs, ok := gw.Data.(*controlState)
-		if !ok {
-			return errObj("שורה.הוסף: רכיב לא תקין")
+		switch s {
+		case "אופקי", "אנכי":
+			dir = s
+		default:
+			return errObj("חלונות.מסגרת: כיוון חייב להיות אופקי או אנכי")
 		}
-		st.children = append(st.children, cs)
-		return object.Nil
+	}
+	if len(args) > 1 {
+		return errObj("חלונות.מסגרת מצפה ל־0 או 1 ארגומנטים")
+	}
+	st := &controlState{kind: "מסגרת", frameDir: dir, children: nil}
+	w := &object.GuiWidget{Kind: "מסגרת", Data: st, Attrs: map[string]object.Object{}}
+	w.Attrs["הוסף"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return addChildControl(st, a, "מסגרת")
 	}}
 	return w
 }
@@ -67,6 +114,7 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		canvasW:   ww,
 		canvasH:   hh,
 		dragging:  false,
+		undoStack: nil,
 	}
 	w := &object.GuiWidget{Kind: "משטח", Data: st, Attrs: map[string]object.Object{}}
 
@@ -110,6 +158,52 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		}
 		return object.Nil
 	}}
+	w.Attrs["קבע_גודל_גופן"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("קבע_גודל_גופן מצפה למספר")
+		}
+		n, ok := a[0].(*object.Number)
+		if !ok {
+			return errObj("קבע_גודל_גופן מצפה למספר")
+		}
+		board.fontSz = n.Value
+		if board.fontSz < 8 {
+			board.fontSz = 8
+		}
+		board.face = nil
+		return object.Nil
+	}}
+
+	w.Attrs["צלם"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		st.undoStack = append(st.undoStack, cloneRGBA(board.img))
+		if len(st.undoStack) > canvasUndoMax {
+			st.undoStack = st.undoStack[len(st.undoStack)-canvasUndoMax:]
+		}
+		return object.Nil
+	}}
+	w.Attrs["בטל"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(st.undoStack) == 0 {
+			return object.Nil
+		}
+		last := st.undoStack[len(st.undoStack)-1]
+		st.undoStack = st.undoStack[:len(st.undoStack)-1]
+		draw.Draw(board.img, board.img.Bounds(), last, last.Bounds().Min, draw.Src)
+		invalidateCanvas(st)
+		return object.Nil
+	}}
+	w.Attrs["גיבוי"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		st.backup = cloneRGBA(board.img)
+		return object.Nil
+	}}
+	w.Attrs["שחזר"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if st.backup == nil {
+			return object.Nil
+		}
+		draw.Draw(board.img, board.img.Bounds(), st.backup, st.backup.Bounds().Min, draw.Src)
+		invalidateCanvas(st)
+		return object.Nil
+	}}
+
 	w.Attrs["נקה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		c := color.RGBA{255, 255, 255, 255}
 		if len(a) > 0 {
@@ -183,12 +277,73 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		invalidateCanvas(st)
 		return object.Nil
 	}}
+	w.Attrs["אליפסה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		vals, err := nums("אליפסה", a, 4)
+		if err != nil {
+			return err
+		}
+		drawEllipseOutline(board.img, vals[0], vals[1], vals[2], vals[3], board.width, board.stroke)
+		invalidateCanvas(st)
+		return object.Nil
+	}}
 	w.Attrs["מלא_באזור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		x, y, err := twoInts("מלא_באזור", a)
 		if err != nil {
 			return err
 		}
 		floodFill(board.img, x, y, board.stroke)
+		invalidateCanvas(st)
+		return object.Nil
+	}}
+	w.Attrs["טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 3 {
+			return errObj("טקסט מצפה למחרוזת, x, y")
+		}
+		s, ok := asString(a[0])
+		if !ok {
+			return errObj("טקסט מצפה למחרוזת, x, y")
+		}
+		vals, err := nums("טקסט", a[1:], 2)
+		if err != nil {
+			return err
+		}
+		if err := drawTextOnBoard(board, s, vals[0], vals[1]); err != nil {
+			return errObj(err.Error())
+		}
+		invalidateCanvas(st)
+		return object.Nil
+	}}
+	w.Attrs["קרא_צבע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		x, y, err := twoInts("קרא_צבע", a)
+		if err != nil {
+			return err
+		}
+		b := board.img.Bounds()
+		if x < b.Min.X || y < b.Min.Y || x >= b.Max.X || y >= b.Max.Y {
+			return errObj("קרא_צבע: נקודה מחוץ למשטח")
+		}
+		c := board.img.RGBAAt(x, y)
+		return &object.Hash{Pairs: map[string]object.Object{
+			"אדום":   &object.Number{Value: float64(c.R)},
+			"ירוק":   &object.Number{Value: float64(c.G)},
+			"כחול":   &object.Number{Value: float64(c.B)},
+			"שקיפות": &object.Number{Value: float64(c.A)},
+		}}
+	}}
+	w.Attrs["טען"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("טען מצפה לנתיב")
+		}
+		path, ok := asString(a[0])
+		if !ok {
+			return errObj("טען מצפה לנתיב מחרוזת")
+		}
+		src, err := loadImageFile(path)
+		if err != nil {
+			return errObj(err.Error())
+		}
+		dst := board.img.Bounds()
+		xdraw.CatmullRom.Scale(board.img, dst, src, src.Bounds(), draw.Src, nil)
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -256,6 +411,62 @@ func numObj(v int) object.Object {
 	return &object.Number{Value: float64(v)}
 }
 
+func winFileSave(args ...object.Object) object.Object {
+	return winFileDialog(true, args...)
+}
+
+func winFileOpen(args ...object.Object) object.Object {
+	return winFileDialog(false, args...)
+}
+
+func winFileDialog(save bool, args ...object.Object) object.Object {
+	title := "בחירת קובץ"
+	filter := "תמונות (*.png;*.jpg;*.jpeg;*.gif;*.bmp)|*.png;*.jpg;*.jpeg;*.gif;*.bmp|כל הקבצים (*.*)|*.*"
+	if save {
+		title = "שמירת תמונה"
+		filter = "PNG (*.png)|*.png|JPEG (*.jpg)|*.jpg|כל הקבצים (*.*)|*.*"
+	}
+	if len(args) >= 1 {
+		if s, ok := asString(args[0]); ok && s != "" {
+			title = s
+		} else if len(args) >= 1 && args[0] != nil && args[0].Type() != object.NullObj {
+			return errObj("כותרת הדיאלוג חייבת להיות מחרוזת")
+		}
+	}
+	if len(args) >= 2 {
+		if s, ok := asString(args[1]); ok && s != "" {
+			filter = s
+		}
+	}
+	if len(args) > 2 {
+		return errObj("דיאלוג קובץ מצפה ל־0–2 ארגומנטים")
+	}
+	dlg := new(walk.FileDialog)
+	dlg.Title = title
+	dlg.Filter = filter
+	if save {
+		dlg.FilePath = "ציור.png"
+	}
+	var ok bool
+	var err error
+	if save {
+		ok, err = dlg.ShowSave(nil)
+	} else {
+		ok, err = dlg.ShowOpen(nil)
+	}
+	if err != nil {
+		return errObj(err.Error())
+	}
+	if !ok {
+		return object.Nil
+	}
+	path := dlg.FilePath
+	if save && filepath.Ext(path) == "" {
+		path += ".png"
+	}
+	return &object.String{Value: path}
+}
+
 func buildControlWidget(ch *controlState) Widget {
 	switch ch.kind {
 	case "כפתור":
@@ -307,6 +518,38 @@ func buildControlWidget(ch *controlState) Widget {
 			Background: SolidColorBrush{Color: walk.RGB(245, 245, 245)},
 			MaxSize:    Size{Height: 48},
 			Children:   kids,
+		}
+	case "עמודה":
+		kids := make([]Widget, 0, len(ch.children)+1)
+		for _, child := range ch.children {
+			child := child
+			kids = append(kids, buildControlWidget(child))
+		}
+		kids = append(kids, VSpacer{})
+		return Composite{
+			Layout:     VBox{Margins: Margins{Left: 4, Top: 4, Right: 4, Bottom: 4}, Spacing: 4},
+			Background: SolidColorBrush{Color: walk.RGB(245, 245, 245)},
+			MinSize:    Size{Width: 100},
+			MaxSize:    Size{Width: 120},
+			Children:   kids,
+		}
+	case "מסגרת":
+		kids := make([]Widget, 0, len(ch.children))
+		for _, child := range ch.children {
+			child := child
+			kids = append(kids, buildControlWidget(child))
+		}
+		if ch.frameDir == "אופקי" {
+			return Composite{
+				Layout:        HBox{MarginsZero: true, Spacing: 4},
+				StretchFactor: 1,
+				Children:      kids,
+			}
+		}
+		return Composite{
+			Layout:        VBox{MarginsZero: true, Spacing: 4},
+			StretchFactor: 1,
+			Children:      kids,
 		}
 	case "משטח":
 		ww, hh := ch.canvasW, ch.canvasH
@@ -361,4 +604,3 @@ func paintSurface(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) 
 	}
 	return canvas.DrawImageStretchedPixels(bmp, dest)
 }
-
