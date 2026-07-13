@@ -93,6 +93,7 @@ func Run(path string) error {
 		modeLbl   *walk.Label
 		treeView  *walk.TreeView
 		treeEmpty *walk.Label
+		treePane  *walk.Composite
 		treeSplit *walk.Splitter
 		activeTab = 0
 		errCount  int
@@ -1143,16 +1144,66 @@ func Run(path string) error {
 				},
 			},
 			Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
-			// —— סייר | עורך —— (עץ משמאל למסך: ילד שני ב־RTL)
+			// —— סייר קבוע משמאל | עורך מימין (שורת העבודה ב־LTR) ——
 			HSplitter{
 				AssignTo:      &treeSplit,
 				StretchFactor: 1,
 				HandleWidth:   4,
 				Children: []Widget{
+					// סייר — תמיד צד שמאל של המסך
+					Composite{
+						AssignTo:      &treePane,
+						Layout:        VBox{MarginsZero: true, Spacing: 0},
+						Background:    SolidColorBrush{Color: colToolbar},
+						MinSize:       Size{Width: 220},
+						MaxSize:       Size{Width: 320},
+						StretchFactor: 0,
+						Children: []Widget{
+							Composite{
+								Layout:     HBox{Margins: Margins{Left: 10, Right: 8, Top: 8, Bottom: 6}, Spacing: 6},
+								Background: SolidColorBrush{Color: colToolbar},
+								Children: []Widget{
+									Label{Text: "סייר", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 11, Bold: true}, RightToLeftReading: true},
+									HSpacer{},
+								},
+							},
+							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
+							Label{
+								AssignTo:           &treeEmpty,
+								Text:               "פתחו תיקייה\n(קובץ ← פתח תיקייה)\nכדי לראות את העץ",
+								TextColor:          colMuted,
+								Font:               Font{Family: uiFont, PointSize: 10},
+								RightToLeftReading: true,
+								MinSize:            Size{Height: 80},
+							},
+							TreeView{
+								AssignTo:      &treeView,
+								Model:         treeModel,
+								Visible:       false,
+								MinSize:       Size{Width: 200, Height: 200},
+								StretchFactor: 1,
+								Font:          Font{Family: uiFont, PointSize: 10},
+								Background:    SolidColorBrush{Color: colPanel},
+								ContextMenuItems: []MenuItem{
+									Action{Text: "פתח", OnTriggered: openTreeSelection},
+									Separator{},
+									Action{Text: "קובץ חדש…", OnTriggered: treeNewFile},
+									Action{Text: "תיקייה חדשה…", OnTriggered: treeNewFolder},
+									Action{Text: "שינוי שם…", OnTriggered: treeRename},
+									Action{Text: "מחק…", OnTriggered: treeDelete},
+									Separator{},
+									Action{Text: "רענון", OnTriggered: refreshTree},
+									Action{Text: "הצג בסייר Windows", OnTriggered: treeReveal},
+								},
+								OnItemActivated: openTreeSelection,
+							},
+						},
+					},
+					// עמודת עורך
 					Composite{
 						Layout:        VBox{MarginsZero: true, Spacing: 0},
 						Background:    SolidColorBrush{Color: colBg},
-						StretchFactor: 4,
+						StretchFactor: 1,
 						Children: []Widget{
 							Composite{
 								AssignTo:      &codeHost,
@@ -1236,52 +1287,6 @@ func Run(path string) error {
 										StretchFactor:      1,
 									},
 								},
-							},
-						},
-					},
-					Composite{
-						Layout:        VBox{MarginsZero: true, Spacing: 0},
-						Background:    SolidColorBrush{Color: colToolbar},
-						MinSize:       Size{Width: 200},
-						StretchFactor: 1,
-						Children: []Widget{
-							Composite{
-								Layout:     HBox{Margins: Margins{Left: 10, Right: 8, Top: 8, Bottom: 6}, Spacing: 6},
-								Background: SolidColorBrush{Color: colToolbar},
-								Children: []Widget{
-									Label{Text: "סייר", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 11, Bold: true}, RightToLeftReading: true},
-									HSpacer{},
-								},
-							},
-							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
-							Label{
-								AssignTo:           &treeEmpty,
-								Text:               "פתחו תיקייה\n(קובץ ← פתח תיקייה)\nכדי לראות את העץ",
-								TextColor:          colMuted,
-								Font:               Font{Family: uiFont, PointSize: 10},
-								RightToLeftReading: true,
-								MinSize:            Size{Height: 80},
-							},
-							TreeView{
-								AssignTo:      &treeView,
-								Model:         treeModel,
-								Visible:       false,
-								MinSize:       Size{Width: 180, Height: 200},
-								StretchFactor: 1,
-								Font:          Font{Family: uiFont, PointSize: 10},
-								Background:    SolidColorBrush{Color: colPanel},
-								ContextMenuItems: []MenuItem{
-									Action{Text: "פתח", OnTriggered: openTreeSelection},
-									Separator{},
-									Action{Text: "קובץ חדש…", OnTriggered: treeNewFile},
-									Action{Text: "תיקייה חדשה…", OnTriggered: treeNewFolder},
-									Action{Text: "שינוי שם…", OnTriggered: treeRename},
-									Action{Text: "מחק…", OnTriggered: treeDelete},
-									Separator{},
-									Action{Text: "רענון", OnTriggered: refreshTree},
-									Action{Text: "הצג בסייר Windows", OnTriggered: treeReveal},
-								},
-								OnItemActivated: openTreeSelection,
 							},
 						},
 					},
@@ -1375,9 +1380,13 @@ func Run(path string) error {
 	}
 	codeHost.RequestLayout()
 
-	if treeSplit != nil && treeView != nil {
-		if pane, ok := treeView.Parent().(walk.Widget); ok {
-			treeSplit.SetFixed(pane, true)
+	if treeSplit != nil {
+		// מבטל RTL על ה־splitter כדי שהילד הראשון (סייר) יישאר תמיד בצד שמאל של המסך
+		ex := win.GetWindowLong(treeSplit.Handle(), win.GWL_EXSTYLE)
+		win.SetWindowLong(treeSplit.Handle(), win.GWL_EXSTYLE, ex&^win.WS_EX_LAYOUTRTL)
+		if treePane != nil {
+			treeSplit.SetFixed(treePane, true)
+			_ = treePane.SetMinMaxSize(walk.Size{Width: 220, Height: 0}, walk.Size{Width: 320, Height: 0})
 		}
 	}
 	if treeView != nil {
