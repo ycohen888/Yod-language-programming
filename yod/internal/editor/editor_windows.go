@@ -87,9 +87,13 @@ func Run(path string) error {
 		tabOutBtn *DarkBtn
 		statusLbl *walk.Label
 		fileLbl   *walk.Label
+		projLbl   *walk.Label
 		posLbl    *walk.Label
 		linesLbl  *walk.Label
 		modeLbl   *walk.Label
+		treeView  *walk.TreeView
+		treeEmpty *walk.Label
+		treeSplit *walk.Splitter
 		activeTab = 0
 		errCount  int
 		busy      bool
@@ -98,12 +102,16 @@ func Run(path string) error {
 	codeFace := pickCodeFont()
 
 	currentPath := path
+	projectRoot := ""
+	treeModel := NewFileTreeModel()
 	dirty := false
 	var errLines []int
 	errLineSet := map[int]bool{}
 	var updateLineNumbers func()
 	var syncLineScroll func()
 	var updateCaretStatus func()
+	var refreshProjectUI func()
+	var selectPathInTree func(string)
 	lastGutterLines := 0
 
 	fileName := func() string {
@@ -120,7 +128,11 @@ func Run(path string) error {
 		}
 		name := fileName()
 		if mw != nil {
-			mw.SetTitle("עורך יוד — " + name + mark)
+			title := "עורך יוד — " + name + mark
+			if projectRoot != "" {
+				title = filepath.Base(projectRoot) + " — " + name + mark
+			}
+			mw.SetTitle(title)
 		}
 		if fileLbl != nil {
 			shown := name + mark
@@ -128,6 +140,25 @@ func Run(path string) error {
 				shown = "● " + name
 			}
 			fileLbl.SetText(shown)
+		}
+	}
+
+	refreshProjectUI = func() {
+		if projLbl != nil {
+			if projectRoot == "" {
+				projLbl.SetText("אין תיקייה פתוחה")
+			} else {
+				projLbl.SetText("תיקייה: " + projectRoot)
+			}
+		}
+		if treeEmpty != nil {
+			treeEmpty.SetVisible(projectRoot == "")
+		}
+		if treeView != nil {
+			treeView.SetVisible(projectRoot != "")
+		}
+		if mw != nil {
+			mw.RequestLayout()
 		}
 	}
 
@@ -174,6 +205,9 @@ func Run(path string) error {
 	}
 
 	baseDir := func() string {
+		if projectRoot != "" {
+			return projectRoot
+		}
 		if currentPath != "" {
 			return filepath.Dir(currentPath)
 		}
@@ -182,6 +216,18 @@ func Run(path string) error {
 			return "."
 		}
 		return wd
+	}
+
+	selectPathInTree = func(p string) {
+		if treeView == nil || projectRoot == "" || p == "" {
+			return
+		}
+		node := treeModel.FindByPath(p)
+		if node == nil {
+			return
+		}
+		_ = treeView.SetCurrentItem(node)
+		_ = treeView.EnsureVisible(node)
 	}
 
 	showErrorsTab := func() {
@@ -356,6 +402,7 @@ func Run(path string) error {
 		if modeLbl != nil {
 			modeLbl.SetText(fmt.Sprintf("UTF-8 · .יוד · %dpt", codeFontSize))
 		}
+		selectPathInTree(p)
 		return nil
 	}
 
@@ -367,6 +414,8 @@ func Run(path string) error {
 			dlg.Filter = "קבצי יוד (*.יוד)|*.יוד|כל הקבצים (*.*)|*.*"
 			if p != "" {
 				dlg.FilePath = p
+			} else if projectRoot != "" {
+				dlg.FilePath = filepath.Join(projectRoot, "תוכנית.יוד")
 			} else {
 				dlg.FilePath = "תוכנית.יוד"
 			}
@@ -389,6 +438,10 @@ func Run(path string) error {
 		dirty = false
 		updateTitle()
 		setStatus("נשמר · " + filepath.Base(p))
+		if projectRoot != "" {
+			treeModel.Refresh()
+			selectPathInTree(p)
+		}
 		return nil
 	}
 
@@ -686,11 +739,14 @@ func Run(path string) error {
 	showAbout := func() {
 		walk.MsgBox(mw, "עורך יוד",
 			"עורך יוד — סביבת פיתוח בעברית\n\n"+
+				"סייר קבצים: קובץ ← פתח תיקייה (Ctrl+Shift+O)\n"+
+				"לחיצה כפולה על קובץ · תפריט ימני: חדש/מחק/שנה שם\n\n"+
 				"השלמת קוד: מילות מפתח, מתודות אחרי נקודה, ספריות ב־כלול\n"+
 				"חצים · Tab/Enter אישור · Esc · Ctrl+Space\n\n"+
 				"F5 / F6 / F7  הרץ / מכונה / בדוק\n"+
 				"Ctrl+Shift+P  ארוז ל־EXE\n"+
 				"Ctrl+N / O / S  חדש / פתח / שמור\n"+
+				"Ctrl+Shift+O  פתח תיקייה\n"+
 				"Ctrl+Z / Y  בטל / בצע שוב\n"+
 				"Ctrl+F / H  חיפוש / החלפה\n"+
 				"Ctrl+G  מעבר לשורה\n"+
@@ -758,6 +814,193 @@ func Run(path string) error {
 	tabErrBtn = &DarkBtn{text: "שגיאות", icon: iconError, onClick: func() { showErrorsTab() }}
 	tabOutBtn = &DarkBtn{text: "פלט", icon: iconOutput, onClick: func() { showOutputTab() }}
 
+	selectedTreeNode := func() *fileNode {
+		if treeView == nil {
+			return nil
+		}
+		it := treeView.CurrentItem()
+		if it == nil {
+			return nil
+		}
+		n, _ := it.(*fileNode)
+		return n
+	}
+
+	openFolder := func() {
+		dlg := new(walk.FileDialog)
+		dlg.Title = "פתיחת תיקיית פרויקט"
+		if projectRoot != "" {
+			dlg.FilePath = projectRoot
+		} else if currentPath != "" {
+			dlg.FilePath = filepath.Dir(currentPath)
+		}
+		ok, err := dlg.ShowBrowseFolder(mw)
+		if err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		if !ok || dlg.FilePath == "" {
+			return
+		}
+		projectRoot = dlg.FilePath
+		treeModel.SetRoot(projectRoot)
+		refreshProjectUI()
+		updateTitle()
+		setStatus("תיקייה · " + filepath.Base(projectRoot))
+		if treeView != nil && treeModel.root != nil {
+			_ = treeView.SetCurrentItem(treeModel.root)
+		}
+	}
+
+	closeFolder := func() {
+		projectRoot = ""
+		treeModel.SetRoot("")
+		refreshProjectUI()
+		updateTitle()
+		setStatus("תיקייה נסגרה")
+	}
+
+	refreshTree := func() {
+		if projectRoot == "" {
+			return
+		}
+		treeModel.Refresh()
+		refreshProjectUI()
+		if currentPath != "" {
+			selectPathInTree(currentPath)
+		}
+		setStatus("העץ רוענן")
+	}
+
+	openTreeSelection := func() {
+		n := selectedTreeNode()
+		if n == nil || n.isDir {
+			return
+		}
+		if !confirmDiscard("לשמור לפני פתיחת קובץ") {
+			return
+		}
+		if err := loadFile(n.path); err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+		}
+	}
+
+	treeNewFile := func() {
+		if projectRoot == "" {
+			walk.MsgBox(mw, "סייר", "פתחו תיקייה קודם (קובץ ← פתח תיקייה).", walk.MsgBoxIconInformation)
+			return
+		}
+		dir := ParentDirForNew(selectedTreeNode(), projectRoot)
+		name, ok := promptTextDialog(mw, "קובץ חדש", "שם הקובץ:", "חדש.יוד")
+		if !ok {
+			return
+		}
+		path, err := createNewFileOnDisk(dir, name)
+		if err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		treeModel.Refresh()
+		if !confirmDiscard("לשמור לפני פתיחת הקובץ החדש") {
+			selectPathInTree(path)
+			return
+		}
+		if err := loadFile(path); err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+		}
+	}
+
+	treeNewFolder := func() {
+		if projectRoot == "" {
+			walk.MsgBox(mw, "סייר", "פתחו תיקייה קודם.", walk.MsgBoxIconInformation)
+			return
+		}
+		dir := ParentDirForNew(selectedTreeNode(), projectRoot)
+		name, ok := promptTextDialog(mw, "תיקייה חדשה", "שם התיקייה:", "תיקייה")
+		if !ok {
+			return
+		}
+		path, err := createNewFolderOnDisk(dir, name)
+		if err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		treeModel.Refresh()
+		selectPathInTree(path)
+		setStatus("נוצרה תיקייה · " + name)
+	}
+
+	treeRename := func() {
+		n := selectedTreeNode()
+		if n == nil || (treeModel.root != nil && n == treeModel.root) {
+			walk.MsgBox(mw, "שינוי שם", "בחרו קובץ או תיקייה (לא את שורש הפרויקט).", walk.MsgBoxIconInformation)
+			return
+		}
+		newName, ok := promptTextDialog(mw, "שינוי שם", "שם חדש:", n.name)
+		if !ok {
+			return
+		}
+		oldPath := n.path
+		newPath, err := renamePathOnDisk(oldPath, newName)
+		if err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		if currentPath != "" && filepath.Clean(currentPath) == filepath.Clean(oldPath) {
+			currentPath = newPath
+			updateTitle()
+		}
+		treeModel.Refresh()
+		selectPathInTree(newPath)
+		setStatus("שם שונה · " + newName)
+	}
+
+	treeDelete := func() {
+		n := selectedTreeNode()
+		if n == nil || (treeModel.root != nil && n == treeModel.root) {
+			walk.MsgBox(mw, "מחיקה", "בחרו קובץ או תיקייה למחיקה.", walk.MsgBoxIconInformation)
+			return
+		}
+		kind := "קובץ"
+		if n.isDir {
+			kind = "תיקייה"
+		}
+		r := walk.MsgBox(mw, "מחיקה",
+			fmt.Sprintf("למחוק את ה%s %q?\nהפעולה אינה ניתנת לביטול.", kind, n.name),
+			walk.MsgBoxYesNo|walk.MsgBoxIconWarning)
+		if r != walk.DlgCmdYes {
+			return
+		}
+		path := n.path
+		if err := deletePathOnDisk(path, n.isDir); err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		if currentPath != "" && (filepath.Clean(currentPath) == filepath.Clean(path) ||
+			strings.HasPrefix(filepath.Clean(currentPath)+string(os.PathSeparator), filepath.Clean(path)+string(os.PathSeparator))) {
+			currentPath = ""
+			dirty = false
+			codeEdit.SetText(newFileTemplate)
+			updateTitle()
+		}
+		treeModel.Refresh()
+		setStatus("נמחק · " + n.name)
+	}
+
+	treeReveal := func() {
+		n := selectedTreeNode()
+		path := projectRoot
+		if n != nil {
+			path = n.path
+		}
+		if path == "" {
+			return
+		}
+		revealInExplorer(path)
+	}
+
+	btnFolder := &DarkBtn{text: "תיקייה", icon: iconOpen, onClick: openFolder}
+
 	err := MainWindow{
 		AssignTo:          &mw,
 		Title:             "עורך יוד",
@@ -773,6 +1016,9 @@ func Run(path string) error {
 				Items: []MenuItem{
 					Action{Text: "חדש\tCtrl+N", Shortcut: Shortcut{Modifiers: walk.ModControl, Key: walk.KeyN}, OnTriggered: newFile},
 					Action{Text: "פתח…\tCtrl+O", Shortcut: Shortcut{Modifiers: walk.ModControl, Key: walk.KeyO}, OnTriggered: openFile},
+					Action{Text: "פתח תיקייה…\tCtrl+Shift+O", Shortcut: Shortcut{Modifiers: walk.ModControl | walk.ModShift, Key: walk.KeyO}, OnTriggered: openFolder},
+					Action{Text: "סגור תיקייה", OnTriggered: closeFolder},
+					Separator{},
 					Action{Text: "שמור\tCtrl+S", Shortcut: Shortcut{Modifiers: walk.ModControl, Key: walk.KeyS}, OnTriggered: func() {
 						if err := saveFile(false); err != nil {
 							walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
@@ -785,6 +1031,19 @@ func Run(path string) error {
 					}},
 					Separator{},
 					Action{Text: "יציאה", OnTriggered: func() { mw.Close() }},
+				},
+			},
+			Menu{
+				Text: "סייר",
+				Items: []MenuItem{
+					Action{Text: "רענון עץ", OnTriggered: refreshTree},
+					Separator{},
+					Action{Text: "קובץ חדש בתיקייה…", OnTriggered: treeNewFile},
+					Action{Text: "תיקייה חדשה…", OnTriggered: treeNewFolder},
+					Action{Text: "שינוי שם…", OnTriggered: treeRename},
+					Action{Text: "מחק…", OnTriggered: treeDelete},
+					Separator{},
+					Action{Text: "הצג בסייר Windows", OnTriggered: treeReveal},
 				},
 			},
 			Menu{
@@ -864,106 +1123,167 @@ func Run(path string) error {
 					VSeparator{},
 					btnNew.Decl(60, "קובץ חדש (Ctrl+N)"),
 					btnOpen.Decl(60, "פתח קובץ (Ctrl+O)"),
+					btnFolder.Decl(70, "פתח תיקיית פרויקט (Ctrl+Shift+O)"),
 					btnSave.Decl(62, "שמור קובץ (Ctrl+S)"),
 					btnFormat.Decl(60, "סדר קוד — הזחה 2 רווחים (Ctrl+Shift+F)"),
 					btnHighlight.Decl(62, "הדגשת תחביר בדפדפן"),
 					HSpacer{},
 				},
 			},
-			// —— שורת קובץ ——
+			// —— שורת קובץ + תיקייה ——
 			Composite{
 				Layout:     HBox{Margins: Margins{Left: 14, Right: 14, Top: 6, Bottom: 6}, Spacing: 8},
 				Background: SolidColorBrush{Color: colTabBar},
 				Children: []Widget{
 					Label{AssignTo: &fileLbl, Text: "קובץ-חדש.יוד", TextColor: colText, Font: Font{Family: uiFont, PointSize: 10}, RightToLeftReading: true},
+					Label{Text: "·", TextColor: colBorder},
+					Label{AssignTo: &projLbl, Text: "אין תיקייה פתוחה", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 9}, RightToLeftReading: true},
 					HSpacer{},
 					Label{Text: "RTL · עברית", TextColor: colMuted, RightToLeftReading: true},
 				},
 			},
 			Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
-			// —— אזור קוד + gutter + צביעת תחביר (RichEdit) ——
-			Composite{
-				AssignTo:      &codeHost,
-				Layout:        HBox{MarginsZero: true, Spacing: 0},
-				Background:    SolidColorBrush{Color: colPanel},
-				StretchFactor: 5,
-				MinSize:       Size{Height: 340},
-				Children: []Widget{
-					TextEdit{
-						AssignTo:      &lineEdit,
-						ReadOnly:      true,
-						VScroll:       false,
-						TextAlignment: AlignFar, // ליד הקוד מימין
-						TextColor:     colLineNum,
-						Background:    SolidColorBrush{Color: colGutter},
-						Font:          Font{Family: codeFace, PointSize: 14},
-						MinSize:       Size{Width: 56, Height: 340},
-						MaxSize:       Size{Width: 72},
-						OnMouseDown: func(x, y int, button walk.MouseButton) {
-							if button != walk.LeftButton || codeEdit == nil || lineEdit == nil {
-								return
-							}
-							var pt win.POINT
-							pt.X = int32(x)
-							pt.Y = int32(y)
-							// EM_CHARFROMPOS: תו בנקודה
-							r := lineEdit.SendMessage(win.EM_CHARFROMPOS, 0, uintptr(unsafe.Pointer(&pt)))
-							cp := int(win.LOWORD(uint32(r)))
-							ln := int(lineEdit.SendMessage(win.EM_LINEFROMCHAR, uintptr(cp), 0)) + 1
-							if ln >= 1 {
-								gotoLine(ln)
-							}
-						},
-					},
-				},
-			},
-			Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
-			// —— פאנל שגיאות / פלט ——
-			Composite{
-				Layout:        VBox{MarginsZero: true, Spacing: 0},
-				Background:    SolidColorBrush{Color: colBg},
-				MinSize:       Size{Height: 200},
-				StretchFactor: 2,
+			// —— סייר | עורך —— (עץ משמאל למסך: ילד שני ב־RTL)
+			HSplitter{
+				AssignTo:      &treeSplit,
+				StretchFactor: 1,
+				HandleWidth:   4,
 				Children: []Widget{
 					Composite{
-						Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 5, Bottom: 4}, Spacing: 4},
-						Background: SolidColorBrush{Color: colTabBar},
+						Layout:        VBox{MarginsZero: true, Spacing: 0},
+						Background:    SolidColorBrush{Color: colBg},
+						StretchFactor: 4,
 						Children: []Widget{
-							tabErrBtn.Decl(96, "לשונית שגיאות — תחביר וריצה"),
-							tabOutBtn.Decl(72, "לשונית פלט — פלט הדפס"),
-							HSpacer{},
-							Label{Text: "לחיצה על שגיאה ← מעבר לשורה", TextColor: colMuted, RightToLeftReading: true},
+							Composite{
+								AssignTo:      &codeHost,
+								Layout:        HBox{MarginsZero: true, Spacing: 0},
+								Background:    SolidColorBrush{Color: colPanel},
+								StretchFactor: 5,
+								MinSize:       Size{Height: 280},
+								Children: []Widget{
+									TextEdit{
+										AssignTo:      &lineEdit,
+										ReadOnly:      true,
+										VScroll:       false,
+										TextAlignment: AlignFar,
+										TextColor:     colLineNum,
+										Background:    SolidColorBrush{Color: colGutter},
+										Font:          Font{Family: codeFace, PointSize: 14},
+										MinSize:       Size{Width: 56, Height: 280},
+										MaxSize:       Size{Width: 72},
+										OnMouseDown: func(x, y int, button walk.MouseButton) {
+											if button != walk.LeftButton || codeEdit == nil || lineEdit == nil {
+												return
+											}
+											var pt win.POINT
+											pt.X = int32(x)
+											pt.Y = int32(y)
+											r := lineEdit.SendMessage(win.EM_CHARFROMPOS, 0, uintptr(unsafe.Pointer(&pt)))
+											cp := int(win.LOWORD(uint32(r)))
+											ln := int(lineEdit.SendMessage(win.EM_LINEFROMCHAR, uintptr(cp), 0)) + 1
+											if ln >= 1 {
+												gotoLine(ln)
+											}
+										},
+									},
+								},
+							},
+							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
+							Composite{
+								Layout:        VBox{MarginsZero: true, Spacing: 0},
+								Background:    SolidColorBrush{Color: colBg},
+								MinSize:       Size{Height: 160},
+								StretchFactor: 2,
+								Children: []Widget{
+									Composite{
+										Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 5, Bottom: 4}, Spacing: 4},
+										Background: SolidColorBrush{Color: colTabBar},
+										Children: []Widget{
+											tabErrBtn.Decl(96, "לשונית שגיאות — תחביר וריצה"),
+											tabOutBtn.Decl(72, "לשונית פלט — פלט הדפס"),
+											HSpacer{},
+											Label{Text: "לחיצה על שגיאה ← מעבר לשורה", TextColor: colMuted, RightToLeftReading: true},
+										},
+									},
+									TextEdit{
+										AssignTo:           &errEdit,
+										ReadOnly:           true,
+										VScroll:            true,
+										RightToLeftReading: true,
+										TextAlignment:      AlignFar,
+										TextColor:          colErrText,
+										Background:         SolidColorBrush{Color: colPanel},
+										Font:               Font{Family: uiFont, PointSize: 11},
+										MinSize:            Size{Height: 120},
+										StretchFactor:      1,
+										OnMouseUp: func(x, y int, button walk.MouseButton) {
+											if button == walk.LeftButton {
+												jumpFromErrPanel()
+											}
+										},
+									},
+									TextEdit{
+										AssignTo:           &outEdit,
+										ReadOnly:           true,
+										VScroll:            true,
+										Visible:            false,
+										RightToLeftReading: true,
+										TextAlignment:      AlignFar,
+										TextColor:          colOutText,
+										Background:         SolidColorBrush{Color: colPanel},
+										Font:               Font{Family: codeFace, PointSize: 12},
+										MinSize:            Size{Height: 120},
+										StretchFactor:      1,
+									},
+								},
+							},
 						},
 					},
-					TextEdit{
-						AssignTo:           &errEdit,
-						ReadOnly:           true,
-						VScroll:            true,
-						RightToLeftReading: true,
-						TextAlignment:      AlignFar,
-						TextColor:          colErrText,
-						Background:         SolidColorBrush{Color: colPanel},
-						Font:               Font{Family: uiFont, PointSize: 11},
-						MinSize:            Size{Height: 150},
-						StretchFactor:      1,
-						OnMouseUp: func(x, y int, button walk.MouseButton) {
-							if button == walk.LeftButton {
-								jumpFromErrPanel()
-							}
+					Composite{
+						Layout:        VBox{MarginsZero: true, Spacing: 0},
+						Background:    SolidColorBrush{Color: colToolbar},
+						MinSize:       Size{Width: 200},
+						StretchFactor: 1,
+						Children: []Widget{
+							Composite{
+								Layout:     HBox{Margins: Margins{Left: 10, Right: 8, Top: 8, Bottom: 6}, Spacing: 6},
+								Background: SolidColorBrush{Color: colToolbar},
+								Children: []Widget{
+									Label{Text: "סייר", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 11, Bold: true}, RightToLeftReading: true},
+									HSpacer{},
+								},
+							},
+							Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
+							Label{
+								AssignTo:           &treeEmpty,
+								Text:               "פתחו תיקייה\n(קובץ ← פתח תיקייה)\nכדי לראות את העץ",
+								TextColor:          colMuted,
+								Font:               Font{Family: uiFont, PointSize: 10},
+								RightToLeftReading: true,
+								MinSize:            Size{Height: 80},
+							},
+							TreeView{
+								AssignTo:      &treeView,
+								Model:         treeModel,
+								Visible:       false,
+								MinSize:       Size{Width: 180, Height: 200},
+								StretchFactor: 1,
+								Font:          Font{Family: uiFont, PointSize: 10},
+								Background:    SolidColorBrush{Color: colPanel},
+								ContextMenuItems: []MenuItem{
+									Action{Text: "פתח", OnTriggered: openTreeSelection},
+									Separator{},
+									Action{Text: "קובץ חדש…", OnTriggered: treeNewFile},
+									Action{Text: "תיקייה חדשה…", OnTriggered: treeNewFolder},
+									Action{Text: "שינוי שם…", OnTriggered: treeRename},
+									Action{Text: "מחק…", OnTriggered: treeDelete},
+									Separator{},
+									Action{Text: "רענון", OnTriggered: refreshTree},
+									Action{Text: "הצג בסייר Windows", OnTriggered: treeReveal},
+								},
+								OnItemActivated: openTreeSelection,
+							},
 						},
-					},
-					TextEdit{
-						AssignTo:           &outEdit,
-						ReadOnly:           true,
-						VScroll:            true,
-						Visible:            false,
-						RightToLeftReading: true,
-						TextAlignment:      AlignFar,
-						TextColor:          colOutText,
-						Background:         SolidColorBrush{Color: colPanel},
-						Font:               Font{Family: codeFace, PointSize: 12},
-						MinSize:            Size{Height: 150},
-						StretchFactor:      1,
 					},
 				},
 			},
@@ -1054,6 +1374,25 @@ func Run(path string) error {
 		}
 	}
 	codeHost.RequestLayout()
+
+	if treeSplit != nil && treeView != nil {
+		if pane, ok := treeView.Parent().(walk.Widget); ok {
+			treeSplit.SetFixed(pane, true)
+		}
+	}
+	if treeView != nil {
+		applyDarkScrollbars(treeView.Handle())
+		styleEditorPane(treeView)
+	}
+	refreshProjectUI()
+	// אם נפתח קובץ מה־CLI — תיקיית האב כפרויקט
+	if currentPath != "" {
+		if abs, err := filepath.Abs(currentPath); err == nil {
+			projectRoot = filepath.Dir(abs)
+			treeModel.SetRoot(projectRoot)
+			refreshProjectUI()
+		}
+	}
 
 	mw.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
 		if !dirty {
