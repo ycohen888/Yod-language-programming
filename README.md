@@ -14,6 +14,10 @@
   <img src="docs/screenshots/server-gui-browser.png" alt="שרת יוד — GUI ודפדפן" width="360" />
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/editor-error.png" alt="עורך יוד — הצגת שגיאת קומפילציה" width="720" />
+</p>
+
 ---
 
 ## מה יש בריפו
