@@ -31,6 +31,11 @@ func NewSystemModule() *object.Module {
 	m.Attrs["מידע"] = &object.Builtin{Fn: sysInfo}
 	m.Attrs["הפעל"] = &object.Builtin{Fn: sysRun}
 	m.Attrs["הפעל_ברקע"] = &object.Builtin{Fn: sysRunBackground}
+	m.Attrs["תהליכים"] = &object.Builtin{Fn: sysProcesses}
+	m.Attrs["סיים_תהליך"] = &object.Builtin{Fn: sysKillProcess}
+	m.Attrs["שימוש_מעבד"] = &object.Builtin{Fn: sysCPUUsage}
+	m.Attrs["זמן_פעיל"] = &object.Builtin{Fn: sysUptime}
+	m.Attrs["כוננים"] = &object.Builtin{Fn: sysDrives}
 	return m
 }
 
@@ -175,14 +180,20 @@ func sysMemory(args ...object.Object) object.Object {
 	if used < 0 {
 		used = 0
 	}
-	return &object.Hash{Pairs: map[string]object.Object{
+	pairs := map[string]object.Object{
 		"סהכ_בתים":    &object.Number{Value: float64(total)},
 		"פנוי_בתים":   &object.Number{Value: float64(avail)},
 		"בשימוש_בתים": &object.Number{Value: float64(used)},
 		"סהכ_מגה":     &object.Number{Value: float64(total / mb)},
 		"פנוי_מגה":    &object.Number{Value: float64(avail / mb)},
 		"בשימוש_מגה":  &object.Number{Value: float64(used / mb)},
-	}}
+	}
+	if load, ok := systemMemoryLoadPercent(); ok {
+		pairs["אחוז"] = &object.Number{Value: float64(load)}
+	} else if total > 0 {
+		pairs["אחוז"] = &object.Number{Value: float64((used * 100) / total)}
+	}
+	return &object.Hash{Pairs: pairs}
 }
 
 func sysIPs(args ...object.Object) object.Object {
@@ -273,6 +284,9 @@ func sysInfo(args ...object.Object) object.Object {
 		"משתמש":        userObj,
 		"בית":          homeObj,
 		"תיקייה":       sysCwd(),
+		"שימוש_מעבד":   sysCPUUsage(),
+		"זמן_פעיל":     sysUptime(),
+		"כוננים":       sysDrives(),
 	}
 	return &object.Hash{Pairs: pairs}
 }

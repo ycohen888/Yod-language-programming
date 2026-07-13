@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"time"
 
 	"github.com/jchv/go-webview2/pkg/edge"
 	"github.com/lxn/walk"
@@ -15,14 +16,23 @@ import (
 )
 
 type windowState struct {
-	title    string
-	width    int
-	height   int
-	children []*controlState
+	title     string
+	width     int
+	height    int
+	children  []*controlState
+	timers    []windowTimer
+	onStart   object.Object
+	mw        *walk.MainWindow
+	closed    bool
+}
+
+type windowTimer struct {
+	seconds float64
+	fn      object.Object
 }
 
 type controlState struct {
-	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | עמודה | מסגרת | משטח | דגם | סמל
+	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | עמודה | מסגרת | משטח | דגם | סמל | רשימה
 	text      string
 	textColor walk.Color
 	onClick   object.Object
@@ -53,6 +63,11 @@ type controlState struct {
 	swatchColor color.RGBA
 	iconKind    string
 	toolWidget  *walk.CustomWidget
+	// רשימה
+	listBox     *walk.ListBox
+	listItems   []string
+	listMinH    int
+	onSelect    object.Object
 }
 
 func NewWindowsModule() *object.Module {
@@ -72,6 +87,8 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["הודעה"] = &object.Builtin{Fn: winMessage}
 	m.Attrs["בחר_שמירה"] = &object.Builtin{Fn: winFileSave}
 	m.Attrs["בחר_פתיחה"] = &object.Builtin{Fn: winFileOpen}
+	m.Attrs["רשימה"] = &object.Builtin{Fn: winCreateList}
+	m.Attrs["שאל"] = &object.Builtin{Fn: winAsk}
 	return m
 }
 
@@ -91,6 +108,16 @@ func winCreateWindow(args ...object.Object) object.Object {
 	}}
 	w.Attrs["קבע_גודל"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winSetSize(st, a...)
+	}}
+	w.Attrs["כל_כמה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winEvery(st, a...)
+	}}
+	w.Attrs["בהתחלה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 || !isCallable(a[0]) {
+			return errObj("חלון.בהתחלה מצפה לפונקציה")
+		}
+		st.onStart = a[0]
+		return object.Nil
 	}}
 	w.Attrs["הצג"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winShow(st)
@@ -453,6 +480,142 @@ func winSetSize(st *windowState, args ...object.Object) object.Object {
 	return &object.Null{}
 }
 
+func winEvery(st *windowState, args ...object.Object) object.Object {
+	if len(args) != 2 {
+		return errObj("חלון.כל_כמה מצפה לשניות ולפונקציה")
+	}
+	sec, ok := args[0].(*object.Number)
+	if !ok || sec.Value <= 0 {
+		return errObj("חלון.כל_כמה מצפה למספר שניות חיובי")
+	}
+	if !isCallable(args[1]) {
+		return errObj("חלון.כל_כמה מצפה לפונקציה")
+	}
+	st.timers = append(st.timers, windowTimer{seconds: sec.Value, fn: args[1]})
+	return object.Nil
+}
+
+func isCallable(o object.Object) bool {
+	switch o.(type) {
+	case *object.Function, *object.Closure, *object.CompiledFunction, *object.Builtin:
+		return true
+	default:
+		return false
+	}
+}
+
+// חלונות.רשימה() — רשימת בחירה (תהליכים, פריטים וכו')
+func winCreateList(args ...object.Object) object.Object {
+	if len(args) > 0 {
+		return errObj("חלונות.רשימה מצפה ל־0 ארגומנטים")
+	}
+	st := &controlState{kind: "רשימה", listMinH: 260, listItems: []string{}}
+	w := &object.GuiWidget{Kind: "רשימה", Data: st, Attrs: map[string]object.Object{}}
+	w.Attrs["קבע_פריטים"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return listSetItems(st, a...)
+	}}
+	w.Attrs["קרא_אינדקס"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 0 {
+			return errObj("רשימה.קרא_אינדקס מצפה ל־0 ארגומנטים")
+		}
+		if st.listBox == nil {
+			return &object.Number{Value: -1}
+		}
+		return &object.Number{Value: float64(st.listBox.CurrentIndex())}
+	}}
+	w.Attrs["קרא_פריט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 0 {
+			return errObj("רשימה.קרא_פריט מצפה ל־0 ארגומנטים")
+		}
+		idx := -1
+		if st.listBox != nil {
+			idx = st.listBox.CurrentIndex()
+		}
+		if idx < 0 || idx >= len(st.listItems) {
+			return &object.String{Value: ""}
+		}
+		return &object.String{Value: st.listItems[idx]}
+	}}
+	w.Attrs["קבע_גובה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("רשימה.קבע_גובה מצפה למספר")
+		}
+		n, ok := a[0].(*object.Number)
+		if !ok || n.Value < 40 {
+			return errObj("רשימה.קבע_גובה מצפה למספר >= 40")
+		}
+		st.listMinH = int(n.Value)
+		return object.Nil
+	}}
+	w.Attrs["בבחירה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 || !isCallable(a[0]) {
+			return errObj("רשימה.בבחירה מצפה לפונקציה")
+		}
+		st.onSelect = a[0]
+		return object.Nil
+	}}
+	return w
+}
+
+func listSetItems(st *controlState, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj("רשימה.קבע_פריטים מצפה לרשימה")
+	}
+	arr, ok := args[0].(*object.Array)
+	if !ok {
+		return errObj("רשימה.קבע_פריטים מצפה לרשימה")
+	}
+	items := make([]string, 0, len(arr.Elements))
+	for _, el := range arr.Elements {
+		if s, ok := el.(*object.String); ok {
+			items = append(items, s.Value)
+		} else {
+			items = append(items, el.Inspect())
+		}
+	}
+	prev := -1
+	if st.listBox != nil {
+		prev = st.listBox.CurrentIndex()
+	}
+	st.listItems = items
+	if st.listBox != nil {
+		_ = st.listBox.SetModel(items)
+		if prev >= 0 && prev < len(items) {
+			_ = st.listBox.SetCurrentIndex(prev)
+		}
+	}
+	return object.Nil
+}
+
+// חלונות.שאל(כותרת, טקסט) — כן/לא, מחזיר אמת/שקר
+func winAsk(args ...object.Object) object.Object {
+	if len(args) < 1 || len(args) > 2 {
+		return errObj("חלונות.שאל מצפה לטקסט, או כותרת וטקסט")
+	}
+	title := "יוד"
+	msg := ""
+	if len(args) == 1 {
+		if s, ok := asString(args[0]); ok {
+			msg = s
+		} else {
+			msg = args[0].Inspect()
+		}
+	} else {
+		if s, ok := asString(args[0]); ok {
+			title = s
+		} else {
+			title = args[0].Inspect()
+		}
+		if s, ok := asString(args[1]); ok {
+			msg = s
+		} else {
+			msg = args[1].Inspect()
+		}
+	}
+	res := walk.MsgBox(nil, title, msg, walk.MsgBoxYesNo|walk.MsgBoxIconQuestion)
+	return &object.Boolean{Value: res == walk.DlgCmdYes}
+}
+
 func winShow(st *windowState) object.Object {
 	var mw *walk.MainWindow
 	children := make([]Widget, 0, len(st.children))
@@ -472,6 +635,9 @@ func winShow(st *windowState) object.Object {
 		return errObj("הצגת חלון נכשלה: " + err.Error())
 	}
 
+	st.mw = mw
+	st.closed = false
+
 	for _, ch := range st.children {
 		wireBrowsersRecursive(ch, mw)
 	}
@@ -484,9 +650,41 @@ func winShow(st *windowState) object.Object {
 		for _, ch := range st.children {
 			startBrowsersRecursive(ch)
 		}
+		if st.onStart != nil {
+			invokeYod(st.onStart, nil)
+		}
 	})
 
+	mw.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
+		st.closed = true
+	})
+
+	for _, t := range st.timers {
+		t := t
+		go func() {
+			interval := time.Duration(t.seconds * float64(time.Second))
+			if interval < 200*time.Millisecond {
+				interval = 200 * time.Millisecond
+			}
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+			for range ticker.C {
+				if st.closed || st.mw == nil {
+					return
+				}
+				st.mw.Synchronize(func() {
+					if st.closed {
+						return
+					}
+					invokeYod(t.fn, nil)
+				})
+			}
+		}()
+	}
+
 	mw.Run()
+	st.closed = true
+	st.mw = nil
 	return &object.Null{}
 }
 

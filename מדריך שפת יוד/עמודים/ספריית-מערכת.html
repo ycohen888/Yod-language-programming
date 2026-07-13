@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.49.0</span><strong>מערכת</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.58.0</span><strong>מערכת</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
 
@@ -57,13 +57,38 @@
           <tr><td><code>מערכת.ארכיטקטורה()</code></td><td>ארכיטקטורת מעבד (amd64, arm64…)</td></tr>
           <tr><td><code>מערכת.ליבות()</code></td><td>מספר ליבות לוגיות</td></tr>
           <tr><td><code>מערכת.מעבד()</code></td><td>מילון: <code>שם</code>, <code>ליבות</code>, <code>ארכיטקטורה</code></td></tr>
-          <tr><td><code>מערכת.זיכרון()</code></td><td>מילון: <code>סהכ_מגה</code>, <code>פנוי_מגה</code>, <code>בשימוש_מגה</code> (+ גרסאות בבתים)</td></tr>
+          <tr><td><code>מערכת.זיכרון()</code></td><td>מילון: <code>סהכ_מגה</code>, <code>פנוי_מגה</code>, <code>בשימוש_מגה</code>, <code>אחוז</code> (+ גרסאות בבתים)</td></tr>
+          <tr><td><code>מערכת.שימוש_מעבד()</code></td><td>אחוז שימוש כולל במעבד (0–100)</td></tr>
+          <tr><td><code>מערכת.זמן_פעיל()</code></td><td>שניות מאז עליית המערכת</td></tr>
+          <tr><td><code>מערכת.כוננים()</code></td><td>רשימת כוננים: <code>אות</code>, <code>סהכ_מגה</code>, <code>פנוי_מגה</code>, <code>בשימוש_מגה</code></td></tr>
+          <tr><td><code>מערכת.תהליכים()</code></td><td>רשימת תהליכים (ממוינת לפי זיכרון): <code>מזהה</code>, <code>שם</code>, <code>זיכרון_מגה</code></td></tr>
+          <tr><td><code>מערכת.סיים_תהליך(מזהה)</code></td><td>מסיים תהליך; מחזיר <code>{הצלחה, שגיאה}</code></td></tr>
           <tr><td><code>מערכת.איפי()</code></td><td>רשימת כתובות IP של המחשב (בלי loopback)</td></tr>
           <tr><td><code>מערכת.משתמש()</code></td><td>שם המשתמש המחובר</td></tr>
           <tr><td><code>מערכת.בית()</code></td><td>נתיב תיקיית הבית</td></tr>
-          <tr><td><code>מערכת.מידע()</code></td><td>מילון מרוכז עם כל השדות למעלה</td></tr>
+          <tr><td><code>מערכת.מידע()</code></td><td>מילון מרוכז (כולל מעבד, זיכרון, כוננים, זמן פעיל…)</td></tr>
         </tbody>
       </table>
+
+      <h2>תהליכים (מנהל משימות ביוד)</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "מערכת"
+
+עבור פ בתוך מערכת.תהליכים()
+  הדפס: פ["שם"] + " — " + פ["זיכרון_מגה"] + " מגה"
+סוף
+
+תוצאה = מערכת.סיים_תהליך: 1234
+אם תוצאה["הצלחה"]
+  הדפס: "התהליך הסתיים"
+אחרת
+  הדפס: תוצאה["שגיאה"]
+סוף</pre>
+      </figure>
+      <div class="callout tip">
+        דוגמה מלאה עם ממשק: <code>פרוייקט דוגמה/מידע מחשב/</code>
+      </div>
 
       <h2>הפעלת תהליך</h2>
       <figure class="example">

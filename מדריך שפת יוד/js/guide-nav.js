@@ -75,7 +75,7 @@
         { title: "JSON", href: "עמודים/ספריית-JSON.html", keywords: "פרסר" },
         { title: "זמן", href: "עמודים/ספריית-זמן.html", keywords: "תאריך שעון" },
         { title: "מתמטיקה", href: "עמודים/ספריית-מתמטיקה.html", keywords: "פי סינוס" },
-        { title: "מערכת", href: "עמודים/ספריית-מערכת.html", keywords: "סביבה תהליך" },
+        { title: "מערכת", href: "עמודים/ספריית-מערכת.html", keywords: "סביבה תהליך מעבד זיכרון כונן" },
         { title: "רשת", href: "עמודים/ספריית-רשת.html", keywords: "HTTP" },
         { title: "SQL", href: "עמודים/ספריית-SQL.html", keywords: "sqlite mysql" },
         { title: "חלונות", href: "עמודים/ספריית-חלונות.html", keywords: "GUI דפדפן WebView2 אתר משטח" },

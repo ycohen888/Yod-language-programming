@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.56.1</span><strong>חלונות</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.58.0</span><strong>חלונות</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
@@ -45,6 +45,8 @@
           <tr><td><code>חלונות.משטח(רוחב, גובה)</code></td><td>לוח ציור עם עכבר — הלוגיקה ביוד</td></tr>
           <tr><td><code>חלונות.סמל(סוג)</code></td><td>כפתור כלי עם אייקון (עיפרון/מחק/קו/…)</td></tr>
           <tr><td><code>חלונות.דגם(צבע…)</code></td><td>ריבוע צבע לחיץ ללוח צבעים</td></tr>
+          <tr><td><code>חלונות.רשימה()</code></td><td>רשימת בחירה: <code>קבע_פריטים</code>, <code>קרא_אינדקס</code>, <code>קרא_פריט</code>, <code>בבחירה</code></td></tr>
+          <tr><td><code>חלונות.שאל(כותרת, טקסט)</code></td><td>כן/לא — מחזיר <code>אמת</code>/<code>שקר</code></td></tr>
           <tr><td><code>חלונות.בחר_שמירה([כותרת])</code></td><td>דיאלוג שמירה → נתיב או <code>ריק</code></td></tr>
           <tr><td><code>חלונות.בחר_פתיחה([כותרת])</code></td><td>דיאלוג פתיחה → נתיב או <code>ריק</code></td></tr>
           <tr><td><code>דפדפן.נווט(כתובת)</code></td><td>מעבר לכתובת (מוסיף https:// אם חסר)</td></tr>
@@ -53,6 +55,8 @@
           <tr><td><code>תווית.קבע_צבע</code></td><td>שם צבע (ירוק/אדום…) או RGB</td></tr>
           <tr><td><code>חלונות.הודעה(כותרת, טקסט)</code></td><td>תיבת הודעה מהירה</td></tr>
           <tr><td><code>חלון.הוסף</code> / <code>קבע_גודל</code> / <code>הצג</code></td><td>סידור והצגה</td></tr>
+          <tr><td><code>חלון.כל_כמה(שניות, פונקציה)</code></td><td>קריאה חוזרת בזמן שהחלון פתוח</td></tr>
+          <tr><td><code>חלון.בהתחלה(פונקציה)</code></td><td>רצה פעם אחת עם פתיחת החלון</td></tr>
           <tr><td><code>כפתור.בלחיצה(פונקציה)</code></td><td>אירוע לחיצה</td></tr>
           <tr><td><code>קבע_טקסט</code> / <code>קרא_טקסט</code></td><td>על תווית / שדה / כפתור</td></tr>
         </tbody>
@@ -89,7 +93,8 @@
 // בשחרור — שוב שחזר + קו סופי</pre>
       </figure>
       <div class="callout tip">
-        דוגמה מלאה בסגנון Paint — תיקיית <code>פרוייקט דוגמה/</code>.
+        דוגמה מלאה בסגנון Paint — תיקיית <code>פרוייקט דוגמה/צייר/</code>.
+        מנהל משימות / מידע מחשב — <code>פרוייקט דוגמה/מידע מחשב/</code>.
       </div>
 
       <p>לציור צורות בלי עכבר (לוח + הצג) — ראו <a href="ספריית-ציור.html">ספריית ציור</a>.</p>

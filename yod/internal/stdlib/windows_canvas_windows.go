@@ -577,6 +577,26 @@ func buildControlWidget(ch *controlState) Widget {
 			AssignTo: &ch.edit,
 			Text:     ch.text,
 		}
+	case "רשימה":
+		minH := ch.listMinH
+		if minH < 40 {
+			minH = 200
+		}
+		items := ch.listItems
+		if items == nil {
+			items = []string{}
+		}
+		return ListBox{
+			AssignTo:      &ch.listBox,
+			Model:         items,
+			StretchFactor: 1,
+			MinSize:       Size{Height: minH},
+			OnCurrentIndexChanged: func() {
+				if ch.onSelect != nil {
+					invokeYod(ch.onSelect, nil)
+				}
+			},
+		}
 	case "דפדפן":
 		return Composite{
 			AssignTo:      &ch.host,
