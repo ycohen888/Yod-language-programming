@@ -20,7 +20,7 @@ type windowState struct {
 }
 
 type controlState struct {
-	kind      string // כפתור | תווית | שדה | נורית | דפדפן
+	kind      string // כפתור | תווית | שדה | נורית | דפדפן | שורה | משטח
 	text      string
 	textColor walk.Color
 	onClick   object.Object
@@ -32,6 +32,17 @@ type controlState struct {
 	html    string
 	host    *walk.Composite
 	browser *edge.Chromium
+	// שורה — ילדים אופקיים
+	children []*controlState
+	// משטח ציור
+	board       *drawBoard
+	canvas      *walk.CustomWidget
+	canvasW     int
+	canvasH     int
+	dragging    bool
+	onMouseDown object.Object
+	onMouseDrag object.Object
+	onMouseUp   object.Object
 }
 
 func NewWindowsModule() *object.Module {
@@ -42,6 +53,8 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["שדה"] = &object.Builtin{Fn: winCreateEdit}
 	m.Attrs["נורית"] = &object.Builtin{Fn: winCreateLED}
 	m.Attrs["דפדפן"] = &object.Builtin{Fn: winCreateBrowser}
+	m.Attrs["שורה"] = &object.Builtin{Fn: winCreateRow}
+	m.Attrs["משטח"] = &object.Builtin{Fn: winCreateCanvas}
 	m.Attrs["הודעה"] = &object.Builtin{Fn: winMessage}
 	return m
 }
@@ -429,56 +442,7 @@ func winShow(st *windowState) object.Object {
 	children := make([]Widget, 0, len(st.children))
 	for _, ch := range st.children {
 		ch := ch
-		switch ch.kind {
-		case "כפתור":
-			cb := ch.onClick
-			children = append(children, PushButton{
-				Text: ch.text,
-				OnClicked: func() {
-					if cb == nil {
-						return
-					}
-					var res object.Object
-					if object.InvokeCallable != nil {
-						res = object.InvokeCallable(cb, nil)
-					} else if fn, ok := cb.(*object.Function); ok && object.InvokeFunction != nil {
-						res = object.InvokeFunction(fn, nil)
-					}
-					if err, ok := res.(*object.Error); ok {
-						walk.MsgBox(nil, "שגיאה", err.Message, walk.MsgBoxIconError)
-					}
-				},
-			})
-		case "תווית":
-			children = append(children, Label{
-				AssignTo:  &ch.label,
-				Text:      ch.text,
-				TextColor: ch.textColor,
-			})
-		case "נורית":
-			children = append(children, CustomWidget{
-				AssignTo:            &ch.ledWidget,
-				MinSize:             Size{Width: 140, Height: 28},
-				MaxSize:             Size{Height: 28},
-				InvalidatesOnResize: true,
-				PaintMode:           PaintBuffered,
-				Paint: func(canvas *walk.Canvas, bounds walk.Rectangle) error {
-					return paintLED(ch, canvas, bounds)
-				},
-			})
-		case "שדה":
-			children = append(children, LineEdit{
-				AssignTo: &ch.edit,
-				Text:     ch.text,
-			})
-		case "דפדפן":
-			children = append(children, Composite{
-				AssignTo:      &ch.host,
-				StretchFactor: 1,
-				MinSize:       Size{Width: 120, Height: 180},
-				Layout:        VBox{MarginsZero: true},
-			})
-		}
+		children = append(children, buildControlWidget(ch))
 	}
 
 	if err := (MainWindow{
@@ -493,38 +457,54 @@ func winShow(st *windowState) object.Object {
 	}
 
 	for _, ch := range st.children {
-		if ch.kind != "דפדפן" || ch.host == nil {
-			continue
-		}
-		br, err := attachWebView2(ch.host, ch.url, ch.html)
-		if err != nil {
-			mw.Dispose()
-			return errObj(err.Error())
-		}
-		ch.browser = br
+		wireBrowsersRecursive(ch, mw)
 	}
 
 	mw.SizeChanged().Attach(func() {
-		for _, ch := range st.children {
-			if ch.browser == nil {
-				continue
-			}
-			ch.browser.Resize()
-			_ = ch.browser.NotifyParentWindowPositionChanged()
-		}
+		resizeBrowsersRecursive(st.children)
 	})
 
-	// אחרי שהחלון מוצג — טעינה מחדש של הכתובת הראשונית (בלי כפתורים)
 	mw.Starting().Attach(func() {
 		for _, ch := range st.children {
-			if ch.kind == "דפדפן" {
-				browserLoadInitial(ch)
-			}
+			startBrowsersRecursive(ch)
 		}
 	})
 
 	mw.Run()
 	return &object.Null{}
+}
+
+func wireBrowsersRecursive(ch *controlState, mw *walk.MainWindow) {
+	if ch.kind == "דפדפן" && ch.host != nil {
+		br, err := attachWebView2(ch.host, ch.url, ch.html)
+		if err != nil {
+			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
+			return
+		}
+		ch.browser = br
+	}
+	for _, c := range ch.children {
+		wireBrowsersRecursive(c, mw)
+	}
+}
+
+func resizeBrowsersRecursive(children []*controlState) {
+	for _, ch := range children {
+		if ch.browser != nil {
+			ch.browser.Resize()
+			_ = ch.browser.NotifyParentWindowPositionChanged()
+		}
+		resizeBrowsersRecursive(ch.children)
+	}
+}
+
+func startBrowsersRecursive(ch *controlState) {
+	if ch.kind == "דפדפן" {
+		browserLoadInitial(ch)
+	}
+	for _, c := range ch.children {
+		startBrowsersRecursive(c)
+	}
 }
 
 func winMessage(args ...object.Object) object.Object {

@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.54.0</span><strong>ציור</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.55.0</span><strong>ציור</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
 
@@ -26,6 +26,7 @@
       <p class="lead">
         לוח ציור לצורות, צבעים, טקסט ותמונות (PNG / JPG / GIF / BMP).
         טוענים עם <code>כלול "ציור"</code>. אפשר לשמור לקובץ או להציג בחלון Windows.
+        לצייר אינטראקטיבי בעכבר — השתמשו ב־<code>חלונות.משטח</code> (ראו <a href="ספריית-חלונות.html">ספריית חלונות</a>).
       </p>
 
       <h2>יצירה וצבעים</h2>
@@ -61,24 +62,15 @@
           <tr><td><code>תמונה(נתיב|תמונה, x, y [, w, h])</code></td><td>מצייר תמונה על הלוח</td></tr>
           <tr><td><code>שמור(נתיב)</code></td><td>שומר PNG / JPG / GIF</td></tr>
           <tr><td><code>הצג([כותרת])</code></td><td>מציג בחלון (Windows)</td></tr>
-          <tr><td><code>ציור.עורך([רוחב], [גובה], [כותרת])</code></td><td>חלון צייר אינטראקטיבי בסגנון Paint</td></tr>
         </tbody>
       </table>
 
-      <h2>עורך צייר (Windows Paint)</h2>
+      <h2>צייר אינטראקטיבי</h2>
       <p>
-        <code>ציור.עורך</code> פותח חלון מקצועי: לוח לבן, ציור בעכבר, כלים, לוח צבעים, בטל/נקה/שמור.
-        מתאים לתוכנות ציור ולפרויקטי דוגמה (ראו תיקיית <code>פרוייקט דוגמה/</code>).
+        אין <code>ציור.עורך</code> מובנה ב־Go — בונים צייר ב־יוד עם
+        <code>חלונות.משטח</code> + כפתורים + אירועי עכבר.
+        ראו תיקיית <code>פרוייקט דוגמה/</code> ומדריך <a href="ספריית-חלונות.html">חלונות</a>.
       </p>
-      <figure class="example">
-        <span class="example-label">פתיחת צייר</span>
-        <pre class="code-block">כלול "ציור"
-ציור.עורך: 800, 560, "הצייר שלי"</pre>
-      </figure>
-      <div class="callout tip">
-        <strong>כלים:</strong> עיפרון, מחק, קו, מלבן, אליפסה, מילוי —
-        בחרו צבע מהלוח בתחתית, וגררו עם העכבר על הלוח הלבן.
-      </div>
 
       <h2>דוגמה</h2>
       <figure class="example">

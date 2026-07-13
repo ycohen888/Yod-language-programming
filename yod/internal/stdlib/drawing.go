@@ -29,7 +29,6 @@ func NewDrawingModule() *object.Module {
 	m.Attrs["לוח"] = &object.Builtin{Fn: drawCreateBoard}
 	m.Attrs["טען_תמונה"] = &object.Builtin{Fn: drawLoadImage}
 	m.Attrs["צבע"] = &object.Builtin{Fn: drawMakeColor}
-	m.Attrs["עורך"] = &object.Builtin{Fn: drawOpenEditor}
 	return m
 }
 
@@ -692,4 +691,33 @@ func (st *drawBoard) ensureFace() (font.Face, error) {
 		last = fmt.Errorf("לא נמצא גופן")
 	}
 	return nil, fmt.Errorf("לא הצלחתי לטעון גופן לטקסט: %v", last)
+}
+
+func floodFill(img *image.RGBA, x, y int, repl color.RGBA) {
+	b := img.Bounds()
+	if x < b.Min.X || y < b.Min.Y || x >= b.Max.X || y >= b.Max.Y {
+		return
+	}
+	target := img.RGBAAt(x, y)
+	if rgbaEq(target, repl) {
+		return
+	}
+	type pt struct{ x, y int }
+	stack := []pt{{x, y}}
+	for len(stack) > 0 {
+		p := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		if p.x < b.Min.X || p.y < b.Min.Y || p.x >= b.Max.X || p.y >= b.Max.Y {
+			continue
+		}
+		if !rgbaEq(img.RGBAAt(p.x, p.y), target) {
+			continue
+		}
+		img.SetRGBA(p.x, p.y, repl)
+		stack = append(stack, pt{p.x + 1, p.y}, pt{p.x - 1, p.y}, pt{p.x, p.y + 1}, pt{p.x, p.y - 1})
+	}
+}
+
+func rgbaEq(a, b color.RGBA) bool {
+	return a.R == b.R && a.G == b.G && a.B == b.B && a.A == b.A
 }

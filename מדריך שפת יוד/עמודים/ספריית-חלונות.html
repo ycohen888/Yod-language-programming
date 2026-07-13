@@ -17,14 +17,14 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.52.6</span><strong>חלונות</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.55.0</span><strong>חלונות</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
       <h1>ספריית חלונות</h1>
       <p class="lead">
-        ממשק גרפי ל־Windows: חלון, כפתור, תווית, שדה, נורית, ודפדפן WebView2 להצגת אתרים ו־HTML.
-        טוענים עם <code>כלול "חלונות"</code>.
+        ממשק גרפי ל־Windows: חלון, כפתור, תווית, שדה, נורית, דפדפן WebView2,
+        שורת כלים ומשטח ציור אינטראקטיבי. טוענים עם <code>כלול "חלונות"</code>.
       </p>
 
       <h2>רכיבים ומתודות</h2>
@@ -39,6 +39,8 @@
           <tr><td><code>חלונות.שדה(טקסט)</code></td><td>שדה קלט</td></tr>
           <tr><td><code>חלונות.נורית()</code></td><td>לד סטטוס: <code>הדלק()</code> ירוק / <code>כבה()</code> אדום</td></tr>
           <tr><td><code>חלונות.דפדפן(כתובת?)</code></td><td>תצוגת אתר/HTML (WebView2) בתוך החלון</td></tr>
+          <tr><td><code>חלונות.שורה()</code></td><td>מקבץ רכיבים אופקית (סרגל כלים / צבעים)</td></tr>
+          <tr><td><code>חלונות.משטח(רוחב, גובה)</code></td><td>לוח ציור עם עכבר — הלוגיקה נכתבת ביוד</td></tr>
           <tr><td><code>דפדפן.נווט(כתובת)</code></td><td>מעבר לכתובת (מוסיף https:// אם חסר)</td></tr>
           <tr><td><code>דפדפן.קבע_html(מחרוזת)</code></td><td>מציג HTML מקומי בתוך הדפדפן</td></tr>
           <tr><td><code>דפדפן.רענן()</code> / <code>קרא_כתובת()</code></td><td>רענון וקריאת הכתובת הנוכחית</td></tr>
@@ -50,7 +52,55 @@
         </tbody>
       </table>
 
-      <p>לציור צורות ותמונות — ראו <a href="ספריית-ציור.html">ספריית ציור</a>.</p>
+      <h2>משטח ציור (צייר ביוד)</h2>
+      <p>
+        <code>חלונות.משטח</code> מציג לוח לבן ומעביר אירועי עכבר לקוד יוד שלכם.
+        אתם בוחרים כלים, צבעים ומציירים — בלי עורך Go מובנה.
+      </p>
+      <table class="method-table">
+        <thead>
+          <tr><th>מתודה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>בעכבר_למטה(פונקציה(x,y))</code></td><td>לחיצה על המשטח</td></tr>
+          <tr><td><code>בעכבר_גרירה(פונקציה(x,y))</code></td><td>גרירה עם כפתור לחוץ</td></tr>
+          <tr><td><code>בעכבר_למעלה(פונקציה(x,y))</code></td><td>שחרור העכבר</td></tr>
+          <tr><td><code>קבע_צבע</code> / <code>קבע_מילוי</code> / <code>קבע_עובי</code></td><td>סגנון ציור</td></tr>
+          <tr><td><code>נקודה</code> / <code>קו</code> / <code>מלבן</code> / <code>עיגול</code></td><td>צורות</td></tr>
+          <tr><td><code>מלא_באזור(x, y)</code></td><td>מילוי אזור (flood fill)</td></tr>
+          <tr><td><code>נקה</code> / <code>שמור(נתיב)</code></td><td>ניקוי ושמירה</td></tr>
+        </tbody>
+      </table>
+      <figure class="example">
+        <span class="example-label">עיפרון פשוט</span>
+        <pre class="code-block">כלול "חלונות"
+
+משתנה ח = חלונות.חלון: "צייר קטן"
+ח.קבע_גודל: 640, 480
+משתנה לוח = חלונות.משטח: 600, 400
+משתנה אחרון_x = 0
+משתנה אחרון_y = 0
+
+לוח.בעכבר_למטה: פונקציה (x, y)
+  אחרון_x = x
+  אחרון_y = y
+  לוח.נקודה: x, y
+סוף
+
+לוח.בעכבר_גרירה: פונקציה (x, y)
+  לוח.קו: אחרון_x, אחרון_y, x, y
+  אחרון_x = x
+  אחרון_y = y
+סוף
+
+ח.הוסף: לוח
+ח.הצג:</pre>
+      </figure>
+      <div class="callout tip">
+        דוגמה מלאה (כלים, צבעים, שמירה) — תיקיית <code>פרוייקט דוגמה/</code>.
+      </div>
+
+      <p>לציור צורות בלי עכבר (לוח + הצג) — ראו <a href="ספריית-ציור.html">ספריית ציור</a>.</p>
 
       <h2>דפדפן בתוך חלון</h2>
       <p>
