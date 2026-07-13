@@ -15,10 +15,12 @@ yod/vendor/
 # Local / temp
 *.log
 led_err.txt
+led_out.txt
 *.tmp
 .DS_Store
 Thumbs.db
 desktop.ini
+**/drawing_out.png
 
 # SQLite / local DBs (demo data)
 *.db
