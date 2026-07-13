@@ -167,6 +167,14 @@ func wrapBoard(st *drawBoard) *object.GuiWidget {
 		drawRectFill(st.img, vals[0], vals[1], vals[2], vals[3], st.fill)
 		return object.Nil
 	}}
+	w.Attrs["מלבן_מעוגל_מלא"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		vals, err := nums("מלבן_מעוגל_מלא", a, 5)
+		if err != nil {
+			return err
+		}
+		drawRoundedRectFill(st.img, vals[0], vals[1], vals[2], vals[3], vals[4], st.fill)
+		return object.Nil
+	}}
 	w.Attrs["עיגול"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		vals, err := nums("עיגול", a, 3)
 		if err != nil {
@@ -524,43 +532,26 @@ func drawCircleOutline(img *image.RGBA, cx, cy, radius, thickness int, c color.R
 	if thickness < 1 {
 		thickness = 1
 	}
-	// טבעת עם אנטי־אליאסינג: כיסוי לפי מרחק מהיקף
 	rf := float64(radius) - float64(thickness-1)/2
 	half := float64(thickness) / 2
-	pad := int(half) + 2
-	minY := cy - radius - pad
-	maxY := cy + radius + pad
-	minX := cx - radius - pad
-	maxX := cx + radius + pad
-	b := img.Bounds()
-	if minY < b.Min.Y {
-		minY = b.Min.Y
-	}
-	if maxY >= b.Max.Y {
-		maxY = b.Max.Y - 1
-	}
-	if minX < b.Min.X {
-		minX = b.Min.X
-	}
-	if maxX >= b.Max.X {
-		maxX = b.Max.X - 1
-	}
+	pad := int(half) + 3
+	minY, maxY, minX, maxX := clipDiskBounds(img, cx, cy, radius+pad)
 	fcx := float64(cx)
 	fcy := float64(cy)
 	for py := minY; py <= maxY; py++ {
-		dy := float64(py) - fcy
 		for px := minX; px <= maxX; px++ {
-			dx := float64(px) - fcx
-			d := math.Hypot(dx, dy)
-			dist := math.Abs(d - rf)
-			cov := half + 0.5 - dist
+			cov := sampleAA2x2(px, py, func(fx, fy float64) float64 {
+				d := math.Hypot(fx-fcx, fy-fcy)
+				return softCoverage(half - math.Abs(d-rf))
+			})
 			if cov <= 0 {
 				continue
 			}
-			if cov > 1 {
-				cov = 1
+			if cov >= 0.999 {
+				setPx(img, px, py, c)
+			} else {
+				setPx(img, px, py, alphaScale(c, cov))
 			}
-			setPx(img, px, py, alphaScale(c, cov))
 		}
 	}
 }
@@ -570,14 +561,62 @@ func drawDisk(img *image.RGBA, cx, cy, radius int, c color.RGBA) {
 		setPx(img, cx, cy, c)
 		return
 	}
-	// דיסק מלא עם שוליים רכים (~1 פיקסל) — בלי שיניים
 	rf := float64(radius)
-	pad := 1
-	minY := cy - radius - pad
-	maxY := cy + radius + pad
-	minX := cx - radius - pad
-	maxX := cx + radius + pad
+	pad := 2
+	minY, maxY, minX, maxX := clipDiskBounds(img, cx, cy, radius+pad)
+	fcx := float64(cx)
+	fcy := float64(cy)
+	for py := minY; py <= maxY; py++ {
+		for px := minX; px <= maxX; px++ {
+			cov := sampleAA2x2(px, py, func(fx, fy float64) float64 {
+				d := math.Hypot(fx-fcx, fy-fcy)
+				return softCoverage(rf - d)
+			})
+			if cov <= 0 {
+				continue
+			}
+			if cov >= 0.999 {
+				setPx(img, px, py, c)
+			} else {
+				setPx(img, px, py, alphaScale(c, cov))
+			}
+		}
+	}
+}
+
+// drawRoundedRectFill — מלבן מעוגל אטום עם אנטי־אליאסינג (SDF + דגימת־על 2×2).
+func drawRoundedRectFill(img *image.RGBA, x, y, w, h, radius int, c color.RGBA) {
+	if w < 0 {
+		x, w = x+w, -w
+	}
+	if h < 0 {
+		y, h = y+h, -h
+	}
+	if w < 1 || h < 1 {
+		return
+	}
+	r := float64(radius)
+	if r < 0 {
+		r = 0
+	}
+	if r*2 > float64(w) {
+		r = float64(w) / 2
+	}
+	if r*2 > float64(h) {
+		r = float64(h) / 2
+	}
+	if r < 0.5 {
+		drawRectFill(img, x, y, w, h, c)
+		return
+	}
+	fx, fy := float64(x), float64(y)
+	fw, fh := float64(w), float64(h)
+	pad := 2
 	b := img.Bounds()
+	minY := y - pad
+	maxY := y + h + pad
+	minX := x - pad
+	maxX := x + w + pad
 	if minY < b.Min.Y {
 		minY = b.Min.Y
 	}
@@ -590,25 +629,77 @@ func drawDisk(img *image.RGBA, cx, cy, radius int, c color.RGBA) {
 	if maxX >= b.Max.X {
 		maxX = b.Max.X - 1
 	}
-	fcx := float64(cx)
-	fcy := float64(cy)
 	for py := minY; py <= maxY; py++ {
-		dy := float64(py) - fcy
 		for px := minX; px <= maxX; px++ {
-			dx := float64(px) - fcx
-			d := math.Hypot(dx, dy)
-			// כיסוי: 1 בתוך הרדיוס, ירידה חלקה ברוחב ~1px מחוץ לקצה
-			cov := rf + 0.5 - d
+			cov := sampleAA2x2(px, py, func(sx, sy float64) float64 {
+				return softCoverage(-sdRoundedRect(sx, sy, fx, fy, fw, fh, r))
+			})
 			if cov <= 0 {
 				continue
 			}
-			if cov >= 1 {
+			if cov >= 0.999 {
 				setPx(img, px, py, c)
-				continue
+			} else {
+				setPx(img, px, py, alphaScale(c, cov))
 			}
-			setPx(img, px, py, alphaScale(c, cov))
 		}
 	}
+}
+
+// sdRoundedRect — מרחק חתום למלבן מעוגל (שלילי בפנים).
+func sdRoundedRect(px, py, x, y, w, h, r float64) float64 {
+	cx := x + w/2
+	cy := y + h/2
+	bx := w/2 - r
+	by := h/2 - r
+	dx := math.Abs(px-cx) - bx
+	dy := math.Abs(py-cy) - by
+	return math.Hypot(math.Max(dx, 0), math.Max(dy, 0)) + math.Min(math.Max(dx, dy), 0) - r
+}
+
+// softCoverage — מעבר רך ~1.4 פיקסל סביב הקצה (מבוסס מרחק מהגבול; חיובי = בפנים).
+func softCoverage(insideDist float64) float64 {
+	const soft = 1.4
+	v := (insideDist + soft*0.5) / soft
+	if v <= 0 {
+		return 0
+	}
+	if v >= 1 {
+		return 1
+	}
+	// smoothstep — פחות "פס" חד מכיסוי ליניארי
+	return v * v * (3 - 2*v)
+}
+
+// sampleAA2x2 — ממוצע 4 דגימות בתוך הפיקסל.
+func sampleAA2x2(px, py int, sample func(fx, fy float64) float64) float64 {
+	const o0 = 0.25
+	const o1 = 0.75
+	fx0 := float64(px)
+	fy0 := float64(py)
+	return (sample(fx0+o0, fy0+o0) + sample(fx0+o1, fy0+o0) +
+		sample(fx0+o0, fy0+o1) + sample(fx0+o1, fy0+o1)) * 0.25
+}
+
+func clipDiskBounds(img *image.RGBA, cx, cy, extent int) (minY, maxY, minX, maxX int) {
+	b := img.Bounds()
+	minY = cy - extent
+	maxY = cy + extent
+	minX = cx - extent
+	maxX = cx + extent
+	if minY < b.Min.Y {
+		minY = b.Min.Y
+	}
+	if maxY >= b.Max.Y {
+		maxY = b.Max.Y - 1
+	}
+	if minX < b.Min.X {
+		minX = b.Min.X
+	}
+	if maxX >= b.Max.X {
+		maxX = b.Max.X - 1
+	}
+	return
 }
 
 // alphaScale — משנה שקיפות לפי כיסוי (0..1) לאנטי־אליאסינג.

@@ -310,6 +310,15 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		invalidateCanvas(st)
 		return object.Nil
 	}}
+	w.Attrs["מלבן_מעוגל_מלא"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		vals, err := nums("מלבן_מעוגל_מלא", a, 5)
+		if err != nil {
+			return err
+		}
+		drawRoundedRectFill(board.img, vals[0], vals[1], vals[2], vals[3], vals[4], board.fill)
+		invalidateCanvas(st)
+		return object.Nil
+	}}
 	w.Attrs["עיגול"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		vals, err := nums("עיגול", a, 3)
 		if err != nil {
