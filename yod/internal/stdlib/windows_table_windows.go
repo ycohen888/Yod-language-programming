@@ -159,6 +159,21 @@ func winCreateTable(args ...object.Object) object.Object {
 	w.Attrs["קבע_רוחב"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return tableSetWidths(st, a...)
 	}}
+	w.Attrs["קבע_כהה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("טבלה.קבע_כהה מצפה לאמת/שקר")
+		}
+		b, ok := a[0].(*object.Boolean)
+		if !ok {
+			return errObj("טבלה.קבע_כהה מצפה לאמת/שקר")
+		}
+		st.tableDark = b.Value
+		if st.tableView != nil {
+			applyTableDarkColors(st)
+			st.tableView.Invalidate()
+		}
+		return object.Nil
+	}}
 	w.Attrs["בבחירה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		if len(a) != 1 || !isCallable(a[0]) {
 			return errObj("טבלה.בבחירה מצפה לפונקציה")
@@ -460,10 +475,11 @@ func buildTableWidget(ch *controlState) Widget {
 	if len(cols) == 0 {
 		cols = []TableViewColumn{{Title: " ", Width: 100}}
 	}
-	return TableView{
+	tv := TableView{
 		AssignTo:         &ch.tableView,
 		AlternatingRowBG: true,
 		ColumnsOrderable: true,
+		LastColumnStretched: true,
 		Columns:          cols,
 		Model:            ch.tableModel,
 		StretchFactor:    1,
@@ -474,5 +490,56 @@ func buildTableWidget(ch *controlState) Widget {
 				invokeYod(ch.onSelect, nil)
 			}
 		},
+		StyleCell: func(style *walk.CellStyle) {
+			styleTableCell(ch, style)
+		},
 	}
+	if ch.tableDark {
+		tv.Background = SolidColorBrush{Color: walk.RGB(22, 27, 34)}
+	}
+	return tv
+}
+
+func styleTableCell(ch *controlState, style *walk.CellStyle) {
+	if ch == nil || !ch.tableDark {
+		return
+	}
+	darkBG := walk.RGB(30, 37, 46)
+	darkAlt := walk.RGB(38, 46, 58)
+	darkText := walk.RGB(230, 237, 243)
+	darkMuted := walk.RGB(148, 163, 184)
+	darkSel := walk.RGB(37, 99, 235)
+	darkSelText := walk.RGB(255, 255, 255)
+
+	row := style.Row()
+	selected := false
+	if ch.tableView != nil && ch.tableView.CurrentIndex() == row {
+		selected = true
+	}
+	if selected {
+		style.BackgroundColor = darkSel
+		style.TextColor = darkSelText
+		return
+	}
+	if row%2 == 1 {
+		style.BackgroundColor = darkAlt
+	} else {
+		style.BackgroundColor = darkBG
+	}
+	if style.Col() >= 1 {
+		style.TextColor = darkMuted
+	} else {
+		style.TextColor = darkText
+	}
+}
+
+func applyTableDarkColors(st *controlState) {
+	if st == nil || st.tableView == nil || !st.tableDark {
+		return
+	}
+	brush, err := walk.NewSolidColorBrush(walk.RGB(22, 27, 34))
+	if err == nil {
+		st.tableView.SetBackground(brush)
+	}
+	st.tableView.SetAlternatingRowBG(true)
 }

@@ -79,6 +79,7 @@ type controlState struct {
 	tableView  *walk.TableView
 	tableModel *yodTableModel
 	tableCols  []int
+	tableDark  bool
 	// גרף
 	chartWidget     *walk.CustomWidget
 	chartKind       string // עמודות | קו | עוגה
@@ -747,6 +748,7 @@ func winShow(st *windowState) object.Object {
 	if iconPath != "" {
 		_ = applyWindowIcon(st, iconPath)
 	}
+	applyDarkTablesRecursive(st.children)
 
 	for _, ch := range st.children {
 		wireBrowsersRecursive(ch, mw)
@@ -812,6 +814,18 @@ func applyWindowIcon(st *windowState, path string) error {
 		return st.mw.SetIcon(ic)
 	}
 	return nil
+}
+
+func applyDarkTablesRecursive(children []*controlState) {
+	for _, ch := range children {
+		if ch == nil {
+			continue
+		}
+		if ch.kind == "טבלה" && ch.tableDark {
+			applyTableDarkColors(ch)
+		}
+		applyDarkTablesRecursive(ch.children)
+	}
 }
 
 func wireBrowsersRecursive(ch *controlState, mw *walk.MainWindow) {
