@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית עכבר | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.57.0</span><strong>עכבר</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית עכבר</h1>
+      <p class="lead">
+        קריאת מיקום העכבר ומצב הכפתורים ב־Windows.
+        טוענים עם <code>כלול "עכבר"</code>.
+        לאירועי עכבר על משטח ציור — ראו גם <a href="ספריית-חלונות.html">חלונות.משטח</a>.
+      </p>
+
+      <h2>קבועים</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>ערך</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>עכבר.שמאל</code></td><td><code>"שמאל"</code></td></tr>
+          <tr><td><code>עכבר.ימין</code></td><td><code>"ימין"</code></td></tr>
+          <tr><td><code>עכבר.אמצע</code></td><td><code>"אמצע"</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>עכבר.מיקום()</code></td><td>מילון <code>{ x, y }</code> במסך</td></tr>
+          <tr><td><code>עכבר.שמאל_לחוץ()</code></td><td>האם כפתור שמאל לחוץ כעת</td></tr>
+          <tr><td><code>עכבר.ימין_לחוץ()</code></td><td>האם כפתור ימין לחוץ כעת</td></tr>
+          <tr><td><code>עכבר.אמצע_לחוץ()</code></td><td>האם גלגל/אמצע לחוץ כעת</td></tr>
+          <tr><td><code>עכבר.מצב()</code></td><td>מילון עם <code>x</code>, <code>y</code>, <code>שמאל</code>, <code>ימין</code>, <code>אמצע</code></td></tr>
+        </tbody>
+      </table>
+
+      <h2>אירועים על משטח</h2>
+      <p>
+        ב־<code>חלונות.משטח</code> אפשר לרשום מטפל עם שלושה פרמטרים:
+        <code>פונקציה (x, y, כפתור)</code> — כאשר <code>כפתור</code> הוא
+        <code>עכבר.שמאל</code> / <code>עכבר.ימין</code> / <code>עכבר.אמצע</code>.
+      </p>
+      <figure class="example">
+        <span class="example-label">ימין = טפטפת</span>
+        <pre class="code-block">כלול "חלונות"
+כלול "עכבר"
+
+לוח.בעכבר_למטה: פונקציה (x, y, כפתור)
+  אם כפתור == עכבר.ימין
+    משתנה פ = לוח.קרא_צבע: x, y
+    לוח.קבע_צבע: פ["אדום"], פ["ירוק"], פ["כחול"]
+  סוף
+סוף</pre>
+      </figure>
+
+      <nav class="page-nav">
+        <a href="ספריית-חלונות.html"><span class="dir">הקודם</span><span class="title">ספריית חלונות</span></a>
+        <a href="../מדריך שפת יוד.html"><span class="dir">הבא</span><span class="title">מדריך ראשי</span></a>
+      </nav>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

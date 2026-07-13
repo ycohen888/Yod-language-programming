@@ -444,8 +444,45 @@ func invokeYod(fn object.Object, args []object.Object) {
 	} else if f, ok := fn.(*object.Function); ok && object.InvokeFunction != nil {
 		res = object.InvokeFunction(f, args)
 	}
-	// לא MsgBox כאן — בגרירת עכבר זה יוצר הצפה של חלונות שלא ניתן לסגור
 	_ = res
+}
+
+func mouseHandlerArity(fn object.Object) int {
+	switch f := fn.(type) {
+	case *object.Function:
+		return len(f.Parameters)
+	case *object.Closure:
+		if f.Fn != nil {
+			return f.Fn.NumParameters
+		}
+	case *object.CompiledFunction:
+		return f.NumParameters
+	}
+	return 2
+}
+
+func walkButtonName(button walk.MouseButton) string {
+	switch button {
+	case walk.LeftButton:
+		return mouseLeft
+	case walk.RightButton:
+		return mouseRight
+	case walk.MiddleButton:
+		return mouseMiddle
+	default:
+		return mouseOther
+	}
+}
+
+func invokeYodMouse(fn object.Object, x, y int, button string) {
+	if fn == nil {
+		return
+	}
+	args := []object.Object{numObj(x), numObj(y)}
+	if mouseHandlerArity(fn) >= 3 {
+		args = append(args, &object.String{Value: button})
+	}
+	invokeYod(fn, args)
 }
 
 func numObj(v int) object.Object {
@@ -639,24 +676,30 @@ func buildControlWidget(ch *controlState) Widget {
 				return paintSurface(ch, canvas, bounds)
 			},
 			OnMouseDown: func(x, y int, button walk.MouseButton) {
-				if button != walk.LeftButton {
-					return
-				}
+				name := walkButtonName(button)
 				ch.dragging = true
-				invokeYod(ch.onMouseDown, []object.Object{numObj(x), numObj(y)})
+				ch.dragButton = name
+				invokeYodMouse(ch.onMouseDown, x, y, name)
 			},
 			OnMouseMove: func(x, y int, button walk.MouseButton) {
 				if !ch.dragging {
 					return
 				}
-				invokeYod(ch.onMouseDrag, []object.Object{numObj(x), numObj(y)})
+				btn := ch.dragButton
+				if btn == "" {
+					btn = walkButtonName(button)
+				}
+				invokeYodMouse(ch.onMouseDrag, x, y, btn)
 			},
 			OnMouseUp: func(x, y int, button walk.MouseButton) {
-				if button != walk.LeftButton {
-					return
-				}
+				name := walkButtonName(button)
 				ch.dragging = false
-				invokeYod(ch.onMouseUp, []object.Object{numObj(x), numObj(y)})
+				btn := ch.dragButton
+				if btn == "" {
+					btn = name
+				}
+				ch.dragButton = ""
+				invokeYodMouse(ch.onMouseUp, x, y, btn)
 			},
 		}
 	default:

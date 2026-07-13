@@ -43,6 +43,7 @@ type controlState struct {
 	canvasW     int
 	canvasH     int
 	dragging    bool
+	dragButton  string
 	onMouseDown object.Object
 	onMouseDrag object.Object
 	onMouseUp   object.Object
