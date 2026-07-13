@@ -11,81 +11,135 @@ import (
 	"github.com/lxn/walk"
 )
 
-// fileNode — קובץ או תיקייה בעץ הסייר
-type fileNode struct {
-	name     string
-	path     string
-	isDir    bool
-	parent   *fileNode
-	children []*fileNode
-	loaded   bool
+// fileEntry — קובץ או תיקייה ברשימת הסייר (ListBox, לא TreeView — יציב יותר ב־walk).
+type fileEntry struct {
+	name  string
+	path  string
+	isDir bool
 }
 
-func newFileNode(name, absPath string, isDir bool, parent *fileNode) *fileNode {
-	return &fileNode{name: name, path: absPath, isDir: isDir, parent: parent}
+// FileListModel — מודל רשימה לתיקיית פרויקט עם ניווט לתיקיות משנה.
+type FileListModel struct {
+	walk.ListModelBase
+	root    string
+	cwd     string
+	entries []fileEntry
 }
 
-func (n *fileNode) Text() string { return n.name }
+func NewFileListModel() *FileListModel {
+	return &FileListModel{}
+}
 
-func (n *fileNode) Parent() walk.TreeItem {
-	if n.parent == nil {
+func (m *FileListModel) ItemCount() int { return len(m.entries) }
+
+func (m *FileListModel) Value(index int) interface{} {
+	if index < 0 || index >= len(m.entries) {
+		return ""
+	}
+	e := m.entries[index]
+	if e.name == ".." {
+		return ".."
+	}
+	if e.isDir {
+		return e.name + string(os.PathSeparator)
+	}
+	return e.name
+}
+
+func (m *FileListModel) RootPath() string { return m.root }
+func (m *FileListModel) Cwd() string      { return m.cwd }
+
+func (m *FileListModel) EntryAt(index int) *fileEntry {
+	if index < 0 || index >= len(m.entries) {
 		return nil
 	}
-	return n.parent
+	e := m.entries[index]
+	return &e
 }
 
-func (n *fileNode) ChildCount() int {
-	if !n.isDir {
-		return 0
-	}
-	n.ensureChildren()
-	return len(n.children)
-}
-
-func (n *fileNode) ChildAt(i int) walk.TreeItem {
-	n.ensureChildren()
-	if i < 0 || i >= len(n.children) {
-		return nil
-	}
-	return n.children[i]
-}
-
-func (n *fileNode) HasChild() bool {
-	if !n.isDir {
-		return false
-	}
-	if !n.loaded {
-		return true // מציג חץ עד שנטען
-	}
-	return len(n.children) > 0
-}
-
-func (n *fileNode) ensureChildren() {
-	if !n.isDir || n.loaded {
+// SetRoot מגדיר/מנקה את שורש הפרויקט ומרענן את הרשימה.
+func (m *FileListModel) SetRoot(absPath string) {
+	absPath = strings.TrimSpace(absPath)
+	if absPath == "" {
+		m.root = ""
+		m.cwd = ""
+		m.entries = nil
+		m.PublishItemsReset()
 		return
 	}
-	n.loaded = true
-	n.children = nil
-	entries, err := os.ReadDir(n.path)
+	abs, err := filepath.Abs(absPath)
 	if err != nil {
+		abs = absPath
+	}
+	m.root = abs
+	m.cwd = abs
+	m.reload()
+}
+
+// Refresh מרענן את התיקייה הנוכחית מהדיסק.
+func (m *FileListModel) Refresh() {
+	if m.root == "" {
+		m.entries = nil
+		m.PublishItemsReset()
 		return
 	}
-	var dirs, files []*fileNode
+	m.reload()
+}
+
+// Enter נכנס לתיקייה (או עולה עם "..").
+func (m *FileListModel) Enter(absPath string) {
+	if m.root == "" || absPath == "" {
+		return
+	}
+	abs, err := filepath.Abs(absPath)
+	if err != nil {
+		abs = absPath
+	}
+	abs = filepath.Clean(abs)
+	root := filepath.Clean(m.root)
+	if abs != root && !strings.HasPrefix(abs+string(os.PathSeparator), root+string(os.PathSeparator)) {
+		return
+	}
+	fi, err := os.Stat(abs)
+	if err != nil || !fi.IsDir() {
+		return
+	}
+	m.cwd = abs
+	m.reload()
+}
+
+func (m *FileListModel) reload() {
+	m.entries = nil
+	if m.cwd == "" {
+		m.PublishItemsReset()
+		return
+	}
+	root := filepath.Clean(m.root)
+	cwd := filepath.Clean(m.cwd)
+	if cwd != root {
+		m.entries = append(m.entries, fileEntry{name: "..", path: filepath.Dir(cwd), isDir: true})
+	}
+	entries, err := os.ReadDir(cwd)
+	if err != nil {
+		m.PublishItemsReset()
+		return
+	}
+	var dirs, files []fileEntry
 	for _, e := range entries {
 		name := e.Name()
 		if shouldHideName(name) {
 			continue
 		}
-		childPath := filepath.Join(n.path, name)
+		childPath := filepath.Join(cwd, name)
 		info, err := e.Info()
 		if err != nil {
 			continue
 		}
-		node := newFileNode(name, childPath, info.IsDir(), n)
+		ent := fileEntry{name: name, path: childPath, isDir: info.IsDir()}
 		if info.IsDir() {
-			dirs = append(dirs, node)
+			dirs = append(dirs, ent)
 		} else {
-			files = append(files, node)
+			files = append(files, ent)
 		}
 	}
 	sort.Slice(dirs, func(i, j int) bool {
@@ -94,12 +148,24 @@ func (n *fileNode) ensureChildren() {
 	sort.Slice(files, func(i, j int) bool {
 		return strings.ToLower(files[i].name) < strings.ToLower(files[j].name)
 	})
-	n.children = append(dirs, files...)
+	m.entries = append(m.entries, dirs...)
+	m.entries = append(m.entries, files...)
+	m.PublishItemsReset()
 }
 
-func (n *fileNode) resetChildren() {
-	n.loaded = false
-	n.children = nil
+// IndexOfPath מחזיר אינדקס ברשימה או -1.
+func (m *FileListModel) IndexOfPath(absPath string) int {
+	want, err := filepath.Abs(absPath)
+	if err != nil {
+		want = absPath
+	}
+	want = filepath.Clean(want)
+	for i, e := range m.entries {
+		if filepath.Clean(e.path) == want {
+			return i
+		}
+	}
+	return -1
 }
 
 func shouldHideName(name string) bool {
@@ -119,124 +185,16 @@ func shouldHideName(name string) bool {
 	return false
 }
 
-// FileTreeModel — מודל Lazy לתיקיית פרויקט
-type FileTreeModel struct {
-	walk.TreeModelBase
-	root *fileNode
-}
-
-func NewFileTreeModel() *FileTreeModel {
-	return &FileTreeModel{}
-}
-
-func (m *FileTreeModel) LazyPopulation() bool { return true }
-
-func (m *FileTreeModel) RootCount() int {
-	if m.root == nil {
-		return 0
-	}
-	return 1
-}
-
-func (m *FileTreeModel) RootAt(i int) walk.TreeItem {
-	if i != 0 || m.root == nil {
-		return nil
-	}
-	return m.root
-}
-
-func (m *FileTreeModel) RootPath() string {
-	if m.root == nil {
-		return ""
-	}
-	return m.root.path
-}
-
-// SetRoot מגדיר/מנקה את שורש הפרויקט ומרענן את העץ.
-func (m *FileTreeModel) SetRoot(absPath string) {
-	absPath = strings.TrimSpace(absPath)
-	if absPath == "" {
-		m.root = nil
-		m.PublishItemsReset(nil)
-		return
-	}
-	abs, err := filepath.Abs(absPath)
-	if err != nil {
-		abs = absPath
-	}
-	m.root = newFileNode(filepath.Base(abs), abs, true, nil)
-	m.PublishItemsReset(nil)
-}
-
-// Refresh מרענן את כל העץ מהדיסק.
-func (m *FileTreeModel) Refresh() {
-	if m.root == nil {
-		m.PublishItemsReset(nil)
-		return
-	}
-	path := m.root.path
-	m.root = newFileNode(filepath.Base(path), path, true, nil)
-	m.PublishItemsReset(nil)
-}
-
-// RefreshNode מרענן ילדים של תיקייה (או הורה של קובץ).
-func (m *FileTreeModel) RefreshNode(n *fileNode) {
-	if n == nil {
-		m.Refresh()
-		return
-	}
-	target := n
-	if !n.isDir {
-		if n.parent != nil {
-			target = n.parent
-		} else {
-			m.Refresh()
-			return
-		}
-	}
-	target.resetChildren()
-	m.PublishItemsReset(target)
-}
-
-// FindByPath מחפש צומת לפי נתיב מלא.
-func (m *FileTreeModel) FindByPath(absPath string) *fileNode {
-	if m.root == nil {
-		return nil
-	}
-	want, err := filepath.Abs(absPath)
-	if err != nil {
-		want = absPath
-	}
-	want = filepath.Clean(want)
-	return findFileNode(m.root, want)
-}
-
-func findFileNode(n *fileNode, want string) *fileNode {
-	if filepath.Clean(n.path) == want {
-		return n
-	}
-	if !n.isDir {
-		return nil
-	}
-	n.ensureChildren()
-	for _, c := range n.children {
-		if found := findFileNode(c, want); found != nil {
-			return found
-		}
-	}
-	return nil
-}
-
 // ParentDirForNew — תיקיית יעד ליצירת קובץ/תיקייה לפי בחירה.
-func ParentDirForNew(sel *fileNode, projectRoot string) string {
-	if sel != nil {
+func ParentDirForNew(sel *fileEntry, listCwd, projectRoot string) string {
+	if sel != nil && sel.name != ".." {
 		if sel.isDir {
 			return sel.path
 		}
-		if sel.parent != nil {
-			return sel.parent.path
-		}
 		return filepath.Dir(sel.path)
+	}
+	if listCwd != "" {
+		return listCwd
 	}
 	return projectRoot
 }

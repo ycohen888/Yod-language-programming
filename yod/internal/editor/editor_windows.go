@@ -91,7 +91,7 @@ func Run(path string) error {
 		posLbl    *walk.Label
 		linesLbl  *walk.Label
 		modeLbl   *walk.Label
-		treeView  *walk.TreeView
+		fileList  *walk.ListBox
 		treeEmpty *walk.Label
 		treePane  *walk.Composite
 		treeSplit *walk.Splitter
@@ -106,7 +106,7 @@ func Run(path string) error {
 
 	currentPath := path
 	projectRoot := ""
-	treeModel := NewFileTreeModel()
+	fileModel := NewFileListModel()
 	dirty := false
 	var errLines []int
 	errLineSet := map[int]bool{}
@@ -157,8 +157,8 @@ func Run(path string) error {
 		if treeEmpty != nil {
 			treeEmpty.SetVisible(projectRoot == "")
 		}
-		if treeView != nil {
-			treeView.SetVisible(projectRoot != "")
+		if fileList != nil {
+			fileList.SetVisible(projectRoot != "")
 		}
 		if mw != nil {
 			mw.RequestLayout()
@@ -222,15 +222,18 @@ func Run(path string) error {
 	}
 
 	selectPathInTree = func(p string) {
-		if treeView == nil || projectRoot == "" || p == "" {
+		if fileList == nil || projectRoot == "" || p == "" {
 			return
 		}
-		node := treeModel.FindByPath(p)
-		if node == nil {
-			return
+		dir := filepath.Dir(p)
+		if fi, err := os.Stat(p); err == nil && fi.IsDir() {
+			dir = p
 		}
-		_ = treeView.SetCurrentItem(node)
-		_ = treeView.EnsureVisible(node)
+		fileModel.Enter(dir)
+		idx := fileModel.IndexOfPath(p)
+		if idx >= 0 {
+			_ = fileList.SetCurrentIndex(idx)
+		}
 	}
 
 	showErrorsTab := func() {
@@ -442,7 +445,7 @@ func Run(path string) error {
 		updateTitle()
 		setStatus("נשמר · " + filepath.Base(p))
 		if projectRoot != "" {
-			treeModel.Refresh()
+			fileModel.Refresh()
 			selectPathInTree(p)
 		}
 		return nil
@@ -817,16 +820,11 @@ func Run(path string) error {
 	tabErrBtn = &DarkBtn{text: "שגיאות", icon: iconError, onClick: func() { showErrorsTab() }}
 	tabOutBtn = &DarkBtn{text: "פלט", icon: iconOutput, onClick: func() { showOutputTab() }}
 
-	selectedTreeNode := func() *fileNode {
-		if treeView == nil {
+	selectedEntry := func() *fileEntry {
+		if fileList == nil {
 			return nil
 		}
-		it := treeView.CurrentItem()
-		if it == nil {
-			return nil
-		}
-		n, _ := it.(*fileNode)
-		return n
+		return fileModel.EntryAt(fileList.CurrentIndex())
 	}
 
 	openFolder := func() {
@@ -868,9 +866,8 @@ func Run(path string) error {
 		if err == nil {
 			path = abs
 		}
-		// אותו מסלול כמו פתיחת קובץ (עובד) — רק SetRoot, בלי SetModel
 		projectRoot = path
-		treeModel.SetRoot(projectRoot)
+		fileModel.SetRoot(projectRoot)
 		refreshProjectUI()
 		updateTitle()
 		setStatus("תיקייה · " + filepath.Base(projectRoot))
@@ -878,7 +875,7 @@ func Run(path string) error {
 
 	closeFolder := func() {
 		projectRoot = ""
-		treeModel.SetRoot("")
+		fileModel.SetRoot("")
 		refreshProjectUI()
 		updateTitle()
 		setStatus("תיקייה נסגרה")
@@ -888,17 +885,21 @@ func Run(path string) error {
 		if projectRoot == "" {
 			return
 		}
-		treeModel.Refresh()
+		fileModel.Refresh()
 		refreshProjectUI()
 		if currentPath != "" {
 			selectPathInTree(currentPath)
 		}
-		setStatus("העץ רוענן")
+		setStatus("הרשימה רועננה")
 	}
 
 	openTreeSelection := func() {
-		n := selectedTreeNode()
-		if n == nil || n.isDir {
+		n := selectedEntry()
+		if n == nil {
+			return
+		}
+		if n.isDir {
+			fileModel.Enter(n.path)
 			return
 		}
 		if !confirmDiscard("לשמור לפני פתיחת קובץ") {
@@ -914,7 +915,7 @@ func Run(path string) error {
 			walk.MsgBox(mw, "סייר", "פתחו תיקייה קודם (קובץ ← פתח תיקייה).", walk.MsgBoxIconInformation)
 			return
 		}
-		dir := ParentDirForNew(selectedTreeNode(), projectRoot)
+		dir := ParentDirForNew(selectedEntry(), fileModel.Cwd(), projectRoot)
 		name, ok := promptTextDialog(mw, "קובץ חדש", "שם הקובץ:", "חדש.יוד")
 		if !ok {
 			return
@@ -924,7 +925,7 @@ func Run(path string) error {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 			return
 		}
-		treeModel.Refresh()
+		fileModel.Refresh()
 		if !confirmDiscard("לשמור לפני פתיחת הקובץ החדש") {
 			selectPathInTree(path)
 			return
@@ -939,7 +940,7 @@ func Run(path string) error {
 			walk.MsgBox(mw, "סייר", "פתחו תיקייה קודם.", walk.MsgBoxIconInformation)
 			return
 		}
-		dir := ParentDirForNew(selectedTreeNode(), projectRoot)
+		dir := ParentDirForNew(selectedEntry(), fileModel.Cwd(), projectRoot)
 		name, ok := promptTextDialog(mw, "תיקייה חדשה", "שם התיקייה:", "תיקייה")
 		if !ok {
 			return
@@ -949,15 +950,15 @@ func Run(path string) error {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 			return
 		}
-		treeModel.Refresh()
+		fileModel.Refresh()
 		selectPathInTree(path)
 		setStatus("נוצרה תיקייה · " + name)
 	}
 
 	treeRename := func() {
-		n := selectedTreeNode()
-		if n == nil || (treeModel.root != nil && n == treeModel.root) {
-			walk.MsgBox(mw, "שינוי שם", "בחרו קובץ או תיקייה (לא את שורש הפרויקט).", walk.MsgBoxIconInformation)
+		n := selectedEntry()
+		if n == nil || n.name == ".." {
+			walk.MsgBox(mw, "שינוי שם", "בחרו קובץ או תיקייה.", walk.MsgBoxIconInformation)
 			return
 		}
 		newName, ok := promptTextDialog(mw, "שינוי שם", "שם חדש:", n.name)
@@ -974,14 +975,14 @@ func Run(path string) error {
 			currentPath = newPath
 			updateTitle()
 		}
-		treeModel.Refresh()
+		fileModel.Refresh()
 		selectPathInTree(newPath)
 		setStatus("שם שונה · " + newName)
 	}
 
 	treeDelete := func() {
-		n := selectedTreeNode()
-		if n == nil || (treeModel.root != nil && n == treeModel.root) {
+		n := selectedEntry()
+		if n == nil || n.name == ".." {
 			walk.MsgBox(mw, "מחיקה", "בחרו קובץ או תיקייה למחיקה.", walk.MsgBoxIconInformation)
 			return
 		}
@@ -1007,14 +1008,14 @@ func Run(path string) error {
 			codeEdit.SetText(newFileTemplate)
 			updateTitle()
 		}
-		treeModel.Refresh()
+		fileModel.Refresh()
 		setStatus("נמחק · " + n.name)
 	}
 
 	treeReveal := func() {
-		n := selectedTreeNode()
+		n := selectedEntry()
 		path := projectRoot
-		if n != nil {
+		if n != nil && n.name != ".." {
 			path = n.path
 		}
 		if path == "" {
@@ -1189,9 +1190,9 @@ func Run(path string) error {
 								RightToLeftReading: true,
 								MinSize:            Size{Height: 60},
 							},
-							TreeView{
-								AssignTo:      &treeView,
-								Model:         treeModel,
+							ListBox{
+								AssignTo:      &fileList,
+								Model:         fileModel,
 								Visible:       false,
 								MinSize:       Size{Height: 200},
 								StretchFactor: 1,
@@ -1464,17 +1465,18 @@ func Run(path string) error {
 		// בלי SetBoundsPixels / SetFixed — הם נלחמו ב־layout ובגרירה.
 		// StretchFactor 1:4 ≈ 20%; גרירת ה־handle (8px) מעדכנת item.size.
 	}
-	if treeView != nil {
-		applyDarkScrollbars(treeView.Handle())
-		styleEditorPane(treeView)
+	if fileList != nil {
+		applyDarkScrollbars(fileList.Handle())
+		styleEditorPane(fileList)
 	}
 	refreshProjectUI()
 	// אם נפתח קובץ מה־CLI — תיקיית האב כפרויקט
 	if currentPath != "" {
 		if abs, err := filepath.Abs(currentPath); err == nil {
 			projectRoot = filepath.Dir(abs)
-			treeModel.SetRoot(projectRoot)
+			fileModel.SetRoot(projectRoot)
 			refreshProjectUI()
+			selectPathInTree(abs)
 		}
 	}
 
