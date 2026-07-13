@@ -160,7 +160,8 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 	}
 }
 
-// layoutEditors ממלא את המארח בעורך הפעיל בלבד (מיקום ידני — בלי RequestLayout שדורס).
+// layoutEditors ממלא את המארח בעורך הפעיל בלבד.
+// בלי RequestLayout — ה־VBox של walk דורס את ה־Bounds ומבריח את הקוד שמאלה.
 func (d *DocTabs) layoutEditors() {
 	if d == nil || d.EditorsHost == nil {
 		return
@@ -178,8 +179,6 @@ func (d *DocTabs) layoutEditors() {
 			})
 		}
 	}
-	// מבקשים layout רק על המארח — ה־VBox ייתן מקום לילד הגלוי
-	d.EditorsHost.RequestLayout()
 }
 
 func (d *DocTabs) refreshBar() {

@@ -1739,14 +1739,36 @@ func Run(path string) error {
 	_ = cerr
 	docs = NewDocTabs(docTabBar, editorsHost)
 
-	// רק ממקם את ה־CodeEdit הפעיל בתוך המארח (בלי SetLayout(nil) — קורס ב־walk)
+	// מיקום ידני ב־LTR: עורך משמאל · gutter צמוד לימין.
+	// בלי SetLayout(nil) — קורס ב־walk; לכן דורסים את HBox אחרי כל שינוי גודל.
+	const gutterW = 52
 	layoutCodePane := func() {
+		if codeHost == nil || lineEdit == nil || editorsHost == nil {
+			return
+		}
+		b := codeHost.ClientBoundsPixels()
+		if b.Width < 80 || b.Height < 40 {
+			return
+		}
+		editW := b.Width - gutterW
+		wantEdit := walk.Rectangle{X: 0, Y: 0, Width: editW, Height: b.Height}
+		wantGut := walk.Rectangle{X: editW, Y: 0, Width: gutterW, Height: b.Height}
+		if editorsHost.BoundsPixels() != wantEdit {
+			_ = editorsHost.SetBoundsPixels(wantEdit)
+		}
+		if lineEdit.BoundsPixels() != wantGut {
+			_ = lineEdit.SetBoundsPixels(wantGut)
+		}
 		if docs != nil {
 			docs.layoutEditors()
 		}
 	}
 	if editorsHost != nil {
-		editorsHost.SizeChanged().Attach(layoutCodePane)
+		editorsHost.SizeChanged().Attach(func() {
+			if docs != nil {
+				docs.layoutEditors()
+			}
+		})
 	}
 	if codeHost != nil {
 		codeHost.SizeChanged().Attach(layoutCodePane)
@@ -1821,9 +1843,7 @@ func Run(path string) error {
 		}
 		if lineEdit != nil {
 			fixGutterEdit(lineEdit)
-		}
-		if codeHost != nil {
-			codeHost.RequestLayout()
+			_ = lineEdit.SetMinMaxSizePixels(walk.Size{Width: gutterW}, walk.Size{Width: gutterW})
 		}
 		layoutCodePane()
 	}
@@ -1962,6 +1982,7 @@ func Run(path string) error {
 				return
 			case <-t.C:
 				mw.Synchronize(func() {
+					layoutCodePane()
 					syncLineScroll()
 				})
 			}
