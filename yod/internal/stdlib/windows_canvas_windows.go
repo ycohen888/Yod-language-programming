@@ -391,6 +391,9 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		invalidateCanvas(st)
 		return object.Nil
 	}}
+	w.Attrs["רוחב_טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return boardTextWidth(board, a...)
+	}}
 	w.Attrs["תמונה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		res := boardDrawImage(board, a...)
 		if res != nil && res.Type() == object.ErrorObj {

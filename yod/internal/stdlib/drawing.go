@@ -208,6 +208,9 @@ func wrapBoard(st *drawBoard) *object.GuiWidget {
 		}
 		return object.Nil
 	}}
+	w.Attrs["רוחב_טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return boardTextWidth(st, a...)
+	}}
 	w.Attrs["תמונה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return boardDrawImage(st, a...)
 	}}
@@ -781,6 +784,31 @@ func drawTextOnBoard(st *drawBoard, text string, x, y int) error {
 	}
 	d.DrawString(visual)
 	return nil
+}
+
+func boardTextWidth(st *drawBoard, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj("רוחב_טקסט מצפה למחרוזת")
+	}
+	s, ok := asString(args[0])
+	if !ok {
+		if args[0] == nil || args[0] == object.Nil {
+			s = ""
+		} else {
+			return errObj("רוחב_טקסט מצפה למחרוזת")
+		}
+	}
+	face, err := st.ensureFace()
+	if err != nil {
+		return errObj(err.Error())
+	}
+	if s == "" {
+		return &object.Number{Value: 0}
+	}
+	visual := visualOrderLTR(s)
+	adv := font.MeasureString(face, visual)
+	px := float64(adv) / 64.0
+	return &object.Number{Value: px}
 }
 
 // visualOrderLTR — סדר חזותי לציור LTR (עברית לא תצא הפוכה)
