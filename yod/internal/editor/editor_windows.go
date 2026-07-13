@@ -275,8 +275,10 @@ func Run(path string) error {
 		}
 		walkUp := func(start string) {
 			dir := start
-			for i := 0; i < 5 && dir != "" && dir != "."; i++ {
+			for i := 0; i < 6 && dir != "" && dir != "."; i++ {
 				add(filepath.Join(dir, "yod.exe"))
+				// תיקיית המקור yod/ ליד שורש הריפו (כשהעורך נפתח מ־dist/)
+				add(filepath.Join(dir, "yod", "yod.exe"))
 				parent := filepath.Dir(dir)
 				if parent == dir {
 					break
