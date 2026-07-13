@@ -162,21 +162,23 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 
 // layoutEditors ממלא את המארח בעורך הפעיל בלבד.
 // בלי RequestLayout — ה־VBox של walk דורס את ה־Bounds ומבריח את הקוד שמאלה.
+// משנים Bounds/Visible רק כשצריך — אחרת הסמן וההקלדה משתגעים.
 func (d *DocTabs) layoutEditors() {
 	if d == nil || d.EditorsHost == nil {
 		return
 	}
 	bounds := d.EditorsHost.ClientBoundsPixels()
+	want := walk.Rectangle{X: 0, Y: 0, Width: bounds.Width, Height: bounds.Height}
 	for _, t := range d.Order {
 		if t.Editor == nil {
 			continue
 		}
 		vis := t == d.Active
-		t.Editor.SetVisible(vis)
-		if vis && bounds.Width > 0 && bounds.Height > 0 {
-			_ = t.Editor.SetBoundsPixels(walk.Rectangle{
-				X: 0, Y: 0, Width: bounds.Width, Height: bounds.Height,
-			})
+		if t.Editor.Visible() != vis {
+			t.Editor.SetVisible(vis)
+		}
+		if vis && bounds.Width > 0 && bounds.Height > 0 && t.Editor.BoundsPixels() != want {
+			_ = t.Editor.SetBoundsPixels(want)
 		}
 	}
 }

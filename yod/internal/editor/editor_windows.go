@@ -1740,7 +1740,7 @@ func Run(path string) error {
 	docs = NewDocTabs(docTabBar, editorsHost)
 
 	// מיקום ידני ב־LTR: עורך משמאל · gutter צמוד לימין.
-	// בלי SetLayout(nil) — קורס ב־walk; לכן דורסים את HBox אחרי כל שינוי גודל.
+	// בלי SetLayout(nil) — קורס ב־walk; ממקמים רק בשינוי גודל (לא בטיימר!).
 	const gutterW = 52
 	layoutCodePane := func() {
 		if codeHost == nil || lineEdit == nil || editorsHost == nil {
@@ -1753,10 +1753,12 @@ func Run(path string) error {
 		editW := b.Width - gutterW
 		wantEdit := walk.Rectangle{X: 0, Y: 0, Width: editW, Height: b.Height}
 		wantGut := walk.Rectangle{X: editW, Y: 0, Width: gutterW, Height: b.Height}
-		if editorsHost.BoundsPixels() != wantEdit {
+		hostChanged := editorsHost.BoundsPixels() != wantEdit
+		gutChanged := lineEdit.BoundsPixels() != wantGut
+		if hostChanged {
 			_ = editorsHost.SetBoundsPixels(wantEdit)
 		}
-		if lineEdit.BoundsPixels() != wantGut {
+		if gutChanged {
 			_ = lineEdit.SetBoundsPixels(wantGut)
 		}
 		if docs != nil {
@@ -1982,7 +1984,6 @@ func Run(path string) error {
 				return
 			case <-t.C:
 				mw.Synchronize(func() {
-					layoutCodePane()
 					syncLineScroll()
 				})
 			}
