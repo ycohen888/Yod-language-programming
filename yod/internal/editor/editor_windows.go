@@ -163,19 +163,31 @@ func Run(path string) error {
 			updateTitle()
 			return
 		}
-		// עורך יחיד משותף — רק path/dirty מתעדכנים
 		currentPath = docs.Active.FilePath
 		dirty = docs.Active.IsDirty
 		updateTitle()
-		if updateLineNumbers != nil {
-			updateLineNumbers()
-		}
 		if updateCaretStatus != nil {
 			updateCaretStatus()
 		}
-		if currentPath != "" {
-			selectPathInTree(currentPath)
-		}
+		// gutter + סייר — מחוץ לנתיב הקריטי של לחיצת טאב
+		path := currentPath
+		tab := docs.Active
+		time.AfterFunc(1*time.Millisecond, func() {
+			if mw == nil {
+				return
+			}
+			mw.Synchronize(func() {
+				if docs == nil || docs.Active != tab {
+					return
+				}
+				if updateLineNumbers != nil {
+					updateLineNumbers()
+				}
+				if path != "" {
+					selectPathInTree(path)
+				}
+			})
+		})
 	}
 
 	refreshProjectUI = func() {
@@ -1900,35 +1912,43 @@ func Run(path string) error {
 	if cerr != nil {
 		return fmt.Errorf("עורך קוד: %w", cerr)
 	}
-	styleEditorPane(codeEdit)
-	fixCodeEdit(codeEdit)
-	clearTabStop(codeEdit)
-
-	docs = NewDocTabs(docTabBar, codeEdit)
-
-	codeEdit.TextChanged().Attach(func() {
-		if docs == nil || docs.IsSwapping() || docs.Active == nil {
-			return
-		}
-		if !docs.Active.IsDirty {
-			docs.SetActiveDirty(true)
-			dirty = true
-			updateTitle()
-		}
-		n := codeEdit.LineCount()
-		if n != lastGutterLines {
-			lastGutterLines = n
-			updateLineNumbers()
-		} else if updateCaretStatus != nil {
+	wireCodeEdit := func(ed *CodeEdit) {
+		styleEditorPane(ed)
+		fixCodeEdit(ed)
+		clearTabStop(ed)
+		ed.TextChanged().Attach(func() {
+			if docs == nil || docs.IsSwapping() || docs.Active == nil || docs.Active.edit != ed {
+				return
+			}
+			if !docs.Active.IsDirty {
+				docs.SetActiveDirty(true)
+				dirty = true
+				updateTitle()
+			}
+			n := ed.LineCount()
+			if n != lastGutterLines {
+				lastGutterLines = n
+				updateLineNumbers()
+			} else if updateCaretStatus != nil {
+				updateCaretStatus()
+			}
+		})
+		ed.onZoom = applyCodeZoom
+		ed.onSelChange = func() {
 			updateCaretStatus()
 		}
-	})
-	codeEdit.onZoom = applyCodeZoom
-	codeEdit.onSelChange = func() {
-		updateCaretStatus()
+	}
+	wireCodeEdit(codeEdit)
+
+	docs = NewDocTabs(docTabBar, codeHost, codeEdit, wireCodeEdit)
+	docs.OnEditor = func(ed *CodeEdit) {
+		codeEdit = ed // כל הסגירות הישנות ב־main מצביעות על העורך הגלוי
 	}
 
 	docs.OnActivate = func(tab *OpenFileTab) {
+		if tab != nil && tab.edit != nil {
+			codeEdit = tab.edit
+		}
 		syncFromActiveTab()
 		if tab != nil {
 			setStatus("טאב · " + tab.Title)
@@ -2115,7 +2135,7 @@ func Run(path string) error {
 
 	stopSync := make(chan struct{})
 	go func() {
-		t := time.NewTicker(50 * time.Millisecond)
+		t := time.NewTicker(120 * time.Millisecond)
 		defer t.Stop()
 		for {
 			select {

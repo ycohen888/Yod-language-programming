@@ -176,53 +176,176 @@ func (ce *CodeEdit) SetText(text string) error {
 	return nil
 }
 
-// SetTextForSwap — החלפת קובץ בין טאבים: בלי צביעה סינכרונית כבדה.
-// מציג טקסט מיד, ומריץ הדגשת תחביר אחרי שהממשק הספיק לצייר.
-func (ce *CodeEdit) SetTextForSwap(text string) error {
+// SetTextForSwap — החלפת קובץ בין טאבים: רק טעינת טקסט מהירה.
+// cachedSpans אופציונלי (מטמון מטאב נקי); onSpans נקרא אחרי חישוב חדש.
+func (ce *CodeEdit) SetTextForSwap(text string, cachedSpans []highlight.Span, onSpans func([]highlight.Span)) error {
 	ce.suppress = true
+	gen := atomic.AddUint64(&ce.hlGen, 1)
+	if ce.debounce != nil {
+		ce.debounce.Stop()
+		ce.debounce = nil
+	}
+
 	win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 0, 0)
 	clean := stripBidiMarks(text)
 	ptr := syscall.StringToUTF16Ptr(clean)
 	ok := ce.SendMessage(win.WM_SETTEXT, 0, uintptr(unsafe.Pointer(ptr)))
 	if ok == win.TRUE {
-		ce.applyDefaultFormat()
 		ce.setCodePara()
 	}
 	win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 1, 0)
 	win.InvalidateRect(ce.Handle(), nil, true)
+
 	ce.clearHistory()
-	ce.fullHLOnce = true
+	ce.fullHLOnce = false
 	ce.lastTextLen = len(clean)
 	ce.suppress = false
 	if ok != win.TRUE {
 		return syscall.EINVAL
 	}
-	// צביעה אסינכרונית קצרה — לא חוסמת את מעבר הטאב
-	gen := atomic.AddUint64(&ce.hlGen, 1)
-	if ce.debounce != nil {
-		ce.debounce.Stop()
-	}
-	ce.debounce = time.AfterFunc(30*time.Millisecond, func() {
+
+	src := clean
+	run := func(myGen uint64, spans []highlight.Span) {
 		ce.Synchronize(func() {
-			if ce.suppress || atomic.LoadUint64(&ce.hlGen) != gen {
+			if ce.suppress || atomic.LoadUint64(&ce.hlGen) != myGen {
 				return
 			}
-			text := ce.Text()
-			start, end := ce.TextSelection()
-			ce.lastTextLen = len(text)
-			ce.fullHLOnce = false
-			go func(myGen uint64, src string, selStart, selEnd int) {
-				spans := highlight.SpansRichEdit(src)
-				ce.Synchronize(func() {
-					if ce.suppress || atomic.LoadUint64(&ce.hlGen) != myGen {
-						return
-					}
-					ce.applyHighlightFull(spans, selStart, selEnd)
-				})
-			}(gen, text, start, end)
+			selStart, selEnd := ce.TextSelection()
+			ce.applyHighlightViewport(spans, selStart, selEnd)
+			ce.scheduleHighlightRemainder(myGen, spans, selStart, selEnd)
 		})
+	}
+
+	if len(cachedSpans) > 0 {
+		ce.debounce = time.AfterFunc(20*time.Millisecond, func() {
+			if atomic.LoadUint64(&ce.hlGen) != gen {
+				return
+			}
+			run(gen, cachedSpans)
+		})
+		return nil
+	}
+
+	ce.debounce = time.AfterFunc(40*time.Millisecond, func() {
+		if atomic.LoadUint64(&ce.hlGen) != gen {
+			return
+		}
+		go func(myGen uint64, source string) {
+			spans := highlight.SpansRichEdit(source)
+			ce.Synchronize(func() {
+				if ce.suppress || atomic.LoadUint64(&ce.hlGen) != myGen {
+					return
+				}
+				if onSpans != nil {
+					onSpans(spans)
+				}
+				selStart, selEnd := ce.TextSelection()
+				ce.applyHighlightViewport(spans, selStart, selEnd)
+				ce.scheduleHighlightRemainder(myGen, spans, selStart, selEnd)
+			})
+		}(gen, src)
 	})
 	return nil
+}
+
+// applyHighlightViewport צובע רק את השורות הגלויות (+שוליים) — מעבר טאב חלק.
+func (ce *CodeEdit) applyHighlightViewport(spans []highlight.Span, selStart, selEnd int) {
+	if ce.highlighting {
+		return
+	}
+	first := ce.FirstVisibleLine()
+	last := first + 80
+	maxLine := ce.LineCount() - 1
+	if maxLine < 0 {
+		maxLine = 0
+	}
+	if last > maxLine {
+		last = maxLine
+	}
+	visStart := ce.LineIndex(first)
+	var visEnd int
+	if last >= maxLine {
+		visEnd = int(ce.SendMessage(win.WM_GETTEXTLENGTH, 0, 0))
+	} else {
+		visEnd = ce.LineIndex(last + 1)
+	}
+	if visEnd <= visStart {
+		return
+	}
+
+	ce.highlighting = true
+	wasSuppress := ce.suppress
+	ce.suppress = true
+	defer func() {
+		ce.suppress = wasSuppress
+		ce.highlighting = false
+	}()
+
+	win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 0, 0)
+	defer func() {
+		win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 1, 0)
+		win.InvalidateRect(ce.Handle(), nil, true)
+	}()
+
+	ce.withUndoSuspended(func() {
+		ce.SetTextSelection(visStart, visEnd)
+		ce.applyDefaultFormatSelection()
+		ce.paintSpans(spans, visStart, visEnd)
+		ce.SetTextSelection(selStart, selEnd)
+	})
+}
+
+func (ce *CodeEdit) scheduleHighlightRemainder(myGen uint64, spans []highlight.Span, selStart, selEnd int) {
+	const chunkLines = 120
+	total := ce.LineCount()
+	if total <= 80 {
+		return
+	}
+	go func() {
+		for line := 80; line < total; line += chunkLines {
+			if atomic.LoadUint64(&ce.hlGen) != myGen {
+				return
+			}
+			time.Sleep(15 * time.Millisecond)
+			startLine := line
+			endLine := line + chunkLines - 1
+			ce.Synchronize(func() {
+				if ce.suppress || ce.highlighting || atomic.LoadUint64(&ce.hlGen) != myGen {
+					return
+				}
+				maxLine := ce.LineCount() - 1
+				if startLine > maxLine {
+					return
+				}
+				if endLine > maxLine {
+					endLine = maxLine
+				}
+				a := ce.LineIndex(startLine)
+				var b int
+				if endLine >= maxLine {
+					b = int(ce.SendMessage(win.WM_GETTEXTLENGTH, 0, 0))
+				} else {
+					b = ce.LineIndex(endLine + 1)
+				}
+				if b <= a {
+					return
+				}
+				ce.highlighting = true
+				was := ce.suppress
+				ce.suppress = true
+				win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 0, 0)
+				ce.withUndoSuspended(func() {
+					ce.SetTextSelection(a, b)
+					ce.applyDefaultFormatSelection()
+					ce.paintSpans(spans, a, b)
+					ce.SetTextSelection(selStart, selEnd)
+				})
+				win.SendMessage(ce.Handle(), win.WM_SETREDRAW, 1, 0)
+				ce.suppress = was
+				ce.highlighting = false
+			})
+		}
+	}()
 }
 
 func (ce *CodeEdit) TextChanged() *walk.Event {

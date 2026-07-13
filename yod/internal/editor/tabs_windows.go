@@ -12,43 +12,50 @@ import (
 	"github.com/lxn/win"
 )
 
-// OpenFileTab — מסמך פתוח בטאב (buffer בזיכרון; עורך CodeEdit משותף אחד).
+// OpenFileTab — מסמך פתוח בטאב עם עורך RichEdit משלו (מעבר טאב = הצגה/הסתרה).
 type OpenFileTab struct {
 	Key          string // נתיב מנורמל, או untitled:N
 	FilePath     string // ריק = קובץ חדש שלא נשמר
 	Title        string
-	Text         string
+	Text         string // גיבוי; התוכן החי ב־edit
 	SelStart     int
 	SelEnd       int
 	FirstVisible int
-	IsDirty bool
-	TabBtn  *DocTabBtn
+	IsDirty      bool
+	TabBtn       *DocTabBtn
+	edit         *CodeEdit // עורך ייעודי לטאב — לא נטען מחדש במעבר
 }
 
-// DocTabs — ניהול טאבי מסמכים כמו ב־Visual Studio, עם עורך יחיד.
+// DocTabs — ניהול טאבי מסמכים; כל טאב מחזיק CodeEdit נפרד.
 type DocTabs struct {
-	Bar    *walk.Composite
-	Editor *CodeEdit
+	Bar  *walk.Composite
+	Host *walk.Composite // codeHost — אב לכל העורכים
+
+	Editor *CodeEdit // העורך הגלוי כרגע (== Active.edit)
 
 	ByKey  map[string]*OpenFileTab
 	Order  []*OpenFileTab
 	Active *OpenFileTab
 
-	untitledSeq int
-	swapping    bool // true בזמן החלפת buffer — לא לסמן dirty
+	spare *CodeEdit             // עורך ראשון שנוצר ב־main לפני טאב
+	wire  func(ed *CodeEdit)    // עיצוב + אירועים לכל עורך חדש
 
-	// OnActivate אחרי מעבר טאב (סנכרון gutter, כותרת, סייר)
-	OnActivate func(tab *OpenFileTab)
-	// ConfirmClose — false = ביטול סגירה (dirty)
+	untitledSeq int
+	swapping    bool
+
+	OnActivate   func(tab *OpenFileTab)
 	ConfirmClose func(tab *OpenFileTab) bool
-	// OnClosed אחרי סגירה מוצלחת
-	OnClosed func(tab *OpenFileTab)
+	OnClosed     func(tab *OpenFileTab)
+	OnEditor     func(ed *CodeEdit) // אחרי החלפת עורך גלוי (סנכרון codeEdit ב־main)
 }
 
-func NewDocTabs(bar *walk.Composite, editor *CodeEdit) *DocTabs {
+func NewDocTabs(bar, host *walk.Composite, spare *CodeEdit, wire func(*CodeEdit)) *DocTabs {
 	return &DocTabs{
 		Bar:    bar,
-		Editor: editor,
+		Host:   host,
+		Editor: spare,
+		spare:  spare,
+		wire:   wire,
 		ByKey:  map[string]*OpenFileTab{},
 	}
 }
@@ -81,6 +88,9 @@ func (d *DocTabs) IsSwapping() bool {
 func (d *DocTabs) ActiveEditor() *CodeEdit {
 	if d == nil {
 		return nil
+	}
+	if d.Active != nil && d.Active.edit != nil {
+		return d.Active.edit
 	}
 	return d.Editor
 }
@@ -162,32 +172,88 @@ func (d *DocTabs) FindByPath(path string) *OpenFileTab {
 	return d.ByKey[normalizeTabPath(path)]
 }
 
-// TabText מחזיר את תוכן הטאב (מהעורך אם פעיל, אחרת מה־buffer).
+// TabText מחזיר את תוכן הטאב (מהעורך אם קיים, אחרת מה־buffer).
 func (d *DocTabs) TabText(tab *OpenFileTab) string {
 	if tab == nil {
 		return ""
 	}
-	if d != nil && tab == d.Active && d.Editor != nil && !d.swapping {
-		return d.Editor.Text()
+	if tab.edit != nil && !d.swapping {
+		return tab.edit.Text()
 	}
 	return tab.Text
 }
 
 func (d *DocTabs) persistActive() {
-	if d == nil || d.Active == nil || d.Editor == nil || d.swapping {
+	if d == nil || d.Active == nil || d.swapping {
 		return
 	}
-	d.Active.Text = d.Editor.Text()
-	d.Active.SelStart, d.Active.SelEnd = d.Editor.TextSelection()
-	d.Active.FirstVisible = d.Editor.FirstVisibleLine()
+	ed := d.Active.edit
+	if ed == nil {
+		ed = d.Editor
+	}
+	if ed == nil {
+		return
+	}
+	d.Active.SelStart, d.Active.SelEnd = ed.TextSelection()
+	d.Active.FirstVisible = ed.FirstVisibleLine()
+	if d.Active.IsDirty {
+		d.Active.Text = ed.Text()
+	}
 }
 
-func (d *DocTabs) loadIntoEditor(tab *OpenFileTab) {
-	if d == nil || d.Editor == nil || tab == nil {
+// ensureEditor יוצר/מקצה עורך לטאב וטוען טקסט פעם אחת בלבד.
+func (d *DocTabs) ensureEditor(tab *OpenFileTab) error {
+	if tab == nil {
+		return nil
+	}
+	if tab.edit != nil {
+		return nil
+	}
+	var ed *CodeEdit
+	if d.spare != nil {
+		ed = d.spare
+		d.spare = nil
+	} else {
+		if d.Host == nil {
+			return fmt.Errorf("אין אזור עורך")
+		}
+		var err error
+		ed, err = NewCodeEdit(d.Host)
+		if err != nil {
+			return err
+		}
+		if d.wire != nil {
+			d.wire(ed)
+		}
+	}
+	d.swapping = true
+	ed.SetVisible(false)
+	if tab.Text != "" {
+		_ = ed.SetText(tab.Text)
+	} else {
+		_ = ed.SetText("")
+	}
+	d.swapping = false
+	tab.edit = ed
+	return nil
+}
+
+func (d *DocTabs) showEditor(tab *OpenFileTab) {
+	if tab == nil {
 		return
 	}
 	d.swapping = true
-	_ = d.Editor.SetTextForSwap(tab.Text)
+	defer func() { d.swapping = false }()
+
+	if prev := d.Active; prev != nil && prev != tab && prev.edit != nil {
+		prev.edit.SetVisible(false)
+	}
+	if err := d.ensureEditor(tab); err != nil {
+		return
+	}
+	tab.edit.SetVisible(true)
+	d.Editor = tab.edit
+
 	start, end := tab.SelStart, tab.SelEnd
 	if start < 0 {
 		start = 0
@@ -195,25 +261,31 @@ func (d *DocTabs) loadIntoEditor(tab *OpenFileTab) {
 	if end < start {
 		end = start
 	}
-	d.Editor.SetTextSelection(start, end)
-	cur := d.Editor.FirstVisibleLine()
-	delta := tab.FirstVisible - cur
-	if delta != 0 {
-		d.Editor.SendMessage(win.EM_LINESCROLL, 0, uintptr(delta))
+	tab.edit.SetTextSelection(start, end)
+	if tab.FirstVisible > 0 {
+		cur := tab.edit.FirstVisibleLine()
+		if delta := tab.FirstVisible - cur; delta != 0 {
+			tab.edit.SendMessage(win.EM_LINESCROLL, 0, uintptr(delta))
+		}
 	}
-	d.Editor.ScrollCaret()
-	d.swapping = false
+	_ = tab.edit.SetFocus()
+	if d.Host != nil {
+		d.Host.RequestLayout()
+	}
+	if d.OnEditor != nil {
+		d.OnEditor(tab.edit)
+	}
 }
 
-// Activate מציג את תוכן הטאב בעורך המשותף.
+// Activate מציג את הטאב (הצגה/הסתרה בלבד אם העורך כבר קיים).
 func (d *DocTabs) Activate(tab *OpenFileTab) {
 	if d == nil || tab == nil {
 		return
 	}
 	if d.Active == tab {
 		d.paintActiveChrome()
-		if d.Editor != nil {
-			d.Editor.SetFocus()
+		if tab.edit != nil {
+			_ = tab.edit.SetFocus()
 		}
 		if d.OnActivate != nil {
 			d.OnActivate(tab)
@@ -222,12 +294,9 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 	}
 	prev := d.Active
 	d.persistActive()
+	d.showEditor(tab)
 	d.Active = tab
-	d.loadIntoEditor(tab)
-	if d.Editor != nil {
-		d.Editor.SetFocus()
-	}
-	// עדכון ויזואלי בלבד — בלי לפרק ולבנות מחדש את כל סרגל הטאבים
+
 	if prev != nil && prev.TabBtn != nil {
 		prev.TabBtn.SetActive(false)
 	}
@@ -242,7 +311,6 @@ func (d *DocTabs) Activate(tab *OpenFileTab) {
 	}
 }
 
-// refreshBar — alias לתאימות; בונה מחדש רק כשסדר הטאבים השתנה.
 func (d *DocTabs) refreshBar() {
 	d.rebuildBar()
 }
@@ -297,6 +365,36 @@ func (d *DocTabs) newUntitledKey() string {
 	return fmt.Sprintf("untitled:%d", d.untitledSeq)
 }
 
+func (d *DocTabs) openNewTab(tab *OpenFileTab) (*OpenFileTab, error) {
+	d.persistActive()
+	d.ByKey[tab.Key] = tab
+	d.Order = append(d.Order, tab)
+	if err := d.ensureEditor(tab); err != nil {
+		delete(d.ByKey, tab.Key)
+		d.Order = d.Order[:len(d.Order)-1]
+		return nil, err
+	}
+	prev := d.Active
+	if prev != nil && prev.edit != nil {
+		prev.edit.SetVisible(false)
+	}
+	d.Active = tab
+	tab.edit.SetVisible(true)
+	d.Editor = tab.edit
+	_ = tab.edit.SetFocus()
+	if d.Host != nil {
+		d.Host.RequestLayout()
+	}
+	if d.OnEditor != nil {
+		d.OnEditor(tab.edit)
+	}
+	d.rebuildBar()
+	if d.OnActivate != nil {
+		d.OnActivate(tab)
+	}
+	return tab, nil
+}
+
 // OpenPath פותח קובץ בטאב חדש או ממקד טאב קיים.
 func (d *DocTabs) OpenPath(path string) (*OpenFileTab, error) {
 	key := normalizeTabPath(path)
@@ -328,19 +426,7 @@ func (d *DocTabs) OpenPath(path string) (*OpenFileTab, error) {
 		Text:     string(data),
 		IsDirty:  false,
 	}
-	d.ByKey[key] = tab
-	d.Order = append(d.Order, tab)
-	d.persistActive()
-	d.Active = tab
-	d.loadIntoEditor(tab)
-	if d.Editor != nil {
-		d.Editor.SetFocus()
-	}
-	d.rebuildBar()
-	if d.OnActivate != nil {
-		d.OnActivate(tab)
-	}
-	return tab, nil
+	return d.openNewTab(tab)
 }
 
 // OpenUntitled יוצר טאב קובץ חדש עם תוכן התחלתי.
@@ -356,19 +442,19 @@ func (d *DocTabs) OpenUntitled(content, title string) (*OpenFileTab, error) {
 		Text:     content,
 		IsDirty:  false,
 	}
-	d.ByKey[key] = tab
-	d.Order = append(d.Order, tab)
-	d.persistActive()
-	d.Active = tab
-	d.loadIntoEditor(tab)
-	if d.Editor != nil {
-		d.Editor.SetFocus()
+	return d.openNewTab(tab)
+}
+
+func (d *DocTabs) disposeEdit(tab *OpenFileTab) {
+	if tab == nil || tab.edit == nil {
+		return
 	}
-	d.rebuildBar()
-	if d.OnActivate != nil {
-		d.OnActivate(tab)
+	ed := tab.edit
+	tab.edit = nil
+	if d.Editor == ed {
+		d.Editor = nil
 	}
-	return tab, nil
+	ed.Dispose()
 }
 
 // Close סוגר טאב (אחרי ConfirmClose אם הוגדר).
@@ -394,18 +480,15 @@ func (d *DocTabs) Close(tab *OpenFileTab) bool {
 	if wasActive {
 		d.Active = nil
 	}
+	d.disposeEdit(closed)
 	if d.OnClosed != nil {
 		d.OnClosed(closed)
 	}
 	if wasActive {
 		if len(d.Order) > 0 {
-			// סדר השתנה — בונים מחדש, ואז טוענים את הטאב הפעיל
 			next := d.Order[len(d.Order)-1]
+			d.showEditor(next)
 			d.Active = next
-			d.loadIntoEditor(next)
-			if d.Editor != nil {
-				d.Editor.SetFocus()
-			}
 			d.rebuildBar()
 			if d.OnActivate != nil {
 				d.OnActivate(next)
@@ -422,7 +505,6 @@ func (d *DocTabs) Close(tab *OpenFileTab) bool {
 	return true
 }
 
-// CloseActive סוגר את הטאב הפעיל.
 func (d *DocTabs) CloseActive() bool {
 	if d == nil || d.Active == nil {
 		return true
@@ -430,7 +512,6 @@ func (d *DocTabs) CloseActive() bool {
 	return d.Close(d.Active)
 }
 
-// EnsureWelcome פותח טאב קבלת פנים אם אין טאבים.
 func (d *DocTabs) EnsureWelcome(content string) error {
 	if len(d.Order) > 0 {
 		return nil
