@@ -100,11 +100,17 @@ func (b *DarkBtn) SetActive(v bool) {
 	}
 }
 
-// Mount יוצר כפתור בגודל קבוע בפיקסלים בתוך parent.
-func (b *DarkBtn) Mount(parent walk.Container, minW int, tip string) error {
+// Mount יוצר כפתור בגודל מותאם לטקסט (+5px מימין ומשמאל) בתוך parent.
+func (b *DarkBtn) Mount(parent walk.Container, tip string) error {
 	b.tip = tip
-	b.minW = minW
 	materialicons.Ensure()
+
+	dpi := 96
+	if parent != nil {
+		dpi = parent.DPI()
+	}
+	minW := b.calcWidth(dpi)
+	b.minW = minW
 
 	cw, err := walk.NewCustomWidgetPixels(parent, 0, b.paint)
 	if err != nil {
@@ -156,6 +162,46 @@ func (b *DarkBtn) Mount(parent walk.Container, minW int, tip string) error {
 		}
 	})
 	return nil
+}
+
+const btnPadX = 5
+
+func (b *DarkBtn) calcWidth(dpi int) int {
+	w := btnPadX * 2
+	if b.icon != iconNone {
+		w += btnIconPt + 4
+	}
+	if b.text == "" {
+		if w < 24 {
+			return 24
+		}
+		return w
+	}
+	if dpi < 1 {
+		dpi = 96
+	}
+	bmp, err := walk.NewBitmapForDPI(walk.Size{Width: 8, Height: 8}, dpi)
+	if err != nil {
+		return w + len([]rune(b.text))*7
+	}
+	defer bmp.Dispose()
+	canvas, err := walk.NewCanvasFromImage(bmp)
+	if err != nil {
+		return w + len([]rune(b.text))*7
+	}
+	defer canvas.Dispose()
+	font, err := walk.NewFont(uiFont, btnFontPt, 0)
+	if err != nil {
+		return w + len([]rune(b.text))*7
+	}
+	defer font.Dispose()
+	br, _, err := canvas.MeasureTextPixels(b.text, font,
+		walk.Rectangle{Width: 4000, Height: 100},
+		walk.TextSingleLine|walk.TextRTLReading)
+	if err != nil {
+		return w + len([]rune(b.text))*7
+	}
+	return w + br.Width
 }
 
 func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
@@ -212,7 +258,7 @@ func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 	if b.icon != iconNone {
 		iconW = btnIconPt + 2
 		ir := walk.Rectangle{
-			X: bounds.X + bounds.Width - btnIconPt - 4, Y: bounds.Y,
+			X: bounds.X + bounds.Width - btnIconPt - btnPadX, Y: bounds.Y,
 			Width: btnIconPt + 2, Height: bounds.Height,
 		}
 		if err := b.drawMaterialIcon(canvas, ir, fg); err != nil {
@@ -230,9 +276,9 @@ func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 		return nil
 	}
 	tr := walk.Rectangle{
-		X:      bounds.X + 3,
+		X:      bounds.X + btnPadX,
 		Y:      bounds.Y,
-		Width:  bounds.Width - iconW - 6,
+		Width:  bounds.Width - iconW - btnPadX*2,
 		Height: bounds.Height,
 	}
 	return canvas.DrawTextPixels(b.text, font, fg, tr,

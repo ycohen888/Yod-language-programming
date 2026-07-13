@@ -830,28 +830,32 @@ func Run(path string) error {
 	}
 
 	openFolder := func() {
-		dlg := new(walk.FileDialog)
-		dlg.Title = "פתיחת תיקיית פרויקט"
+		initial := ""
 		if projectRoot != "" {
-			dlg.FilePath = projectRoot
+			initial = projectRoot
 		} else if currentPath != "" {
-			dlg.FilePath = filepath.Dir(currentPath)
+			initial = filepath.Dir(currentPath)
 		}
-		ok, err := dlg.ShowBrowseFolder(mw)
+		path, ok, err := pickFolder(mw, "פתיחת תיקיית פרויקט", initial)
 		if err != nil {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 			return
 		}
-		if !ok || dlg.FilePath == "" {
+		if !ok || path == "" {
 			return
 		}
-		projectRoot = dlg.FilePath
+		abs, err := filepath.Abs(path)
+		if err == nil {
+			path = abs
+		}
+		projectRoot = path
 		treeModel.SetRoot(projectRoot)
 		refreshProjectUI()
 		updateTitle()
 		setStatus("תיקייה · " + filepath.Base(projectRoot))
 		if treeView != nil && treeModel.root != nil {
 			_ = treeView.SetCurrentItem(treeModel.root)
+			_ = treeView.SetExpanded(treeModel.root, true)
 		}
 	}
 
@@ -1314,19 +1318,18 @@ func Run(path string) error {
 		_ = toolbar.SetMinMaxSizePixels(walk.Size{Height: btnH + 4}, walk.Size{Height: btnH + 4})
 		mountToolbar := []struct {
 			btn *DarkBtn
-			w   int
 			tip string
 		}{
-			{btnRun, 40, "הרץ — מפרש מלא (F5)"},
-			{btnVM, 48, "מכונה — הרצה ב־bytecode (F6)"},
-			{btnCheck, 40, "בדוק קומפילציה בלי להריץ (F7)"},
-			{btnPack, 40, "ארוז ל־EXE בודד — לחיצה כפולה מריצה (Ctrl+Shift+P)"},
-			{btnNew, 36, "קובץ חדש (Ctrl+N)"},
-			{btnOpen, 36, "פתח קובץ (Ctrl+O)"},
-			{btnFolder, 44, "פתח תיקיית פרויקט (Ctrl+Shift+O)"},
-			{btnSave, 40, "שמור קובץ (Ctrl+S)"},
-			{btnFormat, 36, "סדר קוד — הזחה 2 רווחים (Ctrl+Shift+F)"},
-			{btnHighlight, 40, "הדגשת תחביר בדפדפן"},
+			{btnRun, "הרץ — מפרש מלא (F5)"},
+			{btnVM, "מכונה — הרצה ב־bytecode (F6)"},
+			{btnCheck, "בדוק קומפילציה בלי להריץ (F7)"},
+			{btnPack, "ארוז ל־EXE בודד — לחיצה כפולה מריצה (Ctrl+Shift+P)"},
+			{btnNew, "קובץ חדש (Ctrl+N)"},
+			{btnOpen, "פתח קובץ (Ctrl+O)"},
+			{btnFolder, "פתח תיקיית פרויקט (Ctrl+Shift+O)"},
+			{btnSave, "שמור קובץ (Ctrl+S)"},
+			{btnFormat, "סדר קוד — הזחה 2 רווחים (Ctrl+Shift+F)"},
+			{btnHighlight, "הדגשת תחביר בדפדפן"},
 		}
 		// מפריד אחרי ארוז
 		for i, m := range mountToolbar {
@@ -1335,7 +1338,7 @@ func Run(path string) error {
 					return e
 				}
 			}
-			if err := m.btn.Mount(toolbar, m.w, m.tip); err != nil {
+			if err := m.btn.Mount(toolbar, m.tip); err != nil {
 				return err
 			}
 		}
@@ -1346,10 +1349,10 @@ func Run(path string) error {
 	}
 	if tabBar != nil {
 		_ = tabBar.SetMinMaxSizePixels(walk.Size{Height: btnH + 4}, walk.Size{Height: btnH + 4})
-		if err := tabErrBtn.Mount(tabBar, 64, "לשונית שגיאות — תחביר וריצה"); err != nil {
+		if err := tabErrBtn.Mount(tabBar, "לשונית שגיאות — תחביר וריצה"); err != nil {
 			return err
 		}
-		if err := tabOutBtn.Mount(tabBar, 40, "לשונית פלט — פלט הדפס"); err != nil {
+		if err := tabOutBtn.Mount(tabBar, "לשונית פלט — פלט הדפס"); err != nil {
 			return err
 		}
 		if _, e := walk.NewHSpacer(tabBar); e != nil {
