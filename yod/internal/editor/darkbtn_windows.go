@@ -6,7 +6,6 @@ import (
 	"yod/MaterialIcons"
 
 	"github.com/lxn/walk"
-	. "github.com/lxn/walk/declarative"
 )
 
 var (
@@ -36,13 +35,14 @@ const (
 	iconPack
 )
 
-const btnH = 20
+// גובה כפתור בפיקסלים אמיתיים (לא יחידות 96dpi שמתנפחות עם DPI)
+const btnH = 22
 const btnFontPt = 8
-const btnIconPx = 12
+const btnIconPt = 10
 
 // DarkBtn כפתור שטוח מקצועי עם Material Icon + tooltip
 type DarkBtn struct {
-	cw      *walk.CustomWidget
+	fb      *flatBtn
 	text    string
 	tip     string
 	icon    int
@@ -51,12 +51,42 @@ type DarkBtn struct {
 	pressed bool
 	hover   bool
 	onClick func()
+	minW    int
+}
+
+// flatBtn עוטף CustomWidget ודורס CreateLayoutItem — בלי זה walk נותן IdealSize 100×100.
+type flatBtn struct {
+	*walk.CustomWidget
+	width  int // native pixels
+	height int // native pixels
+}
+
+type flatBtnLayoutItem struct {
+	walk.LayoutItemBase
+	width  int
+	height int
+}
+
+func (li *flatBtnLayoutItem) LayoutFlags() walk.LayoutFlags {
+	return 0 // גודל קבוע — לא Grow/Greedy
+}
+
+func (li *flatBtnLayoutItem) IdealSize() walk.Size {
+	return walk.Size{Width: li.width, Height: li.height}
+}
+
+func (li *flatBtnLayoutItem) MinSize() walk.Size {
+	return walk.Size{Width: li.width, Height: li.height}
+}
+
+func (fb *flatBtn) CreateLayoutItem(ctx *walk.LayoutContext) walk.LayoutItem {
+	return &flatBtnLayoutItem{width: fb.width, height: fb.height}
 }
 
 func (b *DarkBtn) SetText(text string) {
 	b.text = text
-	if b.cw != nil {
-		b.cw.Invalidate()
+	if b.fb != nil {
+		b.fb.Invalidate()
 	}
 }
 
@@ -65,60 +95,74 @@ func (b *DarkBtn) SetActive(v bool) {
 		return
 	}
 	b.active = v
-	if b.cw != nil {
-		b.cw.Invalidate()
+	if b.fb != nil {
+		b.fb.Invalidate()
 	}
 }
 
-func (b *DarkBtn) Decl(minW int, tip string) CustomWidget {
+// Mount יוצר כפתור בגודל קבוע בפיקסלים בתוך parent.
+func (b *DarkBtn) Mount(parent walk.Container, minW int, tip string) error {
 	b.tip = tip
+	b.minW = minW
 	materialicons.Ensure()
-	return CustomWidget{
-		AssignTo:            &b.cw,
-		MinSize:             Size{Width: minW, Height: btnH},
-		MaxSize:             Size{Height: btnH},
-		ToolTipText:         tip,
-		PaintMode:           PaintBuffered,
-		InvalidatesOnResize: true,
-		Paint:               b.paint,
-		OnMouseDown: func(x, y int, button walk.MouseButton) {
-			if button != walk.LeftButton || b.cw == nil {
-				return
-			}
-			b.pressed = true
-			b.cw.Invalidate()
-		},
-		OnMouseUp: func(x, y int, button walk.MouseButton) {
-			if button != walk.LeftButton || b.cw == nil {
-				return
-			}
-			was := b.pressed
-			b.pressed = false
-			b.cw.Invalidate()
-			bounds := b.cw.ClientBounds()
-			if was && x >= 0 && y >= 0 && x < bounds.Width && y < bounds.Height && b.onClick != nil {
-				b.onClick()
-			}
-		},
-		OnMouseMove: func(x, y int, button walk.MouseButton) {
-			if b.cw == nil {
-				return
-			}
-			bounds := b.cw.ClientBounds()
-			h := x >= 0 && y >= 0 && x < bounds.Width && y < bounds.Height
-			if h != b.hover {
-				b.hover = h
-				b.cw.Invalidate()
-			}
-		},
+
+	cw, err := walk.NewCustomWidgetPixels(parent, 0, b.paint)
+	if err != nil {
+		return err
 	}
+	cw.SetPaintMode(walk.PaintBuffered)
+	cw.SetInvalidatesOnResize(true)
+	if tip != "" {
+		_ = cw.SetToolTipText(tip)
+	}
+
+	fb := &flatBtn{CustomWidget: cw, width: minW, height: btnH}
+	if err := walk.InitWrapperWindow(fb); err != nil {
+		cw.Dispose()
+		return err
+	}
+	b.fb = fb
+
+	_ = fb.SetMinMaxSizePixels(
+		walk.Size{Width: minW, Height: btnH},
+		walk.Size{Width: minW, Height: btnH},
+	)
+
+	cw.MouseDown().Attach(func(x, y int, button walk.MouseButton) {
+		if button != walk.LeftButton {
+			return
+		}
+		b.pressed = true
+		fb.Invalidate()
+	})
+	cw.MouseUp().Attach(func(x, y int, button walk.MouseButton) {
+		if button != walk.LeftButton {
+			return
+		}
+		was := b.pressed
+		b.pressed = false
+		fb.Invalidate()
+		bounds := fb.ClientBoundsPixels()
+		if was && x >= 0 && y >= 0 && x < bounds.Width && y < bounds.Height && b.onClick != nil {
+			b.onClick()
+		}
+	})
+	cw.MouseMove().Attach(func(x, y int, button walk.MouseButton) {
+		bounds := fb.ClientBoundsPixels()
+		h := x >= 0 && y >= 0 && x < bounds.Width && y < bounds.Height
+		if h != b.hover {
+			b.hover = h
+			fb.Invalidate()
+		}
+	})
+	return nil
 }
 
 func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
-	if b.cw == nil {
+	if b.fb == nil {
 		return nil
 	}
-	bounds := b.cw.ClientBounds()
+	bounds := b.fb.ClientBoundsPixels()
 	bg := colBtn
 	fg := colBtnText
 	switch {
@@ -145,7 +189,7 @@ func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 		return err
 	}
 	defer brush.Dispose()
-	if err := canvas.FillRectangle(brush, bounds); err != nil {
+	if err := canvas.FillRectanglePixels(brush, bounds); err != nil {
 		return err
 	}
 
@@ -159,17 +203,17 @@ func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 			X: bounds.X + 3, Y: bounds.Y + bounds.Height - 2,
 			Width: bounds.Width - 6, Height: 2,
 		}
-		if err := canvas.FillRectangle(line, underline); err != nil {
+		if err := canvas.FillRectanglePixels(line, underline); err != nil {
 			return err
 		}
 	}
 
 	iconW := 0
 	if b.icon != iconNone {
-		iconW = btnIconPx
+		iconW = btnIconPt + 2
 		ir := walk.Rectangle{
-			X: bounds.X + bounds.Width - btnIconPx - 3, Y: bounds.Y,
-			Width: btnIconPx, Height: bounds.Height,
+			X: bounds.X + bounds.Width - btnIconPt - 4, Y: bounds.Y,
+			Width: btnIconPt + 2, Height: bounds.Height,
 		}
 		if err := b.drawMaterialIcon(canvas, ir, fg); err != nil {
 			return err
@@ -178,7 +222,7 @@ func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 
 	font, err := walk.NewFont(uiFont, btnFontPt, 0)
 	if err != nil {
-		font = b.cw.Font()
+		font = b.fb.Font()
 	} else {
 		defer font.Dispose()
 	}
@@ -186,12 +230,12 @@ func (b *DarkBtn) paint(canvas *walk.Canvas, _ walk.Rectangle) error {
 		return nil
 	}
 	tr := walk.Rectangle{
-		X:      bounds.X + 4,
+		X:      bounds.X + 3,
 		Y:      bounds.Y,
-		Width:  bounds.Width - iconW - 8,
+		Width:  bounds.Width - iconW - 6,
 		Height: bounds.Height,
 	}
-	return canvas.DrawText(b.text, font, fg, tr,
+	return canvas.DrawTextPixels(b.text, font, fg, tr,
 		walk.TextCenter|walk.TextVCenter|walk.TextSingleLine|walk.TextRTLReading)
 }
 
@@ -230,11 +274,11 @@ func (b *DarkBtn) drawMaterialIcon(canvas *walk.Canvas, r walk.Rectangle, fg wal
 		return nil
 	}
 	materialicons.Ensure()
-	font, err := walk.NewFont(materialicons.Family, btnIconPx, 0)
+	font, err := walk.NewFont(materialicons.Family, btnIconPt, 0)
 	if err != nil {
-		return nil // בלי פונט — מדלגים על איקון
+		return nil
 	}
 	defer font.Dispose()
-	return canvas.DrawText(materialicons.Glyph(glyph), font, fg, r,
+	return canvas.DrawTextPixels(materialicons.Glyph(glyph), font, fg, r,
 		walk.TextCenter|walk.TextVCenter|walk.TextSingleLine)
 }

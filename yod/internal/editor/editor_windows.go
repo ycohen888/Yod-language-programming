@@ -95,6 +95,8 @@ func Run(path string) error {
 		treeEmpty *walk.Label
 		treePane  *walk.Composite
 		treeSplit *walk.Splitter
+		toolbar   *walk.Composite
+		tabBar    *walk.Composite
 		activeTab = 0
 		errCount  int
 		busy      bool
@@ -1111,24 +1113,15 @@ func Run(path string) error {
 		Children: []Widget{
 			// —— סרגל כלים ——
 			Composite{
-				Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 3, Bottom: 3}, Spacing: 4},
+				AssignTo:   &toolbar,
+				Layout:     HBox{Margins: Margins{Left: 6, Right: 6, Top: 2, Bottom: 2}, Spacing: 3},
 				Background: SolidColorBrush{Color: colToolbar},
+				MinSize:    Size{Height: 26},
+				MaxSize:    Size{Height: 26},
 				Children: []Widget{
-					Label{Text: "יוד", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 11, Bold: true}},
+					Label{Text: "יוד", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 10, Bold: true}},
 					Label{Text: "עורך", TextColor: colMuted, Font: Font{Family: uiFont, PointSize: 8}},
 					VSeparator{},
-					btnRun.Decl(48, "הרץ — מפרש מלא (F5)"),
-					btnVM.Decl(52, "מכונה — הרצה ב־bytecode (F6)"),
-					btnCheck.Decl(44, "בדוק קומפילציה בלי להריץ (F7)"),
-					btnPack.Decl(44, "ארוז ל־EXE בודד — לחיצה כפולה מריצה (Ctrl+Shift+P)"),
-					VSeparator{},
-					btnNew.Decl(40, "קובץ חדש (Ctrl+N)"),
-					btnOpen.Decl(40, "פתח קובץ (Ctrl+O)"),
-					btnFolder.Decl(48, "פתח תיקיית פרויקט (Ctrl+Shift+O)"),
-					btnSave.Decl(42, "שמור קובץ (Ctrl+S)"),
-					btnFormat.Decl(40, "סדר קוד — הזחה 2 רווחים (Ctrl+Shift+F)"),
-					btnHighlight.Decl(42, "הדגשת תחביר בדפדפן"),
-					HSpacer{},
 				},
 			},
 			// —— שורת קובץ + תיקייה ——
@@ -1148,21 +1141,21 @@ func Run(path string) error {
 			HSplitter{
 				AssignTo:      &treeSplit,
 				StretchFactor: 1,
-				HandleWidth:   4,
+				HandleWidth:   8,
 				Children: []Widget{
 					// סייר — תמיד צד שמאל של המסך
 					Composite{
 						AssignTo:      &treePane,
 						Layout:        VBox{MarginsZero: true, Spacing: 0},
 						Background:    SolidColorBrush{Color: colToolbar},
-						MinSize:       Size{Width: 140},
+						MinSize:       Size{Width: 100},
 						StretchFactor: 1,
 						Children: []Widget{
 							Composite{
-								Layout:     HBox{Margins: Margins{Left: 10, Right: 8, Top: 8, Bottom: 6}, Spacing: 6},
+								Layout:     HBox{Margins: Margins{Left: 8, Right: 6, Top: 6, Bottom: 4}, Spacing: 6},
 								Background: SolidColorBrush{Color: colToolbar},
 								Children: []Widget{
-									Label{Text: "סייר", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 11, Bold: true}, RightToLeftReading: true},
+									Label{Text: "סייר", TextColor: colBrand, Font: Font{Family: uiFont, PointSize: 10, Bold: true}, RightToLeftReading: true},
 									HSpacer{},
 								},
 							},
@@ -1171,17 +1164,17 @@ func Run(path string) error {
 								AssignTo:           &treeEmpty,
 								Text:               "פתחו תיקייה\n(קובץ ← פתח תיקייה)\nכדי לראות את העץ",
 								TextColor:          colMuted,
-								Font:               Font{Family: uiFont, PointSize: 10},
+								Font:               Font{Family: uiFont, PointSize: 9},
 								RightToLeftReading: true,
-								MinSize:            Size{Height: 80},
+								MinSize:            Size{Height: 60},
 							},
 							TreeView{
 								AssignTo:      &treeView,
 								Model:         treeModel,
 								Visible:       false,
-								MinSize:       Size{Width: 120, Height: 200},
+								MinSize:       Size{Height: 200},
 								StretchFactor: 1,
-								Font:          Font{Family: uiFont, PointSize: 10},
+								Font:          Font{Family: uiFont, PointSize: 9},
 								Background:    SolidColorBrush{Color: colPanel},
 								ContextMenuItems: []MenuItem{
 									Action{Text: "פתח", OnTriggered: openTreeSelection},
@@ -1246,14 +1239,12 @@ func Run(path string) error {
 								StretchFactor: 2,
 								Children: []Widget{
 									Composite{
-										Layout:     HBox{Margins: Margins{Left: 10, Right: 10, Top: 5, Bottom: 4}, Spacing: 4},
+										AssignTo:   &tabBar,
+										Layout:     HBox{Margins: Margins{Left: 8, Right: 8, Top: 3, Bottom: 3}, Spacing: 3},
 										Background: SolidColorBrush{Color: colTabBar},
-										Children: []Widget{
-											tabErrBtn.Decl(72, "לשונית שגיאות — תחביר וריצה"),
-											tabOutBtn.Decl(48, "לשונית פלט — פלט הדפס"),
-											HSpacer{},
-											Label{Text: "לחיצה על שגיאה ← מעבר לשורה", TextColor: colMuted, RightToLeftReading: true},
-										},
+										MinSize:    Size{Height: 26},
+										MaxSize:    Size{Height: 26},
+										Children:   []Widget{},
 									},
 									TextEdit{
 										AssignTo:           &errEdit,
@@ -1294,14 +1285,14 @@ func Run(path string) error {
 			Composite{MinSize: Size{Height: 1}, Background: SolidColorBrush{Color: colBorder}},
 			// —— סרגל סטטוס ——
 			Composite{
-				Layout:     HBox{Margins: Margins{Left: 14, Right: 14, Top: 6, Bottom: 6}, Spacing: 12},
+				Layout:     HBox{Margins: Margins{Left: 14, Right: 14, Top: 4, Bottom: 4}, Spacing: 12},
 				Background: SolidColorBrush{Color: colStatus},
 				Children: []Widget{
 					Label{
 						AssignTo:           &statusLbl,
 						Text:               "מוכן",
 						TextColor:          colBrand,
-						Font:               Font{Family: uiFont, PointSize: 10, Bold: true},
+						Font:               Font{Family: uiFont, PointSize: 9, Bold: true},
 						RightToLeftReading: true,
 					},
 					HSpacer{},
@@ -1316,6 +1307,60 @@ func Run(path string) error {
 	}.Create()
 	if err != nil {
 		return err
+	}
+
+	// כפתורי סרגל — גודל קבוע בפיקסלים (לא CustomWidget הרגיל שמתנפח ל־100×100)
+	if toolbar != nil {
+		_ = toolbar.SetMinMaxSizePixels(walk.Size{Height: btnH + 4}, walk.Size{Height: btnH + 4})
+		mountToolbar := []struct {
+			btn *DarkBtn
+			w   int
+			tip string
+		}{
+			{btnRun, 40, "הרץ — מפרש מלא (F5)"},
+			{btnVM, 48, "מכונה — הרצה ב־bytecode (F6)"},
+			{btnCheck, 40, "בדוק קומפילציה בלי להריץ (F7)"},
+			{btnPack, 40, "ארוז ל־EXE בודד — לחיצה כפולה מריצה (Ctrl+Shift+P)"},
+			{btnNew, 36, "קובץ חדש (Ctrl+N)"},
+			{btnOpen, 36, "פתח קובץ (Ctrl+O)"},
+			{btnFolder, 44, "פתח תיקיית פרויקט (Ctrl+Shift+O)"},
+			{btnSave, 40, "שמור קובץ (Ctrl+S)"},
+			{btnFormat, 36, "סדר קוד — הזחה 2 רווחים (Ctrl+Shift+F)"},
+			{btnHighlight, 40, "הדגשת תחביר בדפדפן"},
+		}
+		// מפריד אחרי ארוז
+		for i, m := range mountToolbar {
+			if i == 4 {
+				if _, e := walk.NewVSeparator(toolbar); e != nil {
+					return e
+				}
+			}
+			if err := m.btn.Mount(toolbar, m.w, m.tip); err != nil {
+				return err
+			}
+		}
+		if _, e := walk.NewHSpacer(toolbar); e != nil {
+			return e
+		}
+		toolbar.RequestLayout()
+	}
+	if tabBar != nil {
+		_ = tabBar.SetMinMaxSizePixels(walk.Size{Height: btnH + 4}, walk.Size{Height: btnH + 4})
+		if err := tabErrBtn.Mount(tabBar, 64, "לשונית שגיאות — תחביר וריצה"); err != nil {
+			return err
+		}
+		if err := tabOutBtn.Mount(tabBar, 40, "לשונית פלט — פלט הדפס"); err != nil {
+			return err
+		}
+		if _, e := walk.NewHSpacer(tabBar); e != nil {
+			return e
+		}
+		if hint, e := walk.NewLabel(tabBar); e == nil {
+			_ = hint.SetText("לחיצה על שגיאה ← מעבר לשורה")
+			hint.SetTextColor(colMuted)
+			_ = hint.SetRightToLeftReading(true)
+		}
+		tabBar.RequestLayout()
 	}
 
 	var cerr error
@@ -1380,30 +1425,24 @@ func Run(path string) error {
 	codeHost.RequestLayout()
 
 	if treeSplit != nil {
-		// מבטל RTL על ה־splitter כדי שהילד הראשון (סייר) יישאר תמיד בצד שמאל של המסך
-		ex := win.GetWindowLong(treeSplit.Handle(), win.GWL_EXSTYLE)
-		win.SetWindowLong(treeSplit.Handle(), win.GWL_EXSTYLE, ex&^win.WS_EX_LAYOUTRTL)
-		// לא SetFixed — כדי שגרירת הרוחב תעבוד; StretchFactor 1:4 ≈ 20%/80%
-		if treePane != nil {
-			_ = treePane.SetMinMaxSize(walk.Size{Width: 140, Height: 0}, walk.Size{Width: 600, Height: 0})
+		clearLayoutRTL := func(hwnd win.HWND) {
+			if hwnd == 0 {
+				return
+			}
+			ex := win.GetWindowLong(hwnd, win.GWL_EXSTYLE)
+			win.SetWindowLong(hwnd, win.GWL_EXSTYLE, ex&^win.WS_EX_LAYOUTRTL)
 		}
-		mw.Synchronize(func() {
-			if treeSplit == nil || treePane == nil {
-				return
-			}
-			cb := treeSplit.ClientBoundsPixels()
-			if cb.Width <= 0 {
-				return
-			}
-			w := cb.Width / 5 // ~20%
-			if w < 140 {
-				w = 140
-			}
-			b := treePane.BoundsPixels()
-			b.Width = w
-			_ = treePane.SetBoundsPixels(b)
-			treeSplit.RequestLayout()
-		})
+		// מבטל RTL על ה־splitter וילדיו — גרירה ב־walk נשברת עם LAYOUTRTL
+		clearLayoutRTL(treeSplit.Handle())
+		for i := 0; i < treeSplit.Children().Len(); i++ {
+			clearLayoutRTL(treeSplit.Children().At(i).Handle())
+		}
+		if treePane != nil {
+			// מינימום בפיקסלים אמיתיים; בלי MaxSize — כדי לא לחסום גרירה
+			_ = treePane.SetMinMaxSizePixels(walk.Size{Width: 120}, walk.Size{})
+		}
+		// בלי SetBoundsPixels / SetFixed — הם נלחמו ב־layout ובגרירה.
+		// StretchFactor 1:4 ≈ 20%; גרירת ה־handle (8px) מעדכנת item.size.
 	}
 	if treeView != nil {
 		applyDarkScrollbars(treeView.Handle())
