@@ -43,3 +43,6 @@ yod/examples/temp_*
 
 # Local build artifacts for Releases (uploaded via GitHub Release, not committed)
 dist/
+
+# Original screenshot drop folder (canonical copies live in docs/screenshots/)
+צילום מסך/

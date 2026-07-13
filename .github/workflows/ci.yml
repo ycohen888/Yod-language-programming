@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: go test (Windows)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: yod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: yod/go.mod
+          cache-dependency-path: yod/go.sum
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build -o yod.exe ./cmd/yod
+
+      - name: Version smoke
+        run: .\yod.exe גרסה

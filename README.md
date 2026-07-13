@@ -4,6 +4,16 @@
 
 גרסה נוכחית: **0.49.0**
 
+<p align="center">
+  <img src="docs/screenshots/editor-code.png" alt="עורך יוד — קוד בעברית" width="720" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/editor-autocomplete.png" alt="השלמה אוטומטית בעורך" width="360" />
+  &nbsp;
+  <img src="docs/screenshots/server-gui-browser.png" alt="שרת יוד — GUI ודפדפן" width="360" />
+</p>
+
 ---
 
 ## מה יש בריפו
@@ -12,6 +22,8 @@
 |------|------|
 | [`yod/`](yod/) | קוד המקור של השפה, העורך, הספריות והדוגמאות |
 | [`מדריך שפת יוד/`](מדריך%20שפת%20יוד/) | מדריך HTML בעברית (תחביר + ספריות) |
+| [`docs/screenshots/`](docs/screenshots/) | צילומי מסך של העורך והשרת |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | איך לבנות, לבדוק ולפתוח PR |
 | [`info_program.html`](info_program.html) | יומן פיתוח וסטטוס פיצ׳רים |
 | [`.cursorrules`](.cursorrules) | כללי עבודה לפיתוח השפה |
 
@@ -142,12 +154,9 @@ yod/
 
 ## תרומה / פיתוח
 
-שמחים לעזרה! אפשר לפתוח [Issue](https://github.com/ycohen888/Yod-language-programming/issues) או Pull Request.
+שמחים לעזרה! ראו את [`CONTRIBUTING.md`](CONTRIBUTING.md) — בנייה, בדיקות ו־Pull Request.
 
-1. שינויים בקוד → בדיקות: `go test ./...` מתוך `yod/`
-2. עדכון גרסה ב־`cmd/yod/main.go` וב־`בסיס.גרסה` כשמשחררים גרסה
-3. תיעוד במדריך וב־`info_program.html` כשמוסיפים יכולת משמעותית
-4. תיאור ברור ב־commit / PR — מה השתנה ולמה
+אפשר גם לפתוח [Issue](https://github.com/ycohen888/Yod-language-programming/issues) (חפשו `good first issue`).
 
 ---
 
