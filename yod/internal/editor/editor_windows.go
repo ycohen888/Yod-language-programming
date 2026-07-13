@@ -253,8 +253,8 @@ func Run(path string) error {
 		return wd
 	}
 
-	// resolveRunYodExe — מעדיף yod.exe ליד הפרויקט (או בתיקיית האב) על פני
-	// תהליך העורך עצמו, כדי שלא יישאר מנוע ישן אחרי go build.
+	// resolveRunYodExe — מעדיף את yod.exe החדש ביותר ליד הפרויקט / מעלה בעץ /
+	// ליד תהליך העורך. חשוב כשהעורך נפתח מ־dist/ ישן והמקור כבר נבנה מחדש בשורש.
 	resolveRunYodExe := func() (string, error) {
 		self, err := os.Executable()
 		if err != nil {
@@ -273,11 +273,20 @@ func Run(path string) error {
 			seen[p] = true
 			candidates = append(candidates, p)
 		}
-		dir := baseDir()
-		add(filepath.Join(dir, "yod.exe"))
-		add(filepath.Join(filepath.Dir(dir), "yod.exe"))
+		walkUp := func(start string) {
+			dir := start
+			for i := 0; i < 5 && dir != "" && dir != "."; i++ {
+				add(filepath.Join(dir, "yod.exe"))
+				parent := filepath.Dir(dir)
+				if parent == dir {
+					break
+				}
+				dir = parent
+			}
+		}
+		walkUp(baseDir())
 		if self != "" {
-			add(filepath.Join(filepath.Dir(self), "yod.exe"))
+			walkUp(filepath.Dir(self))
 			add(self)
 		}
 		var newest string
