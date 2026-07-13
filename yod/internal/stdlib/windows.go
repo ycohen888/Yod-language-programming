@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/jchv/go-webview2/pkg/edge"
@@ -24,6 +27,8 @@ type windowState struct {
 	onStart   object.Object
 	mw        *walk.MainWindow
 	closed    bool
+	iconPath  string
+	icon      *walk.Icon
 }
 
 type windowTimer struct {
@@ -135,10 +140,41 @@ func winCreateWindow(args ...object.Object) object.Object {
 		st.onStart = a[0]
 		return object.Nil
 	}}
+	w.Attrs["קבע_איקון"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetIcon(st, a...)
+	}}
 	w.Attrs["הצג"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winShow(st)
 	}}
 	return w
+}
+
+func winSetIcon(st *windowState, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj("חלון.קבע_איקון מצפה לנתיב קובץ")
+	}
+	s, ok := asString(args[0])
+	if !ok || strings.TrimSpace(s) == "" {
+		return errObj("חלון.קבע_איקון מצפה למחרוזת נתיב")
+	}
+	path := s
+	if !filepath.IsAbs(path) {
+		base := AppBaseDir()
+		if base == "" {
+			base, _ = os.Getwd()
+		}
+		path = filepath.Join(base, path)
+	}
+	if _, err := os.Stat(path); err != nil {
+		return errObj("חלון.קבע_איקון: הקובץ לא נמצא: " + path)
+	}
+	st.iconPath = path
+	if st.mw != nil {
+		if err := applyWindowIcon(st, path); err != nil {
+			return errObj("חלון.קבע_איקון נכשל: " + err.Error())
+		}
+	}
+	return object.Nil
 }
 
 func winCreateButton(args ...object.Object) object.Object {
@@ -647,19 +683,40 @@ func winShow(st *windowState) object.Object {
 		children = append(children, buildControlWidget(ch))
 	}
 
-	if err := (MainWindow{
+	iconPath := st.iconPath
+	if iconPath == "" {
+		iconPath = FindAppIconPath()
+		st.iconPath = iconPath
+	}
+	var winIcon *walk.Icon
+	if iconPath != "" {
+		if ic, err := walk.NewIconFromFile(iconPath); err == nil {
+			winIcon = ic
+			st.icon = ic
+		}
+	}
+
+	cfg := MainWindow{
 		AssignTo:  &mw,
 		Title:     st.title,
 		MinSize:   Size{Width: st.width, Height: st.height},
 		Size:      Size{Width: st.width, Height: st.height},
 		Layout:    VBox{},
 		Children:  children,
-	}).Create(); err != nil {
+	}
+	if winIcon != nil {
+		cfg.Icon = winIcon
+	}
+	if err := cfg.Create(); err != nil {
 		return errObj("הצגת חלון נכשלה: " + err.Error())
 	}
 
 	st.mw = mw
 	st.closed = false
+
+	if iconPath != "" {
+		_ = applyWindowIcon(st, iconPath)
+	}
 
 	for _, ch := range st.children {
 		wireBrowsersRecursive(ch, mw)
@@ -709,6 +766,22 @@ func winShow(st *windowState) object.Object {
 	st.closed = true
 	st.mw = nil
 	return &object.Null{}
+}
+
+func applyWindowIcon(st *windowState, path string) error {
+	ic, err := walk.NewIconFromFile(path)
+	if err != nil {
+		return err
+	}
+	if st.icon != nil && st.icon != ic {
+		st.icon.Dispose()
+	}
+	st.icon = ic
+	st.iconPath = path
+	if st.mw != nil {
+		return st.mw.SetIcon(ic)
+	}
+	return nil
 }
 
 func wireBrowsersRecursive(ch *controlState, mw *walk.MainWindow) {

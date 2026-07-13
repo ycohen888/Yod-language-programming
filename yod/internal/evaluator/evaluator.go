@@ -1003,6 +1003,7 @@ var builtins = map[string]*object.Builtin{
 func NewGlobalEnv(baseDir string) *object.Environment {
 	env := object.NewEnvironment()
 	env.BaseDir = baseDir
+	stdlib.SetAppBaseDir(baseDir)
 	env.Included = map[string]bool{}
 	for name, b := range builtins {
 		env.Set(name, b)

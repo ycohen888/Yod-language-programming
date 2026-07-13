@@ -46,6 +46,7 @@ func New(baseDir string) *Compiler {
 	if baseDir == "" {
 		baseDir = "."
 	}
+	stdlib.SetAppBaseDir(baseDir)
 	mainScope := CompilationScope{}
 	return &Compiler{
 		symbolTable: NewSymbolTable(),

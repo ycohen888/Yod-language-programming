@@ -69,6 +69,9 @@ func App(srcPath string, outDir string) (string, error) {
 		_ = os.WriteFile(manifestDest, []byte(DefaultManifest), 0644)
 	}
 
+	// העתקת איקון הפרויקט (יוד.ico / app.ico) להפצה — לחלון ולפס משימות
+	_ = copyProjectIcon(filepath.Dir(srcPath), outDir)
+
 	readme := "תוכנית יוד — הפצה\r\n" +
 		"==================\r\n\r\n" +
 		"להרצה: לחצו פעמיים על הרץ.bat (מפרש מלא)\r\n" +
@@ -114,4 +117,16 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return out.Close()
+}
+
+// copyProjectIcon מעתיק יוד.ico / app.ico מתיקיית המקור ליעד (להצגה בחלון ובפס משימות).
+func copyProjectIcon(srcDir, destDir string) error {
+	for _, name := range []string{"יוד.ico", "app.ico", "icon.ico"} {
+		src := filepath.Join(srcDir, name)
+		if st, err := os.Stat(src); err != nil || st.IsDir() {
+			continue
+		}
+		return copyFile(src, filepath.Join(destDir, name))
+	}
+	return nil
 }

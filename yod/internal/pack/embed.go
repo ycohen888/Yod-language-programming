@@ -129,6 +129,9 @@ func EXEWithOptions(srcPath string, outPath string, opts EXEOptions) (string, er
 		_ = os.WriteFile(manifestDest, []byte(DefaultManifest), 0644)
 	}
 
+	// איקון ליד ה־EXE — החלון והפס משימות יטענו אותו אוטומטית
+	_ = copyProjectIcon(filepath.Dir(srcPath), filepath.Dir(outPath))
+
 	return outPath, nil
 }
 
