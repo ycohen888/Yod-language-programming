@@ -15,13 +15,14 @@ import (
 	"yod/internal/pack"
 	"yod/internal/parser"
 	"yod/internal/project"
+	ver "yod/internal/version"
 	"yod/internal/vm"
 )
 
 //go:generate go run ../../tools/mkico.go ../../assets/yod-icon-source.png ../../assets/yod.ico
 //go:generate rsrc -arch amd64 -ico ../../assets/yod.ico -manifest yod.exe.manifest -o rsrc_windows_amd64.syso
 
-const version = "0.52.2"
+const version = ver.String
 
 func main() {
 	console.Init()

@@ -967,9 +967,9 @@ func Run(path string) error {
 		})
 	}
 
-	showAbout := func() {
-		walk.MsgBox(mw, "עורך יוד",
-			"עורך יוד — סביבת פיתוח בעברית\n\n"+
+	showShortcuts := func() {
+		walk.MsgBox(mw, "קיצורי מקלדת",
+			"עורך יוד — קיצורי מקלדת\n\n"+
 				"פרויקט: קובץ ← פתח תיקייה (Ctrl+Shift+O)\n"+
 				"הקובץ הראשי הוא תמיד התחל.יוד — ממנו מריצים (F5)\n"+
 				"קבצים אחרים נכללים עם: כלול \"שם.יוד\"\n\n"+
@@ -1361,7 +1361,10 @@ func Run(path string) error {
 			Menu{
 				Text: "עזרה",
 				Items: []MenuItem{
-					Action{Text: "קיצורי מקלדת…", OnTriggered: showAbout},
+					Action{Text: "מדריך…", OnTriggered: func() { showGuideWindow(mw) }},
+					Action{Text: "קיצורי מקלדת…", OnTriggered: showShortcuts},
+					Separator{},
+					Action{Text: "אודות יוד…", OnTriggered: func() { showAboutDialog(mw) }},
 				},
 			},
 		},
