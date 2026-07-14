@@ -444,7 +444,7 @@ func winCreateCanvas(args ...object.Object) object.Object {
 	w.Attrs["רוחב_טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return boardTextWidth(board, a...)
 	}}
-	w.Attrs["תמונה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+	drawImg := &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		res := boardDrawImage(board, a...)
 		if res != nil && res.Type() == object.ErrorObj {
 			return res
@@ -452,6 +452,8 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		invalidateCanvas(st)
 		return object.Nil
 	}}
+	w.Attrs["תמונה"] = drawImg
+	w.Attrs["צייר_תמונה"] = drawImg
 	w.Attrs["קרא_צבע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		x, y, err := twoInts("קרא_צבע", a)
 		if err != nil {
@@ -741,7 +743,7 @@ func buildControlWidget(ch *controlState) Widget {
 		return buildTableWidget(ch)
 	case "גרף":
 		return buildChartWidget(ch)
-	case "דפדפן":
+	case "דפדפן", "וידאו":
 		return Composite{
 			AssignTo:      &ch.host,
 			StretchFactor: 1,

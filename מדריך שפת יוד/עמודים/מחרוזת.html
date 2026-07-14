@@ -17,16 +17,29 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">טיפוס · 0.36.0</span><strong>מחרוזת</strong></div>
+      <div class="brand"><span class="eyebrow">טיפוס · 0.72.0</span><strong>מחרוזת</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
 
     <article class="article">
       <h1>מחרוזת</h1>
       <p class="lead">
-        מחרוזת היא טקסט במרכאות כפולות. אפשר לשרשר עם <code>+</code>, לגשת למתודות ב־<code>ערך.מתודה()</code>,
-        ולהמיר למספר כשצריך.
+        טקסט במרכאות <code>"..."</code> / <code>'...'</code>, או תבנית עם backticks
+        <code>`שלום ${שם}`</code> (כמו ב־JavaScript).
       </p>
+
+      <h2>תבנית מחרוזת</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">משתנה שם = "נועם"
+הדפס: `שלום ${שם}`
+הדפס: `סכום: ${1 + 2}`</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>שלום נועם
+סכום: 3</pre>
+        </div>
+      </figure>
 
       <h2>יצירה ושרשור</h2>
       <figure class="example">

@@ -1,6 +1,8 @@
 package lexer
 
 import (
+	"fmt"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -15,6 +17,7 @@ type Lexer struct {
 	line         int
 	column       int
 	readColumn   int
+	errors       []string
 }
 
 func New(input string) *Lexer {
@@ -22,6 +25,9 @@ func New(input string) *Lexer {
 	l.readChar()
 	return l
 }
+
+// Errors — שגיאות לקסיקליות (למשל הערת בלוק שלא נסגרה).
+func (l *Lexer) Errors() []string { return l.errors }
 
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {
@@ -79,6 +85,10 @@ func (l *Lexer) NextToken() token.Token {
 			l.readChar()
 			tok.Type = token.MinusAssign
 			tok.Literal = "-="
+		} else if l.peekChar() == '>' {
+			l.readChar()
+			tok.Type = token.Arrow
+			tok.Literal = "->"
 		} else {
 			tok.Type = token.Minus
 			tok.Literal = "-"
@@ -203,6 +213,10 @@ func (l *Lexer) NextToken() token.Token {
 		tok.Type = token.String
 		tok.Literal = l.readString(quote)
 		return tok
+	case '`':
+		tok.Type = token.Template
+		tok.Literal = l.readTemplate()
+		return tok
 	case 0:
 		tok.Type = token.EOF
 		tok.Literal = ""
@@ -235,6 +249,26 @@ func (l *Lexer) skipWhitespaceAndComments() {
 		if l.ch == '/' && l.peekChar() == '/' {
 			for l.ch != '\n' && l.ch != 0 {
 				l.readChar()
+			}
+			continue
+		}
+		// הערת בלוק: /* ... */ (לא מקוננת)
+		if l.ch == '/' && l.peekChar() == '*' {
+			startLine := l.line
+			l.readChar() // /
+			l.readChar() // *
+			closed := false
+			for l.ch != 0 {
+				if l.ch == '*' && l.peekChar() == '/' {
+					l.readChar() // *
+					l.readChar() // /
+					closed = true
+					break
+				}
+				l.readChar()
+			}
+			if !closed {
+				l.errors = append(l.errors, fmt.Sprintf("שורה %d: הערת בלוק /* לא נסגרה ב־*/", startLine))
 			}
 			continue
 		}
@@ -278,6 +312,46 @@ func (l *Lexer) readString(quote rune) string {
 		l.readChar() // סגירה
 	}
 	return unescape(lit)
+}
+
+// readTemplate — תוכן בין backticks, בלי המירכאות עצמן; משאיר ${} לפרסר.
+func (l *Lexer) readTemplate() string {
+	startLine := l.line
+	l.readChar() // `
+	var b strings.Builder
+	for l.ch != 0 {
+		if l.ch == '`' {
+			l.readChar()
+			return b.String()
+		}
+		if l.ch == '\\' {
+			l.readChar()
+			switch l.ch {
+			case '`':
+				b.WriteByte('`')
+			case '$':
+				b.WriteByte('$')
+			case '\\':
+				b.WriteByte('\\')
+			case 'n':
+				b.WriteByte('\n')
+			case 't':
+				b.WriteByte('\t')
+			case 0:
+				l.errors = append(l.errors, fmt.Sprintf("שורה %d: תבנית מחרוזת לא נסגרה", startLine))
+				return b.String()
+			default:
+				b.WriteByte('\\')
+				b.WriteRune(l.ch)
+			}
+			l.readChar()
+			continue
+		}
+		b.WriteRune(l.ch)
+		l.readChar()
+	}
+	l.errors = append(l.errors, fmt.Sprintf("שורה %d: תבנית מחרוזת ` לא נסגרה", startLine))
+	return b.String()
 }
 
 func unescape(s string) string {

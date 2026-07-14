@@ -36,6 +36,77 @@ func TestSubtractionNotJuxtaCall(t *testing.T) {
 	}
 }
 
+func TestUnaryMinus(t *testing.T) {
+	prog := parse(t, "משתנה א = -1\nמשתנה ב = -א\nהדפס: פונ(-3)")
+	if len(prog.Statements) < 2 {
+		t.Fatalf("expected statements, got %d", len(prog.Statements))
+	}
+	vs, ok := prog.Statements[0].(*ast.VarStatement)
+	if !ok {
+		t.Fatalf("got %T", prog.Statements[0])
+	}
+	pre, ok := vs.Value.(*ast.PrefixExpression)
+	if !ok || pre.Operator != "-" {
+		t.Fatalf("want unary minus, got %#v", vs.Value)
+	}
+}
+
+func TestForRangeParse(t *testing.T) {
+	prog := parse(t, `עבור i מ 0 עד 10
+  הדפס: i
+סוף
+`)
+	fr, ok := prog.Statements[0].(*ast.ForRangeStatement)
+	if !ok {
+		t.Fatalf("want ForRange, got %T", prog.Statements[0])
+	}
+	if fr.Name.Value != "i" {
+		t.Fatalf("name %q", fr.Name.Value)
+	}
+	if fr.Step != nil {
+		t.Fatalf("expected nil step")
+	}
+}
+
+func TestForRangeWithStep(t *testing.T) {
+	prog := parse(t, `עבור i מ 0 עד 10 בצע 2
+  הדפס: i
+סוף
+`)
+	fr, ok := prog.Statements[0].(*ast.ForRangeStatement)
+	if !ok {
+		t.Fatalf("want ForRange, got %T", prog.Statements[0])
+	}
+	if fr.Step == nil {
+		t.Fatal("expected step")
+	}
+}
+
+func TestImportExportParse(t *testing.T) {
+	prog := parse(t, `
+מודול כורים
+יצא פונקציה סכום א, ב
+  החזר א + ב
+סוף
+יבא כורים מתוך "כורים.יוד"
+יבא { סכום } מתוך "כורים.יוד"
+`)
+	if _, ok := prog.Statements[0].(*ast.ModuleStatement); !ok {
+		t.Fatalf("want Module, got %T", prog.Statements[0])
+	}
+	if _, ok := prog.Statements[1].(*ast.ExportStatement); !ok {
+		t.Fatalf("want Export, got %T", prog.Statements[1])
+	}
+	imp, ok := prog.Statements[2].(*ast.ImportStatement)
+	if !ok || imp.Alias == nil || imp.Alias.Value != "כורים" {
+		t.Fatalf("want Import alias, got %#v", prog.Statements[2])
+	}
+	named, ok := prog.Statements[3].(*ast.ImportStatement)
+	if !ok || len(named.Names) != 1 || named.Names[0].Value != "סכום" {
+		t.Fatalf("want named import, got %#v", prog.Statements[3])
+	}
+}
+
 
 func TestVarWithoutValue(t *testing.T) {
 	prog := parse(t, "משתנה א\nהדפס: א")

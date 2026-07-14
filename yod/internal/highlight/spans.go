@@ -235,6 +235,28 @@ func scan(input string, richEdit bool) []rawTok {
 			})
 			continue
 		}
+		// הערת בלוק /* ... */
+		if i+1 < len(input) && input[i] == '/' && input[i+1] == '*' {
+			start := u16
+			startByte := i
+			i += 2
+			u16 += 2
+			for i+1 < len(input) {
+				if input[i] == '*' && input[i+1] == '/' {
+					u16 += 2
+					i += 2
+					break
+				}
+				_, size := utf8.DecodeRuneInString(input[i:])
+				u16 += utf16RuneLen(input[i : i+size])
+				i += size
+			}
+			toks = append(toks, rawTok{
+				kind: KindComment, lit: input[startByte:i],
+				start16: start, end16: u16, tokType: token.Illegal,
+			})
+			continue
+		}
 
 		r, size := utf8.DecodeRuneInString(input[i:])
 
@@ -264,8 +286,8 @@ func scan(input string, richEdit bool) []rawTok {
 		start16 := u16
 		startByte := i
 
-		// מחרוזת
-		if r == '"' || r == '\'' {
+		// מחרוזת רגילה או תבנית `
+		if r == '"' || r == '\'' || r == '`' {
 			quote := r
 			i += size
 			u16 += 1
@@ -329,7 +351,8 @@ func scan(input string, richEdit bool) []rawTok {
 				token.Switch, token.Case, token.Default:
 				k = KindControl
 			case token.Function, token.Class, token.Var, token.New, token.Extends,
-				token.Private, token.Public, token.Include, token.Parent, token.Not:
+				token.Private, token.Public, token.Include, token.Module, token.Export,
+				token.Import, token.From, token.Enum, token.Parent, token.Not:
 				k = KindKeyword
 			case token.True, token.False, token.Null, token.This:
 				k = KindConstant
@@ -375,6 +398,8 @@ func scan(input string, richEdit bool) []rawTok {
 				tt = token.Power
 			case "??":
 				tt = token.NullCoalesce
+			case "->":
+				tt = token.Arrow
 			}
 			if tt != "" {
 				toks = append(toks, rawTok{

@@ -9,7 +9,7 @@ import (
 
 func BuiltinNames() []string {
 	return []string{
-		"בסיס", "קבצים", "JSON", "זמן", "טיימרים", "מתמטיקה", "מספרים", "מערכת", "רשת", "SQL", "חלונות", "גרפים", "ציור", "הצפנה", "לוח", "עכבר",
+		"בסיס", "קבצים", "JSON", "זמן", "טיימרים", "מתמטיקה", "מספרים", "מערכת", "רשת", "SQL", "חלונות", "גרפים", "ציור", "הצפנה", "לוח", "עכבר", "מקלדת", "שמע", "וידאו", "תמונות", "דיבור", "תוצאה",
 	}
 }
 
@@ -38,6 +38,8 @@ func LoadBuiltin(name string) (object.Object, error) {
 		return NewBasisModule(), nil
 	case "קבצים":
 		return NewFilesModule(), nil
+	case "תוצאה":
+		return NewResultModule(), nil
 	case "SQL", "sql":
 		return NewSQLModule(), nil
 	case "רשת":
@@ -54,6 +56,16 @@ func LoadBuiltin(name string) (object.Object, error) {
 		return NewClipboardModule(), nil
 	case "עכבר":
 		return NewMouseModule(), nil
+	case "מקלדת":
+		return NewKeyboardModule(), nil
+	case "שמע":
+		return NewSoundModule(), nil
+	case "וידאו":
+		return NewVideoModule(), nil
+	case "תמונות":
+		return NewImagesModule(), nil
+	case "דיבור":
+		return NewSpeechModule(), nil
 	case "JSON", "json":
 		return NewJSONModule(), nil
 	case "זמן":

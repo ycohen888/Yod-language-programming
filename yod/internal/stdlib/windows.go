@@ -55,6 +55,10 @@ type controlState struct {
 	html    string
 	host    *walk.Composite
 	browser *edge.Chromium
+	// וידאו (WebView2 + HTML5)
+	videoPath string
+	videoLoop bool
+	videoVol  int
 	// שורה / עמודה / מסגרת
 	children  []*controlState
 	frameDir  string // אופקי | אנכי (למסגרת)
@@ -1057,6 +1061,7 @@ func winShow(st *windowState) object.Object {
 	st.mw = nil
 	setTimerUISync(nil)
 	_ = timerStopAll()
+	soundStopAll()
 	return &object.Null{}
 }
 
@@ -1171,7 +1176,7 @@ func applyListDark(st *controlState) {
 }
 
 func wireBrowsersRecursive(ch *controlState, mw *walk.MainWindow) {
-	if ch.kind == "דפדפן" && ch.host != nil {
+	if (ch.kind == "דפדפן" || ch.kind == "וידאו") && ch.host != nil {
 		br, err := attachWebView2(ch.host, ch.url, ch.html)
 		if err != nil {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
@@ -1197,6 +1202,9 @@ func resizeBrowsersRecursive(children []*controlState) {
 func startBrowsersRecursive(ch *controlState) {
 	if ch.kind == "דפדפן" {
 		browserLoadInitial(ch)
+	}
+	if ch.kind == "וידאו" {
+		videoLoadInitial(ch)
 	}
 	for _, c := range ch.children {
 		startBrowsersRecursive(c)

@@ -17,13 +17,14 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">תחביר · 0.36.0</span><strong>הערות</strong></div>
+      <div class="brand"><span class="eyebrow">תחביר · 0.70.0</span><strong>הערות</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
       <h1>הערות</h1>
       <p class="lead">
-        טקסט שמסביר את הקוד ולא רץ במנוע — מתחיל ב־<code>//</code> ונמשך עד סוף השורה.
+        טקסט שמסביר את הקוד ולא רץ במנוע —
+        שורת <code>//</code> או בלוק <code>/* … */</code>.
       </p>
 
       <h2>מה זה</h2>
@@ -60,13 +61,26 @@
         </div>
       </figure>
 
+      <h2>הערת בלוק</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">/*
+  בלוק הסבר על כמה שורות.
+  לא מקונן: */ הראשון סוגר.
+*/
+הדפס: "אחרי הבלוק"</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>אחרי הבלוק</pre>
+        </div>
+      </figure>
+
       <div class="callout tip">
         <strong>טיפ:</strong> בעורך יוד הערות נצבעות בירוק — קל להבחין בקוד «חי» מול הסבר.
       </div>
 
       <div class="callout warn">
-        <strong>שימו לב:</strong> אין כרגע הערות מרובות־שורות בסגנון <code>/* … */</code>.
-        לכל שורה צריך <code>//</code> משלה.
+        <strong>שימו לב:</strong> הערת בלוק שלא נסגרה ב־<code>*/</code> היא שגיאת תחביר.
       </div>
 
       <nav class="page-nav">

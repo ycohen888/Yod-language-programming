@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מכונה מול מפרש | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">0.75.0</span><strong>מכונה / מפרש</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>מכונה מול מפרש</h1>
+      <p class="lead"><code>yod קובץ.יוד</code> מנסה VM ואם התכונה לא נתמכת — נופל למפרש (עם הודעה).</p>
+      <table class="method-table">
+        <thead><tr><th>תכונה</th><th>מפרש</th><th>מכונה</th></tr></thead>
+        <tbody>
+          <tr><td>בסיס / לולאות / מחלקות</td><td>כן</td><td>כן</td></tr>
+          <tr><td>עבור מ…עד</td><td>כן</td><td>כן</td></tr>
+          <tr><td>יבא / יצא / מודול</td><td>כן</td><td>fallback</td></tr>
+          <tr><td>תבניות `…${…}`</td><td>כן</td><td>fallback</td></tr>
+          <tr><td>סדרה</td><td>כן</td><td>fallback</td></tr>
+          <tr><td>משימה / המתן</td><td>כן</td><td>fallback*</td></tr>
+          <tr><td>--בדוק_טיפוסים</td><td>כן</td><td>—</td></tr>
+        </tbody>
+      </table>
+      <p>* משימה היא builtin במפרש; הרצה דרך smart run עדיין תעבוד דרך המפרש אם הקומפילציה נכשלת.</p>
+      <nav class="page-nav">
+        <a href="מכונה.html"><span class="dir">הקודם</span><span class="title">מכונה</span></a>
+        <a href="קונסול-חבילות.html"><span class="dir">הבא</span><span class="title">קונסול</span></a>
+      </nav>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

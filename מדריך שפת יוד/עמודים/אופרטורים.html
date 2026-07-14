@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">תחביר · 0.36.0</span><strong>אופרטורים</strong></div>
+      <div class="brand"><span class="eyebrow">תחביר · 0.70.0</span><strong>אופרטורים</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
@@ -63,6 +63,39 @@
 שקר</pre>
         </div>
       </figure>
+
+      <h2>מינוס אונרי (חוזה)</h2>
+      <p>
+        <code>-</code> לפני ביטוי הוא מינוס אונרי (שלילה): <code>-1</code>, <code>-x</code>, <code>-(א + ב)</code>.
+        בין שני ביטויים זה חיסור: <code>א - ב</code> (חובה רווח סביב המינוס כשיש ספק).
+      </p>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">הדפס: -1
+הדפס: -(-3)
+משתנה x = 5
+הדפס: -x
+הדפס: x - 2
+פונקציה כפול א
+  החזר א * 2
+סוף
+הדפס: כפול(-4)
+הדפס: כפול: -4</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>-1
+3
+-5
+3
+-8
+-8</pre>
+        </div>
+      </figure>
+      <div class="callout warn">
+        <strong>שימו לב:</strong> קריאה בצמידות <code>שם ארג</code> (juxta) <strong>לא</strong> מתחילה ב־<code>-</code>,
+        כדי ש־<code>x - y</code> יישאר חיסור ולא יתפרש כ־<code>x(-y)</code>.
+        בארגומנט שלילי העדיפו <code>שם: -1</code> או <code>שם(-1)</code>.
+      </div>
 
       <h2>לוגיקה, השמה ו־??</h2>
       <figure class="example">

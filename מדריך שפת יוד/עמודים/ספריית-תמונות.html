@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית תמונות | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.76.0</span><strong>תמונות</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית תמונות</h1>
+      <p class="lead">
+        טעינה, מידות ושמירה של תמונות (PNG/JPG/GIF ועוד). טוענים עם <code>כלול "תמונות"</code>.
+        אפשר גם לצייר על משטח עם <code>משטח.צייר_תמונה</code> או <code>משטח.תמונה</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>תמונות.טען(נתיב)</code></td><td>טוען תמונה — רכיב עם <code>רוחב</code>, <code>גובה</code>, <code>שמור</code></td></tr>
+          <tr><td><code>תמונות.שמור(תמונה, נתיב)</code></td><td>שומר לפי סיומת (.png / .jpg / .gif)</td></tr>
+        </tbody>
+      </table>
+
+      <figure class="example">
+        <span class="example-label">טעינה ושמירה</span>
+        <pre class="code-block">כלול "תמונות"
+
+משתנה ת = תמונות.טען: "א.png"
+הדפס: ת.רוחב, ת.גובה
+תמונות.שמור: ת, "ב.jpg"
+
+// על משטח:
+// משטח.צייר_תמונה: ת, 10, 20</pre>
+      </figure>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

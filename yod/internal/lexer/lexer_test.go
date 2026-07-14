@@ -58,3 +58,22 @@ func TestCommentsSkipped(t *testing.T) {
 		t.Fatalf("expected משתנה after comment, got %q", tok.Type)
 	}
 }
+
+func TestBlockCommentsSkipped(t *testing.T) {
+	l := New("/* הערה\nרב שורה */\nמשתנה א = 1")
+	tok := l.NextToken()
+	if tok.Type != token.Var {
+		t.Fatalf("expected משתנה after block comment, got %q", tok.Type)
+	}
+	if len(l.Errors()) != 0 {
+		t.Fatalf("unexpected lexer errors: %v", l.Errors())
+	}
+}
+
+func TestBlockCommentUnclosed(t *testing.T) {
+	l := New("/* לא נסגר\nמשתנה א = 1")
+	_ = l.NextToken()
+	if len(l.Errors()) == 0 {
+		t.Fatal("expected unclosed block comment error")
+	}
+}

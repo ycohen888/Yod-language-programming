@@ -10,9 +10,21 @@
 
 ```powershell
 cd yod
-go build -o yod.exe ./cmd/yod
-.\yod.exe גרסה
-.\yod.exe הרץ examples\shalom.יוד
+go build -o ..\yod.exe ./cmd/yod
+..\yod.exe גרסה
+..\yod.exe הרץ examples\shalom.יוד
+```
+
+### עורך Electron (מומלץ)
+
+דרוש גם Node.js:
+
+```powershell
+cd yod-ide
+npm install
+npm run build
+cd ..
+.\yod.exe עורך
 ```
 
 האייקון של `yod.exe` מגיע מ־`cmd/yod/rsrc_windows_amd64.syso` (משובץ בריפו).
@@ -42,6 +54,7 @@ go test ./...
 4. עדכנו תיעוד אם שיניתם יכולת שהמשתמש רואה:
    - `מדריך שפת יוד/`
    - `info_program.html` (יומן)
+   - `yod-ide/README.md` (עורך)
 5. Commit עם הודעה ברורה (מה ולמה), ואז Push + Pull Request
 
 ## סגנון PR
@@ -54,11 +67,14 @@ go test ./...
 
 | נתיב | תפקיד |
 |------|--------|
-| `yod/cmd/yod` | CLI + עורך |
+| `yod/cmd/yod` | CLI |
 | `yod/internal/lexer|parser|evaluator|vm` | ליבת השפה |
 | `yod/internal/stdlib` | ספריות מובנות |
-| `yod/internal/editor` | עורך Windows |
-| `yod/examples` | דוגמאות `.יוד` |
+| `yod/internal/editor` | עורך Win32 + השקת Electron |
+| `yod/internal/format` | `יוד סדר` |
+| `yod-ide/` | עורך Electron (ברירת מחדל) |
+| `פרוייקט דוגמה/` | פרויקטי הדגמה מלאים |
+| `yod/examples` | דוגמאות קצרות `.יוד` |
 | `מדריך שפת יוד/` | מדריך למשתמש (מקור; משובץ גם ב־`yod/internal/guide/guide.zip`) |
 | `yod/internal/guide/` | שיבוץ המדריך בבינארי — אחרי עדכון HTML: `go generate ./internal/guide` |
 

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית מקלדת | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.76.0</span><strong>מקלדת</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית מקלדת</h1>
+      <p class="lead">
+        סקירת מצב מקשים ב־Windows (כמו <code>עכבר</code>) — מתאים ללולאת משחק עם <code>טיימרים</code>.
+        טוענים עם <code>כלול "מקלדת"</code>.
+        לאירועי מקש על משטח — ראו גם <code>משטח.בעת_מקש</code> / <code>בעת_תו</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>מקלדת.לחוץ(שם)</code></td><td>האם המקש לחוץ כעת (אמת/שקר)</td></tr>
+          <tr><td><code>מקלדת.מצב()</code></td><td>מילון של מקשים נפוצים → אמת/שקר</td></tr>
+        </tbody>
+      </table>
+
+      <h2>שמות מקשים</h2>
+      <p>
+        חצים: <code>שמאלה</code>, <code>ימינה</code>, <code>למעלה</code>, <code>למטה</code> ·
+        <code>רווח</code>, <code>אנטר</code>, <code>בריחה</code>, <code>טאב</code> ·
+        <code>Shift</code>, <code>Ctrl</code>, <code>Alt</code> ·
+        אותיות <code>A</code>–<code>Z</code> וספרות <code>0</code>–<code>9</code>.
+      </p>
+
+      <figure class="example">
+        <span class="example-label">סקרור בלולאת משחק</span>
+        <pre class="code-block">כלול "מקלדת"
+כלול "טיימרים"
+
+טיימרים.טיימר: 16, פונקציה ()
+  אם מקלדת.לחוץ: "שמאלה"
+    הזז_שמאלה()
+  סוף
+  אם מקלדת.לחוץ: "A"
+    ירי()
+  סוף
+סוף</pre>
+      </figure>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

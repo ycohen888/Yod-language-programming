@@ -33,12 +33,11 @@ func ResolveValue(obj Object) Object {
 }
 
 func hashKeys(h *Hash) []string {
-	keys := make([]string, 0, len(h.Pairs))
-	for k := range h.Pairs {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
+	return h.Keys()
+}
+
+func hashKeysSorted(h *Hash) []string {
+	return h.SortedKeys()
 }
 
 func errArity(name string, want string) Object {
@@ -114,6 +113,18 @@ var hashMethods = map[string]func(self Object, args ...Object) Object{
 	},
 	"שמות": hashKeysMethod,
 	"מפתחות": hashKeysMethod,
+	"שמות_ממוינים": func(self Object, args ...Object) Object {
+		h := self.(*Hash)
+		if len(args) != 0 {
+			return errArity("שמות_ממוינים", "0 ארגומנטים")
+		}
+		keys := hashKeysSorted(h)
+		arr := &Array{Elements: make([]Object, len(keys))}
+		for i, k := range keys {
+			arr.Elements[i] = &String{Value: k}
+		}
+		return arr
+	},
 	"ערכים": func(self Object, args ...Object) Object {
 		h := self.(*Hash)
 		if len(args) != 0 {

@@ -219,9 +219,11 @@ func wrapBoard(st *drawBoard) *object.GuiWidget {
 	w.Attrs["רוחב_טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return boardTextWidth(st, a...)
 	}}
-	w.Attrs["תמונה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+	drawImg := &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return boardDrawImage(st, a...)
 	}}
+	w.Attrs["תמונה"] = drawImg
+	w.Attrs["צייר_תמונה"] = drawImg
 	w.Attrs["שמור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		if len(a) != 1 {
 			return errObj("שמור מצפה לנתיב")
@@ -271,12 +273,8 @@ func drawLoadImage(args ...object.Object) object.Object {
 func wrapImage(img image.Image) *object.GuiWidget {
 	st := &drawImage{img: img}
 	w := &object.GuiWidget{Kind: "תמונה", Data: st, Attrs: map[string]object.Object{}}
-	w.Attrs["רוחב"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
-		return &object.Number{Value: float64(img.Bounds().Dx())}
-	}}
-	w.Attrs["גובה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
-		return &object.Number{Value: float64(img.Bounds().Dy())}
-	}}
+	w.Attrs["רוחב"] = &object.Number{Value: float64(img.Bounds().Dx())}
+	w.Attrs["גובה"] = &object.Number{Value: float64(img.Bounds().Dy())}
 	w.Attrs["שמור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		if len(a) != 1 {
 			return errObj("שמור מצפה לנתיב")
@@ -285,7 +283,7 @@ func wrapImage(img image.Image) *object.GuiWidget {
 		if !ok {
 			return errObj("שמור מצפה לנתיב מחרוזת")
 		}
-		if err := saveImageFile(img, path); err != nil {
+		if err := saveImageFile(img, resolveAppPath(path)); err != nil {
 			return errObj(err.Error())
 		}
 		return object.Nil

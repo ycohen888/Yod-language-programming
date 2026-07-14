@@ -147,14 +147,16 @@ type FunctionLiteral struct {
 	Tok        token.Token
 	Name       *Identifier // אופציונלי בהצהרה
 	Parameters []*Parameter
+	ReturnType string // אופציונלי: -> מספר
 	Body       *BlockStatement
 	Visibility Visibility
 }
 
-// Parameter — פרמטר לפונקציה, עם ברירת מחדל אופציונלית (שם = ביטוי).
+// Parameter — פרמטר לפונקציה, עם ברירת מחדל והערת טיפוס אופציונליות.
 type Parameter struct {
-	Name    *Identifier
-	Default Expression // nil = חובה
+	Name     *Identifier
+	TypeName string     // אופציונלי: א: מספר
+	Default  Expression // nil = חובה
 }
 
 func (f *FunctionLiteral) expressionNode()      {}
@@ -188,6 +190,17 @@ type StringLiteral struct {
 func (s *StringLiteral) expressionNode()      {}
 func (s *StringLiteral) TokenLiteral() string { return s.Tok.Literal }
 func (s *StringLiteral) Line() int            { return s.Tok.Line }
+
+// TemplateLiteral — `טקסט ${ביטוי}` כמו ב־JS
+type TemplateLiteral struct {
+	Tok    token.Token
+	Quasis []string     // len = len(Exprs)+1
+	Exprs  []Expression
+}
+
+func (t *TemplateLiteral) expressionNode()      {}
+func (t *TemplateLiteral) TokenLiteral() string { return t.Tok.Literal }
+func (t *TemplateLiteral) Line() int            { return t.Tok.Line }
 
 type BooleanLiteral struct {
 	Tok   token.Token
@@ -324,6 +337,21 @@ func (s *ForInStatement) statementNode()       {}
 func (s *ForInStatement) TokenLiteral() string { return s.Tok.Literal }
 func (s *ForInStatement) Line() int            { return s.Tok.Line }
 
+// ForRangeStatement — עבור i מ 0 עד 10 [בצע 2]
+// הקצוות Inclusive; צעד ברירת מחדל 1.
+type ForRangeStatement struct {
+	Tok   token.Token
+	Name  *Identifier
+	Start Expression
+	End   Expression
+	Step  Expression // nil = 1
+	Body  *BlockStatement
+}
+
+func (s *ForRangeStatement) statementNode()       {}
+func (s *ForRangeStatement) TokenLiteral() string { return s.Tok.Literal }
+func (s *ForRangeStatement) Line() int            { return s.Tok.Line }
+
 type IncludeStatement struct {
 	Tok  token.Token
 	Path string
@@ -332,6 +360,49 @@ type IncludeStatement struct {
 func (s *IncludeStatement) statementNode()       {}
 func (s *IncludeStatement) TokenLiteral() string { return s.Tok.Literal }
 func (s *IncludeStatement) Line() int            { return s.Tok.Line }
+
+// ModuleStatement — מודול שם (כותרת קובץ)
+type ModuleStatement struct {
+	Tok  token.Token
+	Name *Identifier
+}
+
+func (s *ModuleStatement) statementNode()       {}
+func (s *ModuleStatement) TokenLiteral() string { return s.Tok.Literal }
+func (s *ModuleStatement) Line() int            { return s.Tok.Line }
+
+// ExportStatement — יצא פונקציה/משתנה/מחלקה
+type ExportStatement struct {
+	Tok  token.Token
+	Stmt Statement
+}
+
+func (s *ExportStatement) statementNode()       {}
+func (s *ExportStatement) TokenLiteral() string { return s.Tok.Literal }
+func (s *ExportStatement) Line() int            { return s.Tok.Line }
+
+// ImportStatement — יבא כורים מתוך "קובץ.יוד" | יבא { סכום } מתוך "..."
+type ImportStatement struct {
+	Tok       token.Token
+	Alias     *Identifier   // nil אם ייבוא שמות בודדים
+	Names     []*Identifier // לייבוא { א, ב }
+	Path      string
+}
+
+func (s *ImportStatement) statementNode()       {}
+func (s *ImportStatement) TokenLiteral() string { return s.Tok.Literal }
+func (s *ImportStatement) Line() int            { return s.Tok.Line }
+
+// EnumStatement — סדרה איכות { חלש, טוב }
+type EnumStatement struct {
+	Tok     token.Token
+	Name    *Identifier
+	Members []*Identifier
+}
+
+func (s *EnumStatement) statementNode()       {}
+func (s *EnumStatement) TokenLiteral() string { return s.Tok.Literal }
+func (s *EnumStatement) Line() int            { return s.Tok.Line }
 
 type HashPair struct {
 	Key   Expression

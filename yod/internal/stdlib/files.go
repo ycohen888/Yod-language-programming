@@ -11,6 +11,7 @@ import (
 func NewFilesModule() *object.Module {
 	m := &object.Module{Name: "קבצים", Attrs: map[string]object.Object{}}
 	m.Attrs["קרא"] = &object.Builtin{Fn: filesRead}
+	m.Attrs["קרא_תוצאה"] = &object.Builtin{Fn: filesReadResult}
 	m.Attrs["כתוב"] = &object.Builtin{Fn: filesWrite}
 	m.Attrs["קיים"] = &object.Builtin{Fn: filesExists}
 	m.Attrs["מחק"] = &object.Builtin{Fn: filesDelete}
@@ -42,6 +43,21 @@ func filesRead(args ...object.Object) object.Object {
 		return errObj("לא הצלחתי לקרוא קובץ: " + e.Error())
 	}
 	return &object.String{Value: string(data)}
+}
+
+func filesReadResult(args ...object.Object) object.Object {
+	if err := expectArgs("קבצים.קרא_תוצאה", 1, args); err != nil {
+		return err
+	}
+	path, ok := asString(args[0])
+	if !ok {
+		return object.ResultErr("קבצים.קרא_תוצאה מצפה לנתיב מחרוזת", 1)
+	}
+	data, e := os.ReadFile(path)
+	if e != nil {
+		return object.ResultErr("לא הצלחתי לקרוא קובץ: "+e.Error(), 1)
+	}
+	return object.ResultOk(&object.String{Value: string(data)})
 }
 
 func filesWrite(args ...object.Object) object.Object {

@@ -1,0 +1,40 @@
+{
+  "name": "yod-ide",
+  "version": "0.77.0",
+  "private": true,
+  "description": "עורך יוד — IDE בסגנון Visual Studio Code",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "stamp-icon": "node scripts/stamp-electron-icon.cjs && node scripts/write-electron-app-bootstrap.cjs && node scripts/install-shortcut.cjs",
+    "dev": "npm run stamp-icon && concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && node scripts/run-yod-electron.cjs\"",
+    "build": "vite build && npm run stamp-icon",
+    "start": "npm run stamp-icon && node scripts/run-yod-electron.cjs",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.10.4",
+    "@codemirror/language": "^6.12.4",
+    "@codemirror/search": "^6.7.1",
+    "@codemirror/state": "^6.7.1",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.43.6",
+    "@lezer/common": "^1.5.2",
+    "@lezer/highlight": "^1.2.3",
+    "@monaco-editor/react": "^4.7.0",
+    "monaco-editor": "^0.52.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.0",
+    "rcedit": "^5.0.2",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.4",
+    "wait-on": "^8.0.4"
+  }
+}

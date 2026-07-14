@@ -17,12 +17,12 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">מילת מפתח · 0.36.0</span><strong>עבור</strong></div>
+      <div class="brand"><span class="eyebrow">מילת מפתח · 0.70.0</span><strong>עבור</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
-      <h1>עבור / בתוך</h1>
-      <p class="lead">מעבר על כל האיברים ברשימה, מילון או מחרוזת.</p>
+      <h1>עבור</h1>
+      <p class="lead">מעבר על אוסף, או לולאת מספור <code>מ … עד</code>.</p>
 
       <h2>מה זה</h2>
       <p>
@@ -32,7 +32,8 @@
       </p>
       <p>
         אפשר לעבור על רשימה <code>[…]</code>, על מילון <code>{…}</code>,
-        או על תווי מחרוזת. למספרים רצופים נוח לשלב עם <code>טווח(…)</code>.
+        או על תווי מחרוזת. למספרים רצופים מומלץ גם
+        <code>עבור i מ 0 עד 10</code> (כולל את 10).
       </p>
 
       <h2>רשימה</h2>
@@ -50,6 +51,34 @@
 שלום מיכל</pre>
         </div>
       </figure>
+
+      <h2>מספור: מ … עד</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">עבור i מ 1 עד 3
+  הדפס: i
+סוף
+
+עבור j מ 0 עד 6 בצע 2
+  הדפס: j
+סוף</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>1
+2
+3
+0
+2
+4
+6</pre>
+        </div>
+      </figure>
+      <p>
+        הקצוות <strong>כוללים</strong>. צעד ברירת מחדל הוא <code>1</code>.
+        לכיוון יורד כתבו צעד שלילי: <code>עבור i מ 5 עד 1 בצע -1</code>.
+        אם ההתחלה גדולה מהסוף וצעד חיובי — הגוף לא רץ.
+        עדיין אפשר גם <code>עבור i בתוך טווח(…)</code>.
+      </p>
 
       <h2>טווח ומחרוזת</h2>
       <figure class="example">

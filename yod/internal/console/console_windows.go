@@ -20,14 +20,15 @@ var (
 	procGetConsoleMode             = kernel32.NewProc("GetConsoleMode")
 	procSetConsoleMode             = kernel32.NewProc("SetConsoleMode")
 	procGetConsoleWindow           = kernel32.NewProc("GetConsoleWindow")
-	procGetConsoleProcessList      = kernel32.NewProc("GetConsoleProcessList")
-	procShowWindow                 = user32.NewProc("ShowWindow")
+	procGetConsoleProcessList = kernel32.NewProc("GetConsoleProcessList")
+	procShowWindow            = user32.NewProc("ShowWindow")
+	procFreeConsole           = kernel32.NewProc("FreeConsole")
 )
 
 const (
-	stdOutputHandle            = uint32(0xFFFFFFF5) // -11
-	enableVirtualTerminalProc  = 0x0004
-	enableProcessedOutput      = 0x0001
+	stdOutputHandle           = uint32(0xFFFFFFF5) // -11
+	enableVirtualTerminalProc = 0x0004
+	enableProcessedOutput     = 0x0001
 )
 
 type coord struct {
@@ -62,9 +63,9 @@ func Init() {
 }
 
 // HideIfOwned מסתיר את חלון ה־CMD רק אם התהליך לבד בקונסול
-// (לחיצה כפולה מסייר הקבצים) — לא כשמריצים מתוך טרמינל קיים.
+// (לחיצה כפולה מסייר / קיצור דרך) — לא כשמריצים מתוך טרמינל קיים.
 func HideIfOwned() {
-	var buf [4]uint32
+	var buf [8]uint32
 	r1, _, _ := procGetConsoleProcessList.Call(
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(len(buf)),
@@ -78,6 +79,7 @@ func HideIfOwned() {
 		return
 	}
 	_, _, _ = procShowWindow.Call(hwnd, 0) // SW_HIDE
+	_, _, _ = procFreeConsole.Call()
 }
 
 func enableVT(hOut uintptr) {

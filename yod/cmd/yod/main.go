@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,7 +11,9 @@ import (
 	"yod/internal/console"
 	"yod/internal/editor"
 	"yod/internal/evaluator"
+	"yod/internal/format"
 	"yod/internal/lexer"
+	"yod/internal/lint"
 	"yod/internal/object"
 	"yod/internal/pack"
 	"yod/internal/parser"
@@ -25,6 +28,10 @@ import (
 const version = ver.String
 
 func main() {
+	// מסתירים CMD מוקדם כשפותחים את העורך — מצמצם הבהוב לפני Init
+	if len(os.Args) < 2 || isEditorArg(os.Args[1]) {
+		console.HideIfOwned()
+	}
 	console.Init()
 
 	if exePath, err := os.Executable(); err == nil {
@@ -65,27 +72,37 @@ func main() {
 			console.Fprintln(os.Stderr, "שימוש: יוד הרץ תוכנית.יוד")
 			os.Exit(1)
 		}
-		// הרץ --מכונה קובץ / הרץ קובץ
-		path := os.Args[2]
+		path := ""
 		preferVM := false
-		argStart := 3
-		if path == "--מכונה" || path == "--vm" {
-			preferVM = true
-			if len(os.Args) < 4 {
-				console.Fprintln(os.Stderr, "שימוש: יוד הרץ --מכונה תוכנית.יוד")
-				os.Exit(1)
+		checkTypes := false
+		var progArgs []string
+		for i := 2; i < len(os.Args); i++ {
+			a := os.Args[i]
+			switch a {
+			case "--מכונה", "--vm":
+				preferVM = true
+			case "--בדוק_טיפוסים", "--check-types":
+				checkTypes = true
+			default:
+				if path == "" {
+					path = a
+				} else {
+					progArgs = append(progArgs, a)
+				}
 			}
-			path = os.Args[3]
-			argStart = 4
 		}
-		if argStart < len(os.Args) {
-			object.ProgramArgs = append([]string{}, os.Args[argStart:]...)
-		} else {
-			object.ProgramArgs = nil
+		if path == "" {
+			console.Fprintln(os.Stderr, "שימוש: יוד הרץ [--מכונה] [--בדוק_טיפוסים] תוכנית.יוד")
+			os.Exit(1)
 		}
+		object.ProgramArgs = progArgs
+		evaluator.CheckTypes = checkTypes
 		var err error
 		if preferVM {
 			err = runSmart(path, true)
+		} else if checkTypes {
+			// בדיקת טיפוסים במפרש בלבד
+			err = runFile(path)
 		} else {
 			err = runFile(path)
 		}
@@ -128,6 +145,94 @@ func main() {
 			path = os.Args[2]
 		}
 		openEditor(path)
+	case "בדוק", "check", "lint":
+		if len(os.Args) < 3 {
+			console.Fprintln(os.Stderr, "שגיאה: חסר נתיב לקובץ או תיקייה")
+			console.Fprintln(os.Stderr, "שימוש: יוד בדוק תוכנית.יוד")
+			console.Fprintln(os.Stderr, "       יוד בדוק תיקיית_פרויקט")
+			os.Exit(1)
+		}
+		issues, err := lint.CheckPath(os.Args[2])
+		if err != nil {
+			console.Fprintln(os.Stderr, err.Error())
+			os.Exit(1)
+		}
+		if len(issues) == 0 {
+			console.Println("אין ממצאים.")
+			return
+		}
+		for _, iss := range issues {
+			console.Println(iss.String())
+		}
+		os.Exit(1)
+	case "סדר", "format":
+		writeBack := false
+		path := ""
+		for _, a := range os.Args[2:] {
+			switch a {
+			case "-w", "--write":
+				writeBack = true
+			default:
+				if path == "" {
+					path = a
+				}
+			}
+		}
+		var src []byte
+		var err error
+		if path == "" || path == "-" {
+			src, err = io.ReadAll(os.Stdin)
+			if err != nil {
+				console.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+		} else {
+			src, err = os.ReadFile(path)
+			if err != nil {
+				console.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+		}
+		out := format.Source(string(src))
+		if writeBack {
+			if path == "" || path == "-" {
+				console.Fprintln(os.Stderr, "שימוש: יוד סדר [-w] תוכנית.יוד")
+				os.Exit(1)
+			}
+			if err := os.WriteFile(path, []byte(out), 0644); err != nil {
+				console.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+		}
+		// stdout גולמי — בלי עיבוד קונסול — כדי שה־IDE יקבל את הקוד כמו שהוא
+		_, _ = io.WriteString(os.Stdout, out)
+		if !strings.HasSuffix(out, "\n") {
+			_, _ = io.WriteString(os.Stdout, "\n")
+		}
+	case "קונסול", "שלד", "repl":
+		runREPL()
+	case "חבילה", "pkg", "package":
+		if len(os.Args) < 3 {
+			console.Fprintln(os.Stderr, "שימוש: יוד חבילה הוסף נתיב")
+			os.Exit(1)
+		}
+		sub := os.Args[2]
+		switch sub {
+		case "הוסף", "add":
+			if len(os.Args) < 4 {
+				console.Fprintln(os.Stderr, "שימוש: יוד חבילה הוסף נתיב_לקובץ_או_תיקייה")
+				os.Exit(1)
+			}
+			if err := pkgAdd(os.Args[3]); err != nil {
+				console.Fprintln(os.Stderr, err.Error())
+				os.Exit(1)
+			}
+			console.Println("החבילה נוספה ל־.יוד_חבילות")
+		default:
+			console.Fprintf(os.Stderr, "תת־פקודה לא מוכרת: %s\n", sub)
+			console.Fprintln(os.Stderr, "שימוש: יוד חבילה הוסף נתיב")
+			os.Exit(1)
+		}
 	default:
 		// תיקיית פרויקט או קובץ .יוד
 		if fi, err := os.Stat(cmd); err == nil && fi.IsDir() {
@@ -157,6 +262,15 @@ func main() {
 	}
 }
 
+func isEditorArg(a string) bool {
+	switch a {
+	case "עורך", "editor":
+		return true
+	default:
+		return false
+	}
+}
+
 func openEditor(path string) {
 	console.HideIfOwned()
 	if err := editor.Run(path); err != nil {
@@ -169,7 +283,7 @@ func printHelp() {
 	console.Println("יוד — שפת תכנות בעברית")
 	console.Println()
 	console.Println("שימוש:")
-	console.Println("  yod                    (פותח את העורך)")
+	console.Println("  yod                    (פותח את העורך Electron)")
 	console.Println("  yod עורך [תוכנית.יוד]")
 	console.Println("  yod הרץ תוכנית.יוד")
 	console.Println("  yod הרץ תיקיית_פרויקט   (מריץ התחל.יוד)")
@@ -179,10 +293,16 @@ func printHelp() {
 	console.Println("  yod ארוז תוכנית.יוד [יעד.exe]     → EXE בלי חלון CMD")
 	console.Println("  yod ארוז תוכנית.יוד --קונסול      → EXE עם חלון CMD")
 	console.Println("  yod ארוז תוכנית.יוד --תיקייה [יעד] → תיקיית הפצה")
+	console.Println("  yod בדוק תוכנית.יוד   (סגנון ותחביר)")
+	console.Println("  yod סדר תוכנית.יוד    (מסדר קוד ל־stdout; -w כותב לקובץ)")
+	console.Println("  yod הרץ --בדוק_טיפוסים תוכנית.יוד")
+	console.Println("  yod קונסול            (REPL)")
+	console.Println("  yod חבילה הוסף נתיב   (עותק ל־.יוד_חבילות)")
 	console.Println("  yod גרסה")
 	console.Println("  yod עזרה")
 	console.Println()
-	console.Println("פרויקט: הקובץ הראשי הוא תמיד התחל.יוד — ממנו כוללים קבצים אחרים עם כלול.")
+	console.Println("עורך: אחרי build של yod-ide/ — Electron+CodeMirror. עורך ישן: YOD_LEGACY_EDITOR=1")
+	console.Println("פרויקט: הקובץ הראשי הוא תמיד התחל.יוד — ממנו כוללים קבצים אחרים עם כלול/יבא.")
 }
 
 // runSmart — מנסה VM; אם הקומפילציה נכשלת בגלל צומת לא נתמך — נופל למפרש
@@ -196,9 +316,24 @@ func runSmart(path string, forceVM bool) error {
 		return err
 	}
 	if strings.Contains(msg, "לא נתמך") || strings.Contains(msg, "שגיאת קומפילציה") {
+		if !forceVM {
+			console.Fprintf(os.Stderr, "הערה: המכונה לא תומכת בתכונה זו (%s) — מריץ במפרש.\n", shortUnsupported(msg))
+		}
 		return runFile(path)
 	}
 	return err
+}
+
+func shortUnsupported(msg string) string {
+	msg = strings.TrimSpace(msg)
+	if i := strings.Index(msg, "\n"); i > 0 {
+		msg = msg[:i]
+	}
+	if len([]rune(msg)) > 80 {
+		r := []rune(msg)
+		return string(r[:80]) + "…"
+	}
+	return msg
 }
 
 func runFile(path string) error {

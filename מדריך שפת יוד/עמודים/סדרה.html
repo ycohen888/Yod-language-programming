@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>סדרה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">טיפוס · 0.72.0</span><strong>סדרה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>סדרה</h1>
+      <p class="lead">ערכים קבועים בשם — כמו enum בקצרה.</p>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">סדרה איכות { חלש, טוב, מעולה }
+משתנה ק = איכות.טוב
+אם ק == איכות.טוב
+  הדפס: "מעולה"
+סוף
+הדפס: ק</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>מעולה
+איכות.טוב</pre>
+        </div>
+      </figure>
+      <nav class="page-nav">
+        <a href="מילון.html"><span class="dir">הקודם</span><span class="title">מילון</span></a>
+        <a href="מחרוזת.html"><span class="dir">הבא</span><span class="title">מחרוזת</span></a>
+      </nav>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

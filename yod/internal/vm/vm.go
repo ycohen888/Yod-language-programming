@@ -394,7 +394,11 @@ func (vm *VM) Run() error {
 		case code.OpHash:
 			n := int(readUint16(ins[ip+1:]))
 			vm.currentFrame().ip += 2
-			pairs := map[string]object.Object{}
+			type kv struct {
+				k string
+				v object.Object
+			}
+			items := make([]kv, 0, n)
 			var hashErr string
 			for i := 0; i < n; i++ {
 				value := vm.pop()
@@ -404,14 +408,20 @@ func (vm *VM) Run() error {
 					hashErr = "מפתח במילון חייב להיות מחרוזת"
 					break
 				}
-				pairs[key.Value] = value
+				items = append(items, kv{k: key.Value, v: value})
 			}
 			if hashErr != "" {
 				if !vm.handleError(hashErr) {
 					return fmt.Errorf("%s", hashErr)
 				}
-			} else if err := vm.push(&object.Hash{Pairs: pairs}); err != nil {
-				return err
+			} else {
+				h := object.NewHash()
+				for i := len(items) - 1; i >= 0; i-- {
+					h.Set(items[i].k, items[i].v)
+				}
+				if err := vm.push(h); err != nil {
+					return err
+				}
 			}
 		case code.OpIndex:
 			index := vm.pop()

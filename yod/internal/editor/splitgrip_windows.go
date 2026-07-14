@@ -7,13 +7,13 @@ import (
 	"github.com/lxn/win"
 )
 
-// splitGrip — ידית גרירה אופקית. מיקום לפי קואורדינטות מסך/לקוח של המארח
-// (לא דלתא עם סימן RTL) — הידית עוקבת אחרי העכבר בלי היפוך ובלי קפיצות.
+// splitGrip — ידית גרירה אופקית לפי קואורדינטות מסך (עמיד ל־RTL של החלון).
+// מדווח את הזזת המסך המצטברת מתחילת הגרירה (לא דלתא מצטברת) — מונע קפיצות.
 type splitGrip struct {
 	*walk.CustomWidget
 	dragging bool
-	onDragX  func(clientX int) // X בתוך ה־host (פיקסלי לקוח)
-	host     walk.Window
+	startSX  int
+	onDrag   func(totalDX int) // totalDX>0 = העכבר זז ימינה על המסך מאז MouseDown
 }
 
 func (g *splitGrip) CreateLayoutItem(ctx *walk.LayoutContext) walk.LayoutItem {
@@ -37,9 +37,8 @@ func (li *gripLayoutItem) MinSize() walk.Size {
 	return walk.Size{Width: li.width, Height: 40}
 }
 
-func (g *splitGrip) Mount(parent walk.Container, host walk.Window, onDragX func(clientX int)) error {
-	g.onDragX = onDragX
-	g.host = host
+func (g *splitGrip) Mount(parent walk.Container, onDrag func(totalDX int)) error {
+	g.onDrag = onDrag
 	cw, err := walk.NewCustomWidgetPixels(parent, 0, g.paint)
 	if err != nil {
 		return err
@@ -62,18 +61,22 @@ func (g *splitGrip) Mount(parent walk.Container, host walk.Window, onDragX func(
 			return
 		}
 		g.dragging = true
+		var pt win.POINT
+		win.GetCursorPos(&pt)
+		g.startSX = int(pt.X)
 		win.SetCapture(cw.Handle())
 		g.Invalidate()
-		g.emitClientX()
 	})
 	cw.MouseMove().Attach(func(x, y int, button walk.MouseButton) {
 		_ = x
 		_ = y
 		_ = button
-		if !g.dragging {
+		if !g.dragging || g.onDrag == nil {
 			return
 		}
-		g.emitClientX()
+		var pt win.POINT
+		win.GetCursorPos(&pt)
+		g.onDrag(int(pt.X) - g.startSX)
 	})
 	cw.MouseUp().Attach(func(x, y int, button walk.MouseButton) {
 		_ = x
@@ -86,16 +89,6 @@ func (g *splitGrip) Mount(parent walk.Container, host walk.Window, onDragX func(
 		g.Invalidate()
 	})
 	return nil
-}
-
-func (g *splitGrip) emitClientX() {
-	if g.onDragX == nil || g.host == nil {
-		return
-	}
-	var pt win.POINT
-	win.GetCursorPos(&pt)
-	win.ScreenToClient(g.host.Handle(), &pt)
-	g.onDragX(int(pt.X))
 }
 
 func (g *splitGrip) paint(canvas *walk.Canvas, updateBounds walk.Rectangle) error {
@@ -113,4 +106,16 @@ func (g *splitGrip) paint(canvas *walk.Canvas, updateBounds walk.Rectangle) erro
 	}
 	defer brush.Dispose()
 	return canvas.FillRectanglePixels(brush, bounds)
+}
+
+// treeLeftOfGrip — האם הסייר משמאל לידית במסך (לא תלוי ב־RTL של Walk).
+func treeLeftOfGrip(tree, grip walk.Window) bool {
+	if tree == nil || grip == nil {
+		return true
+	}
+	var tr, gr win.RECT
+	if !win.GetWindowRect(tree.Handle(), &tr) || !win.GetWindowRect(grip.Handle(), &gr) {
+		return true
+	}
+	return tr.Left < gr.Left
 }

@@ -1,8 +1,8 @@
-# יוד (Yod) — שפת תכנות בעברית
+﻿# יוד (Yod) — שפת תכנות בעברית
 
-**יוד** היא שפת תכנות מודרנית בעברית: תחביר מימין־לשמאל, ספריות מובנות, עורך גרפי ל־Windows, ומכונה וירטואלית.
+**יוד** היא שפת תכנות מודרנית בעברית: תחביר מימין־לשמאל, ספריות מובנות, עורך בסגנון VS Code, ומכונה וירטואלית.
 
-גרסה נוכחית: **0.69.13**
+גרסה נוכחית: **0.77.0**
 
 <p align="center">
   <img src="docs/screenshots/editor-code.png" alt="עורך יוד — קוד בעברית" width="720" />
@@ -24,7 +24,9 @@
 
 | נתיב | תוכן |
 |------|------|
-| [`yod/`](yod/) | קוד המקור של השפה, העורך, הספריות והדוגמאות |
+| [`yod/`](yod/) | קוד המקור של השפה, ה־CLI, הספריות והעורך הישן (Win32) |
+| [`yod-ide/`](yod-ide/) | **עורך יוד החדש** — Electron + React + CodeMirror 6 |
+| [`פרוייקט דוגמה/`](פרוייקט%20דוגמה/) | פרויקטי הדגמה (סנייק, מכרות, צייר, גרפים, רכיבים…) |
 | [`מדריך שפת יוד/`](מדריך%20שפת%20יוד/) | מדריך HTML בעברית (תחביר + ספריות) |
 | [`docs/screenshots/`](docs/screenshots/) | צילומי מסך של העורך והשרת |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | איך לבנות, לבדוק ולפתוח PR |
@@ -38,25 +40,45 @@
 ### אפשרות א׳ — הורדה מוכנה (Windows)
 
 ב־[Releases](https://github.com/ycohen888/Yod-language-programming/releases) יש `yod.exe` מוכן להורדה.
-הגרסה האחרונה: **[v0.53.0](https://github.com/ycohen888/Yod-language-programming/releases/tag/v0.53.0)** (או העדכנית ב־Releases).
-אין צורך ב־Go: מורידים, מריצים, ומתחילים.
+הגרסה האחרונה: **[v0.77.0](https://github.com/ycohen888/Yod-language-programming/releases/tag/v0.77.0)**.
+
+להפעלת **העורך החדש** אחרי clone/הורדת הריפו:
+
+```powershell
+cd yod-ide
+npm install
+npm run build
+cd ..
+.\yod.exe עורך
+```
 
 ### אפשרות ב׳ — בנייה מקוד המקור
 
-דרוש [Go](https://go.dev/dl/) 1.22+ (הפרויקט משתמש ב־Go 1.26).
+דרוש [Go](https://go.dev/dl/) 1.22+ ו־[Node.js](https://nodejs.org/) (לעורך החדש).
 
 ```powershell
 cd yod
-go build -o yod.exe ./cmd/yod
+go build -o ..\yod.exe ./cmd/yod
+
+cd ..\yod-ide
+npm install
+npm run build
 ```
 
 הרצה:
 
 ```powershell
-.\yod.exe              # פותח את העורך (Windows)
+.\yod.exe              # פותח את העורך (Electron אם נבנה, אחרת Win32)
 .\yod.exe גרסה
-.\yod.exe הרץ examples\shalom.יוד
+.\yod.exe הרץ "פרוייקט דוגמה\סנייק"
 .\yod.exe עזרה
+```
+
+עורך ישן (Win32):
+
+```powershell
+$env:YOD_LEGACY_EDITOR=1
+.\yod.exe עורך
 ```
 
 ---
@@ -76,21 +98,15 @@ go build -o yod.exe ./cmd/yod
 .\yod.exe הרץ שלום.יוד
 ```
 
-עוד דוגמאות בתיקייה [`yod/examples/`](yod/examples/).
+עוד דוגמאות ב־[`yod/examples/`](yod/examples/) וב־[`פרוייקט דוגמה/`](פרוייקט%20דוגמה/).
 
 ### פרויקט (כמה קבצים)
 
-הקובץ הראשי הוא תמיד `התחל.יוד`. שאר הקבצים נכללים עם `כלול`.
-מדריך מפורט: [קובץ יחיד או פרויקט](מדריך%20שפת%20יוד/עמודים/קובץ-או-פרויקט.html).
-
-```יוד
-// התחל.יוד
-כלול "עזר.יוד"
-הדפס: ברכה("עולם")
-```
+הקובץ הראשי הוא תמיד `התחל.יוד`. שאר הקבצים נכללים עם `כלול` / `יבא`.
+מדריך: [קובץ יחיד או פרויקט](מדריך%20שפת%20יוד/עמודים/קובץ-או-פרויקט.html).
 
 ```powershell
-.\yod.exe הרץ examples\פרויקט_דוגמה
+.\yod.exe הרץ "פרוייקט דוגמה\גרפים"
 # או: פתח תיקייה בעורך → F5 מריץ את התחל.יוד
 ```
 
@@ -104,6 +120,7 @@ go build -o yod.exe ./cmd/yod
 - `נסה` / `תפוס` / `זרוק`, `בחר` / `מקרה`
 - מתודות עשירות על מחרוזת, מספר, רשימה ומילון
 - הרצה במפרש או במכונה וירטואלית (`הרץ --מכונה`)
+- סגנון רשמי כמו PHP: `()` לתנאים ופרמטרים, `{}` לבלוקים (גם `סוף` עדיין נתמך)
 
 ### ספריות מובנות (`כלול "..."`)
 | ספרייה | תפקיד |
@@ -124,43 +141,36 @@ go build -o yod.exe ./cmd/yod
 | `מספרים` | פסיקים, כסף, בתים, אחוזים לתצוגה |
 | `עכבר` | מיקום ולחיצות עכבר |
 
-### עורך
-- הדגשת תחביר, השלמה אוטומטית, חיפוש
-- הרצת סקריפטים (כולל GUI בחלון נפרד)
-- עיצוב כהה מותאם ל־Windows
+### עורך יוד (חדש — `yod-ide/`)
+- Electron + React + CodeMirror 6, ממשק כהה בסגנון VS Code
+- RTL מלא לעברית, צביעת תחביר PHP Dark+
+- סייר קבצים, ניתוח קובץ, סמלי פרויקט
+- F12 / Ctrl+לחיצה להגדרה, Shift+F12 להפניות, Ctrl+P / Ctrl+Shift+F
+- F5 הרצה · F6 מכונה · F7 בדיקה (סימוני gutter)
+- `יוד סדר` / Shift+Alt+F לסידור קוד
+- איקון יוד ב־EXE, בחלון ובפס המשימות
+
+פרטים: [`yod-ide/README.md`](yod-ide/README.md).
 
 ### אריזה
 ```powershell
 .\yod.exe ארוז תוכנית.יוד
 ```
-יוצר קובץ הרצה עצמאי עם הקוד מוטמע.
 
 ---
 
-## מבנה הקוד (`yod/`)
+## מבנה הקוד
 
 ```
-yod/
-  cmd/yod/          # נקודת כניסה (CLI + עורך)
-  internal/
-    lexer/          # לקסיקלי
-    parser/         # תחביר → AST
-    ast/
-    evaluator/      # מפרש
-    compiler/ + vm/ # מכונה וירטואלית
-    object/         # טיפוסים ומתודות
-    stdlib/         # ספריות מובנות
-    editor/         # עורך Windows
-    highlight/      # צבעי תחביר
-    pack/           # אריזת exe
-  examples/         # דוגמאות .יוד
+yod/                 # ליבת השפה + CLI
+yod-ide/             # עורך Electron (ברירת מחדל ב־Windows)
+פרוייקט דוגמה/       # סנייק, מכרות, צייר, גרפים, רכיבים, מידע מחשב
+מדריך שפת יוד/       # מדריך HTML
 ```
 
 ---
 
 ## מדריך
-
-פתחו בדפדפן:
 
 - [`מדריך שפת יוד/מדריך שפת יוד.html`](מדריך%20שפת%20יוד/מדריך%20שפת%20יוד.html)
 
@@ -169,18 +179,14 @@ yod/
 ## רישיון
 
 הפרויקט מופץ תחת [MIT License](LICENSE).
-
-- מותר להשתמש, להעתיק, לשנות ולהפיץ **בחופשיות**
-- חובה לשמור על הודעת הזכויות ועל הרישיון
-- **המקור הרשמי:** [ycohen888/Yod-language-programming](https://github.com/ycohen888/Yod-language-programming) — יוד / ycohen888
+**המקור הרשמי:** [ycohen888/Yod-language-programming](https://github.com/ycohen888/Yod-language-programming)
 
 ---
 
 ## תרומה / פיתוח
 
-שמחים לעזרה! ראו את [`CONTRIBUTING.md`](CONTRIBUTING.md) — בנייה, בדיקות ו־Pull Request.
-
-אפשר גם לפתוח [Issue](https://github.com/ycohen888/Yod-language-programming/issues) (חפשו `good first issue`).
+ראו [`CONTRIBUTING.md`](CONTRIBUTING.md).
+[Issues](https://github.com/ycohen888/Yod-language-programming/issues)
 
 ---
 

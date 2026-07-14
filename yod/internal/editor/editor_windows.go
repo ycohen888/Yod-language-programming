@@ -62,12 +62,12 @@ const uiFont = "Segoe UI"
 const welcomeTemplate = `// ברוכים הבאים לעורך יוד
 // F5 הרץ · Ctrl+Shift+P ארוז · Ctrl+F חיפוש · Tab הזחה
 
-פונקציה שלום(שם)
-  הדפס: "שלום " + שם
-סוף
+פונקציה שלום(שם) {
+  הדפס("שלום " + שם)
+}
 
 משתנה הודעה = "עולם"
-שלום: הודעה
+שלום(הודעה)
 `
 
 const newFileTemplate = `// קובץ יוד — ניתן לכלול מתוך התחל.יוד או קבצים אחרים
@@ -76,8 +76,14 @@ const newFileTemplate = `// קובץ יוד — ניתן לכלול מתוך ה�
 הדפס: "שלום עולם"
 `
 
-// Run פותח את עורך יוד — IDE RTL מקצועי.
+// Run פותח את עורך יוד — IDE Electron (ברירת מחדל) או Win32 legacy.
 func Run(path string) error {
+	if os.Getenv("YOD_LEGACY_EDITOR") != "1" {
+		if tryLaunchWebIDE(path) {
+			return nil
+		}
+	}
+
 	ensureProcessDPI()
 
 	var (

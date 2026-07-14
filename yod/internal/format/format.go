@@ -27,102 +27,170 @@ type tok struct {
 	typ  token.Type // למילות מפתח / סימנים
 }
 
-// Source מסדר קוד יוד: הזחות, סוף, וקריאות בלי סוגריים מיותרים.
+// Source מסדר קוד יוד בסגנון PHP: (), {}, והזחות.
 func Source(src string) string {
 	src = strings.ReplaceAll(src, "\r\n", "\n")
 	src = strings.ReplaceAll(src, "\r", "\n")
 	toks := scan(src)
 	toks = normalizeMirroredBraces(toks)
-	toks = preferHebrewShape(toks)
+	toks = preferPhpShape(toks)
 	return printToks(toks)
 }
 
-// preferHebrewShape — מסיר () מתנאים, עבור, ופרמטרי פונקציה
-func preferHebrewShape(toks []tok) []tok {
+// preferPhpShape — מוסיף () לפרמטרים/תנאים חשופים; ממיר בלוקי סוף ל־{}.
+func preferPhpShape(toks []tok) []tok {
+	toks = wrapBareFunctionParams(toks)
+	toks = wrapBareConditions(toks)
+	return toks
+}
+
+func wrapBareFunctionParams(toks []tok) []tok {
+	lparen := tok{kind: kOp, lit: "(", typ: token.LParen}
+	rparen := tok{kind: kOp, lit: ")", typ: token.RParen}
 	var out []tok
 	for i := 0; i < len(toks); i++ {
 		t := toks[i]
-
-		// אם / כל_עוד / אחרת_אם (
-		if isCondKeyword(t.typ) && i+1 < len(toks) && toks[i+1].typ == token.LParen {
-			out = append(out, t)
-			i += 2 // דלג על (
-			depth := 1
-			for i < len(toks) && depth > 0 {
-				switch toks[i].typ {
-				case token.LParen:
-					depth++
-					out = append(out, toks[i])
-				case token.RParen:
-					depth--
-					if depth > 0 {
-						out = append(out, toks[i])
-					}
-					// depth==0: דלג על ) הסוגר של התנאי
-				default:
-					out = append(out, toks[i])
-				}
-				if depth == 0 {
-					break
-				}
-				i++
-			}
-			continue
-		}
-
-		// עבור (
-		if t.typ == token.For && i+1 < len(toks) && toks[i+1].typ == token.LParen {
-			out = append(out, t)
-			i += 2
-			depth := 1
-			for i < len(toks) && depth > 0 {
-				switch toks[i].typ {
-				case token.LParen:
-					depth++
-					out = append(out, toks[i])
-				case token.RParen:
-					depth--
-					if depth > 0 {
-						out = append(out, toks[i])
-					}
-				default:
-					out = append(out, toks[i])
-				}
-				if depth == 0 {
-					break
-				}
-				i++
-			}
-			continue
-		}
-
-		// פונקציה [שם] (
-		if t.typ == token.Function {
-			out = append(out, t)
-			j := i + 1
-			if j < len(toks) && toks[j].typ == token.Ident {
-				out = append(out, toks[j])
-				j++
-			}
-			if j < len(toks) && toks[j].typ == token.LParen {
-				j++ // דלג על (
-				for j < len(toks) && toks[j].typ != token.RParen {
-					out = append(out, toks[j])
-					j++
-				}
-				if j < len(toks) && toks[j].typ == token.RParen {
-					j++ // דלג על )
-				}
-				i = j - 1
-				continue
-			}
-			i = j - 1
-			continue
-		}
-
 		out = append(out, t)
+		if t.typ != token.Function {
+			continue
+		}
+		if i+1 >= len(toks) || toks[i+1].typ != token.Ident {
+			continue
+		}
+		out = append(out, toks[i+1])
+		i++
+		if i+1 < len(toks) && toks[i+1].typ == token.LParen {
+			continue
+		}
+		j := i + 1
+		var params []tok
+		for j < len(toks) {
+			if toks[j].typ == token.Ident {
+				params = append(params, toks[j])
+				j++
+				if j < len(toks) && toks[j].typ == token.Comma {
+					params = append(params, toks[j])
+					j++
+					continue
+				}
+				break
+			}
+			break
+		}
+		out = append(out, lparen)
+		out = append(out, params...)
+		out = append(out, rparen)
+		i = j - 1
 	}
 	return out
+}
+
+func wrapBareConditions(toks []tok) []tok {
+	lparen := tok{kind: kOp, lit: "(", typ: token.LParen}
+	rparen := tok{kind: kOp, lit: ")", typ: token.RParen}
+	var out []tok
+	for i := 0; i < len(toks); i++ {
+		t := toks[i]
+		out = append(out, t)
+		if !isCondKeyword(t.typ) {
+			continue
+		}
+		if i+1 < len(toks) && toks[i+1].typ == token.LParen {
+			continue
+		}
+		j := i + 1
+		for j < len(toks) {
+			if toks[j].typ == token.LBrace || toks[j].typ == token.End {
+				break
+			}
+			bodyStart := looksLikeBodyStart
+			if t.typ == token.For {
+				bodyStart = looksLikeForBodyStart
+			}
+			if j > i+1 && bodyStart(toks, j) {
+				break
+			}
+			j++
+		}
+		if j <= i+1 {
+			continue
+		}
+		out = append(out, lparen)
+		out = append(out, toks[i+1:j]...)
+		out = append(out, rparen)
+		i = j - 1
+	}
+	return out
+}
+
+func looksLikeBodyStart(toks []tok, j int) bool {
+	t := toks[j]
+	if j > 0 && toks[j-1].typ == token.In {
+		// עבור x בתוך זה.רשימה / שם — לא גוף עדיין
+		return false
+	}
+	switch t.typ {
+	case token.Var, token.If, token.While, token.For, token.Return, token.Function,
+		token.Break, token.Continue, token.Try, token.Throw, token.Class, token.Include,
+		token.Else, token.ElseIf, token.Private, token.Public, token.Switch, token.Case,
+		token.Default:
+		return true
+	case token.In, token.Extends, token.And, token.Or, token.Not, token.From,
+		token.Comma, token.Dot, token.LBracket, token.LParen, token.RParen,
+		token.RBracket, token.Colon, token.Assign, token.PlusAssign, token.MinusAssign,
+		token.Eq, token.NotEq, token.Lt, token.Gt, token.LtEq, token.GtEq,
+		token.Plus, token.Minus, token.Asterisk, token.Slash, token.Percent, token.Power,
+		token.NullCoalesce, token.Bang:
+		return false
+	case token.This, token.New, token.Parent:
+		// גוף שמתחיל ב־זה.שדה / חדש / הורה(...)
+		if j == 0 {
+			return false
+		}
+		prev := toks[j-1]
+		if isBinaryOp(prev.typ) || prev.typ == token.LParen || prev.typ == token.Not ||
+			prev.typ == token.Bang || prev.typ == token.Comma || prev.typ == token.Dot ||
+			prev.typ == token.And || prev.typ == token.Or || prev.typ == token.Colon {
+			return false
+		}
+		return endsExprOrStmt(prev)
+	}
+	// רק מזהה רגיל (לא מילת מפתח עם typ אחר)
+	if t.typ != token.Ident {
+		return false
+	}
+	if j == 0 {
+		return false
+	}
+	prev := toks[j-1]
+	if isBinaryOp(prev.typ) || prev.typ == token.LParen || prev.typ == token.Not ||
+		prev.typ == token.Bang || prev.typ == token.Comma || prev.typ == token.In ||
+		prev.typ == token.Extends || prev.typ == token.Colon || prev.typ == token.Dot ||
+		prev.typ == token.And || prev.typ == token.Or {
+		return false
+	}
+	return endsExprOrStmt(prev)
+}
+
+func looksLikeForBodyStart(toks []tok, j int) bool {
+	t := toks[j]
+	// «מ» / «עד» בלולאת טווח — לא התחלת גוף
+	if t.lit == "מ" || t.lit == "עד" || t.typ == token.In {
+		return false
+	}
+	// המשך ביטוי האוסף: זה.x / a.b / a[i] / a()
+	if j > 0 {
+		switch toks[j-1].typ {
+		case token.In, token.Dot, token.LParen, token.LBracket, token.This:
+			return false
+		}
+	}
+	return looksLikeBodyStart(toks, j)
+}
+
+// preferHebrewShape — נשמר לתאימות בדיקות ישנות; מעביר ל־PHP.
+func preferHebrewShape(toks []tok) []tok {
+	return preferPhpShape(toks)
 }
 
 func scan(input string) []tok {
@@ -148,9 +216,24 @@ func scan(input string) []tok {
 			out = append(out, tok{kind: kComment, lit: strings.TrimRight(input[start:i], "\r")})
 			continue
 		}
+		// הערת בלוק /* ... */
+		if r == '/' && i+1 < len(input) && input[i+1] == '*' {
+			start := i
+			i += 2
+			for i+1 < len(input) {
+				if input[i] == '*' && input[i+1] == '/' {
+					i += 2
+					break
+				}
+				_, s := utf8.DecodeRuneInString(input[i:])
+				i += s
+			}
+			out = append(out, tok{kind: kComment, lit: strings.TrimRight(input[start:i], "\r")})
+			continue
+		}
 
-		// מחרוזת
-		if r == '"' || r == '\'' {
+		// מחרוזת / תבנית
+		if r == '"' || r == '\'' || r == '`' {
 			quote := r
 			start := i
 			i += size
@@ -232,6 +315,8 @@ func scan(input string) []tok {
 				tt = token.Power
 			case "??":
 				tt = token.NullCoalesce
+			case "->":
+				tt = token.Arrow
 			}
 			if tt != "" {
 				out = append(out, tok{kind: kOp, lit: two, typ: tt})
@@ -366,6 +451,7 @@ func printToks(toks []tok) string {
 	needCloseCond := 0 // כמה ) לסגור לפני בלוק (עטיפת תנאי)
 	prev := tok{typ: token.Illegal}
 	var braceIsHash []bool // מחסנית: האם { הנוכחי הוא מילון
+	sofInserted := 0       // כמה { נפתחו מגוף sof — סוף ייסגר ב־} רק עליהם
 
 	writeIndent := func() {
 		for i := 0; i < indent; i++ {
@@ -442,7 +528,14 @@ func printToks(toks []tok) string {
 				prev = t
 				continue
 			}
-			// בלוק קוד → סגנון סוף (בלי {)
+			// בלוק קוד — סגנון PHP { }
+			if atLineStart {
+				writeIndent()
+				b.WriteByte('{')
+			} else {
+				b.WriteString(" {")
+			}
+			atLineStart = false
 			indent++
 			newline()
 			prev = t
@@ -471,22 +564,28 @@ func printToks(toks []tok) string {
 			if indent < 0 {
 				indent = 0
 			}
+			writeIndent()
+			b.WriteByte('}')
+			atLineStart = false
 			if next.typ == token.Else || next.typ == token.ElseIf || next.typ == token.Catch {
-				// סוף הביניים של אם/נסה — בלי לכתוב סוף (כבר הוקטן indent)
-				prev = tok{kind: kOp, lit: "}", typ: token.RBrace}
+				needSpace = true
+				prev = t
 				continue
 			}
-			writeIndent()
-			b.WriteString("סוף")
-			atLineStart = false
+			if next.typ == token.RParen || next.typ == token.Comma || next.typ == token.RBracket {
+				needSpace = false
+				prev = t
+				continue
+			}
 			newline()
 			if indent == 0 && next.typ != token.EOF && next.kind != kComment {
 				newline()
 			}
-			prev = tok{kind: kIdent, lit: "סוף", typ: token.End}
+			prev = t
 			continue
 
 		case t.typ == token.End:
+			// סוף: אם נפתח גוף sof עם { — סוגרים ב־}; אחרת (בחר וכו׳) נשאר «סוף»
 			endStatementIfNeeded()
 			if !atLineStart {
 				newline()
@@ -496,14 +595,28 @@ func printToks(toks []tok) string {
 				indent = 0
 			}
 			writeIndent()
-			b.WriteString("סוף")
+			if sofInserted > 0 {
+				b.WriteByte('}')
+				sofInserted--
+				prev = tok{kind: kOp, lit: "}", typ: token.RBrace}
+			} else {
+				b.WriteString("סוף")
+				prev = t
+			}
 			atLineStart = false
+			if next.typ == token.Else || next.typ == token.ElseIf || next.typ == token.Catch {
+				needSpace = true
+				continue
+			}
+			if next.typ == token.RParen || next.typ == token.Comma || next.typ == token.RBracket {
+				needSpace = false
+				continue
+			}
 			newline()
 			if indent == 0 && next.typ != token.EOF && next.kind != kComment &&
 				next.typ != token.Else && next.typ != token.ElseIf && next.typ != token.Catch {
 				newline()
 			}
-			prev = t
 			continue
 
 		case t.typ == token.Comma:
@@ -546,6 +659,8 @@ func printToks(toks []tok) string {
 			prev = t
 			if t.typ == token.RParen && sofBodyAfter(toks, i, next) {
 				closeCondParens()
+				b.WriteString(" {")
+				sofInserted++
 				indent++
 				newline()
 			}
@@ -594,22 +709,35 @@ func printToks(toks []tok) string {
 				newline()
 			}
 		}
-		// אחרת / אחרת_אם / תפוס — באותה רמה כמו אם/נסה (לא בתוך הגוף)
-		if (t.typ == token.Else || t.typ == token.ElseIf || t.typ == token.Catch) && prev.typ != token.RBrace {
-			if !atLineStart {
-				newline()
-			}
-			indent--
-			if indent < 0 {
-				indent = 0
+		// אחרת / אחרת_אם / תפוס — סוגרים את גוף הענף הקודם ב־}
+		// אם prev כבר } זה יכול להיות סגירת בלוק מקונן (אם פנימי); אם עדיין פתוח
+		// sof של הענף החיצוני — חייבים עוד } לפני אחרת_אם.
+		if t.typ == token.Else || t.typ == token.ElseIf || t.typ == token.Catch {
+			needCloseBranch := prev.typ != token.RBrace || sofInserted > 0
+			if needCloseBranch {
+				if !atLineStart {
+					newline()
+				}
+				indent--
+				if indent < 0 {
+					indent = 0
+				}
+				writeIndent()
+				b.WriteByte('}')
+				if sofInserted > 0 {
+					sofInserted--
+				}
+				atLineStart = false
+				needSpace = true
+				prev = tok{kind: kOp, lit: "}", typ: token.RBrace}
 			}
 		}
 		if atLineStart {
 			needSpace = false
 		} else if prev.typ == token.RBrace && (t.typ == token.Else || t.typ == token.ElseIf || t.typ == token.Catch) {
-			needSpace = false
+			needSpace = true // "} אחרת_אם"
 		} else if prev.typ == token.End && (t.typ == token.Else || t.typ == token.ElseIf || t.typ == token.Catch) {
-			needSpace = false
+			needSpace = true
 		} else if prev.typ == token.Semicolon {
 			needSpace = true
 		} else {
@@ -619,6 +747,8 @@ func printToks(toks []tok) string {
 		oldPrev := prev
 		if sofOpensAfter(oldPrev, t, next) {
 			closeCondParens()
+			b.WriteString(" {")
+			sofInserted++
 			indent++
 			newline()
 			needSpace = false
@@ -648,12 +778,12 @@ func isHashBrace(prev tok) bool {
 }
 
 func sofBodyAfter(toks []tok, rparenIdx int, next tok) bool {
-	if next.typ == token.LBrace || next.typ == token.RBrace || next.typ == token.End ||
+	if next.typ == token.LBrace || next.typ == token.RBrace ||
 		next.typ == token.Semicolon || next.typ == token.Comma || next.typ == token.Dot ||
 		next.typ == token.RParen || next.typ == token.RBracket || next.typ == token.EOF {
 		return false
 	}
-	if next.kind == kOp && next.typ != token.Bang {
+	if next.kind == kOp && next.typ != token.Bang && next.typ != token.End {
 		return false
 	}
 	return isBlockHeaderParen(toks, rparenIdx)
@@ -706,23 +836,19 @@ func sofOpensAfter(prev, t, next tok) bool {
 			return next.typ != token.Extends
 		case token.Extends:
 			return true
-		case token.Function:
-			// פונקציה שם — בלי פרמטרים
-			return next.typ != token.Ident && next.typ != token.LParen
-		case token.Comma:
-			// פרמטר אחרון: פונקציה כפל x, y → גוף
-			return isSofBodyStart(next)
-		case token.Ident:
-			// פרמטר יחיד: פונקציה כפל x → גוף
-			return isSofBodyStart(next)
 		}
+		// פרמטרי פונקציה חשופים → עטופים ב־() ב־wrapBareFunctionParams; לא כאן
 	}
 	return false
 }
 
 func isSofBodyStart(t tok) bool {
 	switch t.typ {
-	case token.Comma, token.LParen, token.Colon, token.Dot, token.Assign:
+	case token.Comma, token.LParen, token.RParen, token.RBracket, token.RBrace,
+		token.LBrace, token.Colon, token.Dot, token.Assign, token.End, token.EOF:
+		return false
+	}
+	if t.kind == kOp && t.typ != token.Bang {
 		return false
 	}
 	return true
@@ -779,9 +905,9 @@ func isPrefixContext(prev tok) bool {
 }
 
 func spaceBeforeParen(prev tok) bool {
-	// רווח לפני ( לקיבוץ; קריאות כבר הומרו ל־:
+	// רווח לפני ( אחרי מילת בקרה; אחרי שם פונקציה — בלי רווח (כמו PHP)
 	switch prev.typ {
-	case token.If, token.While, token.For, token.Catch, token.Function,
+	case token.If, token.While, token.For, token.Catch, token.ElseIf,
 		token.Assign, token.PlusAssign, token.MinusAssign, token.AsteriskAssign,
 		token.SlashAssign, token.PercentAssign,
 		token.Plus, token.Minus, token.Asterisk, token.Slash,
@@ -805,11 +931,16 @@ func shouldBreakBefore(prev, cur tok, atLineStart bool) bool {
 	if atLineStart {
 		return false
 	}
-	// מרחיב / בתוך / פרמטרים חשופים — המשך כותרת
-	if cur.typ == token.Extends || cur.typ == token.In {
+	// מרחיב / בתוך / וגם / או / לא / פרמטרים — המשך כותרת או ביטוי
+	if cur.typ == token.Extends || cur.typ == token.In || cur.typ == token.And ||
+		cur.typ == token.Or || cur.typ == token.Not {
 		return false
 	}
-	if cur.typ == token.Ident && (prev.typ == token.Ident || prev.typ == token.Comma || prev.typ == token.Function) {
+	// שם פונקציה ואז פרמטר חשוף נדיר אחרי עטיפת (); לא מדביקים שני מזהים בשורה אחת
+	if cur.typ == token.Ident && prev.typ == token.Function {
+		return false
+	}
+	if cur.typ == token.Ident && prev.typ == token.Comma {
 		return false
 	}
 	// סוף / } אחרת / } תפוס — באותה שורה לוגית
@@ -850,10 +981,13 @@ func isStmtStart(t tok) bool {
 	switch t.typ {
 	case token.Var, token.If, token.While, token.For, token.Function, token.Class,
 		token.Return, token.Break, token.Continue, token.Include, token.Try,
-		token.Throw, token.Private, token.Public, token.Else, token.ElseIf:
+		token.Throw, token.Private, token.Public, token.Else, token.ElseIf,
+		token.Switch, token.Case, token.Default:
+		return true
+	case token.Ident:
 		return true
 	}
-	return t.kind == kIdent
+	return false
 }
 
 func expectsContinue(prev tok) bool {
@@ -864,7 +998,7 @@ func expectsContinue(prev tok) bool {
 		token.Assign, token.Plus, token.Minus, token.Asterisk, token.Slash, token.Percent,
 		token.Eq, token.NotEq, token.Lt, token.Gt, token.LtEq, token.GtEq, token.Bang,
 		token.Comma, token.Colon, token.Dot, token.LParen, token.LBracket, token.LBrace,
-		token.End:
+		token.End, token.And, token.Or, token.Not, token.NullCoalesce, token.Power:
 		return true
 	}
 	return false

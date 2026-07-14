@@ -11,6 +11,7 @@ const (
 	Ident  Type = "Ident"
 	Number Type = "Number"
 	String Type = "String"
+	Template Type = "Template"
 
 	Assign   Type = "="
 	Plus     Type = "+"
@@ -71,6 +72,11 @@ const (
 	Private  Type = "פרטי"
 	Public   Type = "ציבורי"
 	Include  Type = "כלול"
+	Module   Type = "מודול"
+	Export   Type = "יצא"
+	Import   Type = "יבא"
+	From     Type = "מתוך"
+	Enum     Type = "סדרה"
 	Try      Type = "נסה"
 	Catch    Type = "תפוס"
 	Throw    Type = "זרוק"
@@ -79,8 +85,9 @@ const (
 	Case     Type = "מקרה"
 	Default  Type = "ברירת_מחדל"
 
-	Power      Type = "**"
+	Power        Type = "**"
 	NullCoalesce Type = "??"
+	Arrow        Type = "->"
 )
 
 type Token struct {
@@ -113,6 +120,11 @@ var keywords = map[string]Type{
 	"פרטי":    Private,
 	"ציבורי":  Public,
 	"כלול":    Include,
+	"מודול":   Module,
+	"יצא":     Export,
+	"יבא":     Import,
+	"מתוך":    From,
+	"סדרה":    Enum,
 	"נסה":     Try,
 	"תפוס":    Catch,
 	"זרוק":         Throw,

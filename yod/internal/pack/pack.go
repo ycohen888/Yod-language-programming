@@ -121,12 +121,31 @@ func copyFile(src, dst string) error {
 
 // copyProjectIcon מעתיק יוד.ico / app.ico מתיקיית המקור ליעד (להצגה בחלון ובפס משימות).
 func copyProjectIcon(srcDir, destDir string) error {
-	for _, name := range []string{"יוד.ico", "app.ico", "icon.ico"} {
+	for _, name := range []string{"יוד.ico", "yod.ico", "app.ico", "icon.ico"} {
 		src := filepath.Join(srcDir, name)
 		if st, err := os.Stat(src); err != nil || st.IsDir() {
 			continue
 		}
+		// גם עותק כ־יוד.ico — כך חלונות ופס המשימות מוצאים אותו
+		_ = copyFile(src, filepath.Join(destDir, "יוד.ico"))
 		return copyFile(src, filepath.Join(destDir, name))
+	}
+	// ברירת מחדל: איקון העורך ליד yod.exe
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		for _, name := range []string{"יוד.ico", "yod.ico"} {
+			src := filepath.Join(dir, name)
+			if st, err := os.Stat(src); err != nil || st.IsDir() {
+				continue
+			}
+			_ = copyFile(src, filepath.Join(destDir, "יוד.ico"))
+			return copyFile(src, filepath.Join(destDir, "yod.ico"))
+		}
+		assets := filepath.Join(dir, "yod", "assets", "yod.ico")
+		if st, err := os.Stat(assets); err == nil && !st.IsDir() {
+			_ = copyFile(assets, filepath.Join(destDir, "יוד.ico"))
+			return copyFile(assets, filepath.Join(destDir, "yod.ico"))
+		}
 	}
 	return nil
 }

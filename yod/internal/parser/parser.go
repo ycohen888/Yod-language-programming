@@ -76,6 +76,7 @@ func New(l *lexer.Lexer) *Parser {
 		token.Ident:  p.parseIdentifier,
 		token.Number: p.parseNumberLiteral,
 		token.String: p.parseStringLiteral,
+		token.Template: p.parseTemplateLiteral,
 		token.True:   p.parseBoolean,
 		token.False:  p.parseBoolean,
 		token.Null:   p.parseNull,
@@ -122,7 +123,19 @@ func New(l *lexer.Lexer) *Parser {
 	return p
 }
 
-func (p *Parser) Errors() []string { return p.errors }
+func (p *Parser) Errors() []string {
+	if p.l == nil {
+		return p.errors
+	}
+	lexErrs := p.l.Errors()
+	if len(lexErrs) == 0 {
+		return p.errors
+	}
+	out := make([]string, 0, len(lexErrs)+len(p.errors))
+	out = append(out, lexErrs...)
+	out = append(out, p.errors...)
+	return out
+}
 
 func (p *Parser) nextToken() {
 	p.curToken = p.peekToken
@@ -249,7 +262,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	case token.While:
 		return p.parseWhileStatement()
 	case token.For:
-		return p.parseForInStatement()
+		return p.parseForStatement()
 	case token.Break:
 		tok := p.curToken
 		if p.peekIs(token.Semicolon) {
@@ -272,6 +285,14 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseClassStatement()
 	case token.Include:
 		return p.parseIncludeStatement()
+	case token.Module:
+		return p.parseModuleStatement()
+	case token.Export:
+		return p.parseExportStatement()
+	case token.Import:
+		return p.parseImportStatement()
+	case token.Enum:
+		return p.parseEnumStatement()
 	case token.Try:
 		return p.parseTryStatement()
 	case token.Throw:
@@ -524,13 +545,19 @@ func (p *Parser) parseFunctionLiteralFrom(tok token.Token, name *ast.Identifier)
 		p.nextToken() // (
 		fn.Parameters = p.parseFunctionParameters()
 	} else if p.peekIs(token.Ident) && name != nil && p.peekToken.Line == name.Tok.Line {
-		// פרמטרים חשופים באותה שורה: פונקציה כפל x, y
 		fn.Parameters = p.parseBareParameters()
 	} else if p.peekIs(token.Ident) && name == nil && p.peekToken.Line == tok.Line {
-		// אנונימית עם פרמטרים באותה שורה — נדיר; עדיף פונקציה(x)
 		fn.Parameters = p.parseBareParameters()
 	} else {
 		fn.Parameters = nil
+	}
+	if p.peekIs(token.Arrow) {
+		p.nextToken() // ->
+		if !p.expectPeek(token.Ident) {
+			p.addError(fmt.Sprintf("שורה %d: אחרי -> צריך שם טיפוס, למשל -> מספר", p.peekToken.Line))
+			return nil
+		}
+		fn.ReturnType = p.curToken.Literal
 	}
 	if p.startBlock() == blockBrace {
 		fn.Body = p.parseBraceBlock()
@@ -575,6 +602,14 @@ func (p *Parser) parseOneParameter() *ast.Parameter {
 	}
 	name := &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal}
 	param := &ast.Parameter{Name: name}
+	if p.peekIs(token.Colon) {
+		p.nextToken() // :
+		if !p.expectPeek(token.Ident) {
+			p.addError(fmt.Sprintf("שורה %d: אחרי : בפרמטר צריך שם טיפוס", p.peekToken.Line))
+			return nil
+		}
+		param.TypeName = p.curToken.Literal
+	}
 	if p.peekIs(token.Assign) {
 		p.nextToken() // =
 		p.nextToken()
@@ -583,23 +618,32 @@ func (p *Parser) parseOneParameter() *ast.Parameter {
 	return param
 }
 
-// parseBareParameters — פונקציה כפל x, y  (בלי סוגריים; בלי ברירות מחדל)
+// parseBareParameters — פונקציה כפל x, y  (בלי סוגריים)
 func (p *Parser) parseBareParameters() []*ast.Parameter {
 	params := []*ast.Parameter{}
 	p.nextToken()
-	params = append(params, &ast.Parameter{
-		Name: &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal},
-	})
+	params = append(params, p.parseBareOneParam())
 	for p.peekIs(token.Comma) {
 		p.nextToken()
 		if !p.expectPeek(token.Ident) {
 			return params
 		}
-		params = append(params, &ast.Parameter{
-			Name: &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal},
-		})
+		params = append(params, p.parseBareOneParam())
 	}
 	return params
+}
+
+func (p *Parser) parseBareOneParam() *ast.Parameter {
+	param := &ast.Parameter{
+		Name: &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal},
+	}
+	if p.peekIs(token.Colon) {
+		p.nextToken()
+		if p.expectPeek(token.Ident) {
+			param.TypeName = p.curToken.Literal
+		}
+	}
+	return param
 }
 
 func (p *Parser) parseExpression(precedence int) ast.Expression {
@@ -688,6 +732,120 @@ func (p *Parser) parseNumberLiteral() ast.Expression {
 
 func (p *Parser) parseStringLiteral() ast.Expression {
 	return &ast.StringLiteral{Tok: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parseTemplateLiteral() ast.Expression {
+	tok := p.curToken
+	raw := tok.Literal
+	tl := &ast.TemplateLiteral{Tok: tok}
+	pos := 0
+	for {
+		idx := indexTemplateExpr(raw, pos)
+		if idx < 0 {
+			tl.Quasis = append(tl.Quasis, raw[pos:])
+			return tl
+		}
+		tl.Quasis = append(tl.Quasis, raw[pos:idx])
+		end, exprSrc, errMsg := readTemplateExpr(raw, idx+2)
+		if errMsg != "" {
+			p.addError(fmt.Sprintf("שורה %d: %s", tok.Line, errMsg))
+			return nil
+		}
+		expr, errs := parseExpressionFrom(exprSrc)
+		if len(errs) > 0 {
+			p.addError(fmt.Sprintf("שורה %d: ביטוי בתבנית: %s", tok.Line, errs[0]))
+			return nil
+		}
+		if expr == nil {
+			p.addError(fmt.Sprintf("שורה %d: ביטוי ריק בתבנית ${}", tok.Line))
+			return nil
+		}
+		tl.Exprs = append(tl.Exprs, expr)
+		pos = end
+	}
+}
+
+func indexTemplateExpr(s string, from int) int {
+	for i := from; i+1 < len(s); i++ {
+		if s[i] == '$' && s[i+1] == '{' {
+			return i
+		}
+	}
+	return -1
+}
+
+func readTemplateExpr(s string, start int) (end int, expr string, errMsg string) {
+	depth := 1
+	i := start
+	for i < len(s) {
+		ch := s[i]
+		if ch == '"' || ch == '\'' {
+			q := ch
+			i++
+			for i < len(s) {
+				if s[i] == '\\' && i+1 < len(s) {
+					i += 2
+					continue
+				}
+				if s[i] == q {
+					i++
+					break
+				}
+				i++
+			}
+			continue
+		}
+		if ch == '{' {
+			depth++
+		} else if ch == '}' {
+			depth--
+			if depth == 0 {
+				return i + 1, s[start:i], ""
+			}
+		}
+		i++
+	}
+	return 0, "", "חסר } בסוף ביטוי בתבנית ${...}"
+}
+
+func parseExpressionFrom(src string) (ast.Expression, []string) {
+	l := lexer.New(src)
+	p := New(l)
+	expr := p.parseExpression(lowest)
+	return expr, p.Errors()
+}
+
+func (p *Parser) parseEnumStatement() *ast.EnumStatement {
+	stmt := &ast.EnumStatement{Tok: p.curToken}
+	if !p.expectPeek(token.Ident) {
+		p.addError(fmt.Sprintf("שורה %d: אחרי סדרה צריך שם, למשל סדרה איכות { … }", p.peekToken.Line))
+		return nil
+	}
+	stmt.Name = &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal}
+	if !p.expectPeek(token.LBrace) {
+		p.addError(fmt.Sprintf("שורה %d: אחרי שם סדרה צפוי { רשימת ערכים }", p.peekToken.Line))
+		return nil
+	}
+	for {
+		if p.peekIs(token.RBrace) {
+			p.nextToken()
+			break
+		}
+		if !p.expectPeek(token.Ident) {
+			return nil
+		}
+		stmt.Members = append(stmt.Members, &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal})
+		if p.peekIs(token.Comma) {
+			p.nextToken()
+			continue
+		}
+		if !p.expectPeek(token.RBrace) {
+			return nil
+		}
+		break
+	}
+	p.expectSemicolon()
+	return stmt
 }
 
 func (p *Parser) parseBoolean() ast.Expression {
@@ -1045,9 +1203,52 @@ func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
 	return exp
 }
 
-func (p *Parser) parseForInStatement() *ast.ForInStatement {
-	stmt := &ast.ForInStatement{Tok: p.curToken}
+func (p *Parser) parseForStatement() ast.Statement {
+	tok := p.curToken
 	if p.peekIs(token.LParen) {
+		return p.parseForInAfterName(tok, nil, true)
+	}
+	if !p.expectPeek(token.Ident) {
+		p.addError(fmt.Sprintf("שורה %d: אחרי עבור צריך שם, למשל עבור שם בתוך רשימה או עבור i מ 0 עד 10", p.peekToken.Line))
+		return nil
+	}
+	name := &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal}
+	// עבור i מ start עד end [בצע step]
+	if p.peekIs(token.Ident) && p.peekToken.Literal == "מ" {
+		return p.parseForRangeStatement(tok, name)
+	}
+	return p.parseForInAfterName(tok, name, false)
+}
+
+func (p *Parser) parseForRangeStatement(tok token.Token, name *ast.Identifier) *ast.ForRangeStatement {
+	stmt := &ast.ForRangeStatement{Tok: tok, Name: name}
+	p.nextToken() // מ
+	p.nextToken()
+	stmt.Start = p.parseExpression(lowest)
+	if !(p.peekIs(token.Ident) && p.peekToken.Literal == "עד") {
+		p.addError(fmt.Sprintf("שורה %d: אחרי התחלת טווח צפוי «עד», למשל עבור i מ 0 עד 10", p.peekToken.Line))
+		return nil
+	}
+	p.nextToken() // עד
+	p.nextToken()
+	stmt.End = p.parseExpression(lowest)
+	if p.peekIs(token.Ident) && p.peekToken.Literal == "בצע" {
+		p.nextToken() // בצע
+		p.nextToken()
+		stmt.Step = p.parseExpression(lowest)
+	}
+	if p.startBlock() == blockBrace {
+		stmt.Body = p.parseBraceBlock()
+		return stmt
+	}
+	stmt.Body = p.parseSofBlock(token.End)
+	p.expectSofEnd("עבור")
+	return stmt
+}
+
+func (p *Parser) parseForInAfterName(tok token.Token, name *ast.Identifier, withParen bool) *ast.ForInStatement {
+	stmt := &ast.ForInStatement{Tok: tok}
+	if withParen {
 		p.nextToken() // (
 		if !p.expectPeek(token.Ident) {
 			return nil
@@ -1062,11 +1263,7 @@ func (p *Parser) parseForInStatement() *ast.ForInStatement {
 			return nil
 		}
 	} else {
-		if !p.expectPeek(token.Ident) {
-			p.addError(fmt.Sprintf("שורה %d: אחרי עבור צריך שם, למשל עבור שם בתוך רשימה", p.peekToken.Line))
-			return nil
-		}
-		stmt.Name = &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal}
+		stmt.Name = name
 		if !p.expectPeek(token.In) {
 			return nil
 		}
@@ -1086,6 +1283,78 @@ func (p *Parser) parseIncludeStatement() *ast.IncludeStatement {
 	stmt := &ast.IncludeStatement{Tok: p.curToken}
 	if !p.expectPeek(token.String) {
 		p.addError(fmt.Sprintf("שורה %d: אחרי כלול צריך מחרוזת, למשל כלול \"קבצים\"", p.curToken.Line))
+		return nil
+	}
+	stmt.Path = p.curToken.Literal
+	p.expectSemicolon()
+	return stmt
+}
+
+func (p *Parser) parseModuleStatement() *ast.ModuleStatement {
+	stmt := &ast.ModuleStatement{Tok: p.curToken}
+	if !p.expectPeek(token.Ident) {
+		p.addError(fmt.Sprintf("שורה %d: אחרי מודול צריך שם, למשל מודול כורים", p.peekToken.Line))
+		return nil
+	}
+	stmt.Name = &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal}
+	p.expectSemicolon()
+	return stmt
+}
+
+func (p *Parser) parseExportStatement() *ast.ExportStatement {
+	tok := p.curToken
+	if !p.peekIs(token.Function) && !p.peekIs(token.Var) && !p.peekIs(token.Class) {
+		p.addError(fmt.Sprintf("שורה %d: אחרי יצא צפוי פונקציה, משתנה או מחלקה", p.peekToken.Line))
+		return nil
+	}
+	p.nextToken()
+	var inner ast.Statement
+	switch p.curToken.Type {
+	case token.Function:
+		inner = p.parseFunctionStatement()
+	case token.Var:
+		inner = p.parseVarStatement()
+	case token.Class:
+		inner = p.parseClassStatement()
+	}
+	if inner == nil {
+		return nil
+	}
+	return &ast.ExportStatement{Tok: tok, Stmt: inner}
+}
+
+func (p *Parser) parseImportStatement() *ast.ImportStatement {
+	stmt := &ast.ImportStatement{Tok: p.curToken}
+	if p.peekIs(token.LBrace) {
+		p.nextToken() // {
+		for {
+			if !p.expectPeek(token.Ident) {
+				p.addError(fmt.Sprintf("שורה %d: בתוך יבא { } צריך שמות לייצוא", p.peekToken.Line))
+				return nil
+			}
+			stmt.Names = append(stmt.Names, &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal})
+			if p.peekIs(token.Comma) {
+				p.nextToken()
+				continue
+			}
+			break
+		}
+		if !p.expectPeek(token.RBrace) {
+			return nil
+		}
+	} else if p.peekIs(token.Ident) {
+		p.nextToken()
+		stmt.Alias = &ast.Identifier{Tok: p.curToken, Value: p.curToken.Literal}
+	} else {
+		p.addError(fmt.Sprintf("שורה %d: אחרי יבא צריך שם או { שמות }, למשל יבא כורים מתוך \"כורים.יוד\"", p.peekToken.Line))
+		return nil
+	}
+	if !p.expectPeek(token.From) {
+		p.addError(fmt.Sprintf("שורה %d: אחרי יבא צפוי מתוך \"קובץ.יוד\"", p.peekToken.Line))
+		return nil
+	}
+	if !p.expectPeek(token.String) {
+		p.addError(fmt.Sprintf("שורה %d: אחרי מתוך צריכה מחרוזת נתיב", p.peekToken.Line))
 		return nil
 	}
 	stmt.Path = p.curToken.Literal

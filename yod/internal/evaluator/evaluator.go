@@ -20,6 +20,9 @@ var (
 	NULL  = &object.Null{}
 	TRUE  = &object.Boolean{Value: true}
 	FALSE = &object.Boolean{Value: false}
+
+	// CheckTypes — כשמופעל (יוד הרץ --בדוק_טיפוסים) בודקים הערות טיפוס בזמן ריצה.
+	CheckTypes bool
 )
 
 func Eval(node ast.Node, env *object.Environment) object.Object {
@@ -71,6 +74,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalWhile(node, env)
 	case *ast.ForInStatement:
 		return evalForIn(node, env)
+	case *ast.ForRangeStatement:
+		return evalForRange(node, env)
 	case *ast.BreakStatement:
 		return &object.Break{}
 	case *ast.ContinueStatement:
@@ -79,6 +84,8 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return &object.Number{Value: node.Value}
 	case *ast.StringLiteral:
 		return &object.String{Value: node.Value}
+	case *ast.TemplateLiteral:
+		return evalTemplate(node, env)
 	case *ast.BooleanLiteral:
 		return nativeBool(node.Value)
 	case *ast.NullLiteral:
@@ -132,11 +139,20 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.Identifier:
 		return evalIdent(node, env)
 	case *ast.FunctionLiteral:
-		return &object.Function{Parameters: node.Parameters, Body: node.Body, Env: env}
+		return &object.Function{Parameters: node.Parameters, ReturnType: node.ReturnType, Body: node.Body, Env: env}
 	case *ast.ClassStatement:
 		return evalClass(node, env)
+	case *ast.EnumStatement:
+		return evalEnum(node, env)
 	case *ast.IncludeStatement:
 		return evalInclude(node, env)
+	case *ast.ModuleStatement:
+		env.ModuleName = node.Name.Value
+		return NULL
+	case *ast.ExportStatement:
+		return evalExport(node, env)
+	case *ast.ImportStatement:
+		return evalImport(node, env)
 	case *ast.TryStatement:
 		return evalTry(node, env)
 	case *ast.ThrowStatement:
@@ -282,7 +298,7 @@ func evalForIn(stmt *ast.ForInStatement, env *object.Environment) object.Object 
 		elements = it.Elements
 	case *object.Hash:
 		elements = make([]object.Object, 0, len(it.Pairs))
-		for k := range it.Pairs {
+		for _, k := range it.Keys() {
 			elements = append(elements, &object.String{Value: k})
 		}
 	case *object.String:
@@ -312,8 +328,52 @@ func evalForIn(stmt *ast.ForInStatement, env *object.Environment) object.Object 
 	return result
 }
 
+func evalForRange(stmt *ast.ForRangeStatement, env *object.Environment) object.Object {
+	startObj := Eval(stmt.Start, env)
+	if isError(startObj) {
+		return startObj
+	}
+	endObj := Eval(stmt.End, env)
+	if isError(endObj) {
+		return endObj
+	}
+	stepObj := object.Object(&object.Number{Value: 1})
+	if stmt.Step != nil {
+		stepObj = Eval(stmt.Step, env)
+		if isError(stepObj) {
+			return stepObj
+		}
+	}
+	startN, ok1 := startObj.(*object.Number)
+	endN, ok2 := endObj.(*object.Number)
+	stepN, ok3 := stepObj.(*object.Number)
+	if !ok1 || !ok2 || !ok3 {
+		return newError(stmt.Line(), "עבור...מ...עד דורש מספרים להתחלה, סוף וצעד")
+	}
+	start, end, step := startN.Value, endN.Value, stepN.Value
+	if step == 0 {
+		return newError(stmt.Line(), "עבור...מ...עד: צעד לא יכול להיות 0")
+	}
+	var result object.Object = NULL
+	for i := start; (step > 0 && i <= end) || (step < 0 && i >= end); i += step {
+		env.Set(stmt.Name.Value, &object.Number{Value: i})
+		result = Eval(stmt.Body, env)
+		if result != nil {
+			switch result.Type() {
+			case object.ReturnObj, object.ErrorObj:
+				return result
+			case object.BreakObj:
+				return NULL
+			case object.ContinueObj:
+				continue
+			}
+		}
+	}
+	return result
+}
+
 func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Object {
-	pairs := map[string]object.Object{}
+	h := object.NewHash()
 	for _, pair := range node.Pairs {
 		keyObj := Eval(pair.Key, env)
 		if isError(keyObj) {
@@ -327,9 +387,34 @@ func evalHashLiteral(node *ast.HashLiteral, env *object.Environment) object.Obje
 		if isError(val) {
 			return val
 		}
-		pairs[key.Value] = val
+		h.Set(key.Value, val)
 	}
-	return &object.Hash{Pairs: pairs}
+	return h
+}
+
+func evalTemplate(node *ast.TemplateLiteral, env *object.Environment) object.Object {
+	var b strings.Builder
+	for i, q := range node.Quasis {
+		b.WriteString(q)
+		if i < len(node.Exprs) {
+			val := object.ResolveValue(Eval(node.Exprs[i], env))
+			if isError(val) {
+				return val
+			}
+			b.WriteString(val.Inspect())
+		}
+	}
+	return &object.String{Value: b.String()}
+}
+
+func evalEnum(node *ast.EnumStatement, env *object.Environment) object.Object {
+	attrs := map[string]object.Object{}
+	for _, m := range node.Members {
+		attrs[m.Value] = &object.EnumValue{EnumName: node.Name.Value, Name: m.Value}
+	}
+	mod := &object.Module{Name: node.Name.Value, Attrs: attrs}
+	env.Set(node.Name.Value, mod)
+	return mod
 }
 
 func evalIndex(node *ast.IndexExpression, env *object.Environment) object.Object {
@@ -422,6 +507,9 @@ func equalObjects(a, b object.Object) bool {
 	case *object.Null:
 		_, ok := b.(*object.Null)
 		return ok
+	case *object.EnumValue:
+		b, ok := b.(*object.EnumValue)
+		return ok && a.EnumName == b.EnumName && a.Name == b.Name
 	default:
 		return a == b
 	}
@@ -581,10 +669,21 @@ func callUserFunction(fn *object.Function, args []object.Object, this *object.In
 		} else {
 			val = NULL
 		}
+		if CheckTypes && param.TypeName != "" && !object.MatchesType(val, param.TypeName) {
+			return newError(line, fmt.Sprintf("טיפוס לא תואם בפרמטר %q: ציפיתי ל־%s קיבלתי %s",
+				param.Name.Value, param.TypeName, val.Type()))
+		}
 		extended.Set(param.Name.Value, val)
 	}
 	evaluated := Eval(fn.Body, extended)
-	return unwrapReturn(evaluated)
+	out := unwrapReturn(evaluated)
+	if CheckTypes && fn.ReturnType != "" && !isError(out) {
+		if !object.MatchesType(out, fn.ReturnType) {
+			return newError(line, fmt.Sprintf("טיפוס החזרה לא תואם: ציפיתי ל־%s קיבלתי %s",
+				fn.ReturnType, out.Type()))
+		}
+	}
+	return out
 }
 
 func evalClass(node *ast.ClassStatement, env *object.Environment) object.Object {
@@ -832,7 +931,7 @@ func evalAssignExpr(node *ast.AssignExpression, env *object.Environment) object.
 			}
 			return obj.Set(name, val)
 		case *object.Hash:
-			obj.Pairs[left.Property.Value] = val
+			obj.Set(left.Property.Value, val)
 			return val
 		default:
 			return newError(node.Line(), "השמה לנקודה אפשרית רק על מופע מחלקה או מילון")
@@ -863,7 +962,7 @@ func evalAssignExpr(node *ast.AssignExpression, env *object.Environment) object.
 			if !ok {
 				return newError(node.Line(), "מפתח מילון חייב להיות מחרוזת")
 			}
-			obj.Pairs[key.Value] = val
+			obj.Set(key.Value, val)
 			return val
 		default:
 			return newError(node.Line(), "השמה באינדקס אפשרית רק על רשימה או מילון")
@@ -1038,9 +1137,13 @@ func NewGlobalEnv(baseDir string) *object.Environment {
 	env.BaseDir = baseDir
 	stdlib.SetAppBaseDir(baseDir)
 	env.Included = map[string]bool{}
+	env.Imported = map[string]object.Object{}
+	env.Exports = map[string]bool{}
 	for name, b := range builtins {
 		env.Set(name, b)
 	}
+	// תוצאה זמינה תמיד (בלי כלול חובה)
+	env.Set("תוצאה", stdlib.NewResultModule())
 	object.InvokeFunction = func(fn *object.Function, args []object.Object) object.Object {
 		return callUserFunction(fn, args, nil, nil, 1)
 	}
@@ -1055,6 +1158,117 @@ func NewGlobalEnv(baseDir string) *object.Environment {
 		}
 	}
 	return env
+}
+
+func evalExport(node *ast.ExportStatement, env *object.Environment) object.Object {
+	result := Eval(node.Stmt, env)
+	if isError(result) {
+		return result
+	}
+	if env.Exports == nil {
+		env.Exports = map[string]bool{}
+	}
+	switch s := node.Stmt.(type) {
+	case *ast.VarStatement:
+		env.Exports[s.Name.Value] = true
+	case *ast.ClassStatement:
+		env.Exports[s.Name.Value] = true
+	}
+	return result
+}
+
+func evalImport(node *ast.ImportStatement, env *object.Environment) object.Object {
+	path := node.Path
+	full := path
+	if !filepath.IsAbs(full) {
+		base := env.BaseDir
+		if base == "" {
+			base = "."
+		}
+		full = resolveUserFile(base, path)
+	}
+	full = filepath.Clean(full)
+
+	if env.Imported == nil {
+		env.Imported = map[string]object.Object{}
+	}
+	if cached, ok := env.Imported[full]; ok {
+		if cached == nil {
+			return newError(node.Line(), fmt.Sprintf("יבא מעגלי: %q", path))
+		}
+		return bindImported(node, env, cached.(*object.Module))
+	}
+
+	// ספרייה מובנית: יבא מתוך "מתמטיקה" בלי סיומת
+	if mod, err := stdlib.LoadBuiltin(path); err == nil {
+		m := mod.(*object.Module)
+		env.Imported[full] = m
+		return bindImported(node, env, m)
+	}
+
+	data, err := os.ReadFile(full)
+	if err != nil {
+		return newError(node.Line(), fmt.Sprintf("לא הצלחתי לייבא את %q: %v", path, err))
+	}
+
+	env.Imported[full] = nil // סימון טעינה — מניעת מעגל
+	modEnv := NewGlobalEnv(filepath.Dir(full))
+	modEnv.Imported = env.Imported
+
+	l := lexer.New(string(data))
+	p := parser.New(l)
+	program := p.ParseProgram()
+	if errs := p.Errors(); len(errs) > 0 {
+		delete(env.Imported, full)
+		return &object.Error{Message: errs[0], Line: extractLineNum(errs[0]), File: full}
+	}
+	PushSourceFile(full)
+	defer PopSourceFile()
+	result := Eval(program, modEnv)
+	if isError(result) {
+		delete(env.Imported, full)
+		if e, ok := result.(*object.Error); ok && e.File == "" {
+			e.File = full
+		}
+		return result
+	}
+
+	name := modEnv.ModuleName
+	if name == "" {
+		if node.Alias != nil {
+			name = node.Alias.Value
+		} else {
+			base := filepath.Base(full)
+			name = strings.TrimSuffix(strings.TrimSuffix(base, ".יוד"), ".yod")
+		}
+	}
+	attrs := map[string]object.Object{}
+	for expName := range modEnv.Exports {
+		if val, ok := modEnv.Get(expName); ok {
+			attrs[expName] = val
+		}
+	}
+	mod := &object.Module{Name: name, Attrs: attrs}
+	env.Imported[full] = mod
+	return bindImported(node, env, mod)
+}
+
+func bindImported(node *ast.ImportStatement, env *object.Environment, mod *object.Module) object.Object {
+	if len(node.Names) > 0 {
+		for _, n := range node.Names {
+			val, ok := mod.Get(n.Value)
+			if !ok {
+				return newError(node.Line(), fmt.Sprintf("במודול %q אין יצוא בשם %q", mod.Name, n.Value))
+			}
+			env.Set(n.Value, val)
+		}
+		return NULL
+	}
+	if node.Alias == nil {
+		return newError(node.Line(), "יבא בלי כינוי או רשימת שמות")
+	}
+	env.Set(node.Alias.Value, mod)
+	return mod
 }
 
 func evalInclude(node *ast.IncludeStatement, env *object.Environment) object.Object {
@@ -1074,7 +1288,7 @@ func evalInclude(node *ast.IncludeStatement, env *object.Environment) object.Obj
 		if base == "" {
 			base = "."
 		}
-		full = filepath.Join(base, path)
+		full = resolveUserFile(base, path)
 	}
 	full = filepath.Clean(full)
 

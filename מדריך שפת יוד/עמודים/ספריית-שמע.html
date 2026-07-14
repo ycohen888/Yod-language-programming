@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית שמע | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.76.0</span><strong>שמע</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית שמע</h1>
+      <p class="lead">
+        אפקטי WAV ומוזיקת רקע (WAV/MP3) ב־Windows דרך winmm — בלי FFmpeg.
+        טוענים עם <code>כלול "שמע"</code>. נתיבים יחסיים לתיקיית האפליקציה.
+        בסגירת חלון ראשי הנגינה נעצרת אוטומטית.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>שמע.נגן_אפקט(נתיב)</code></td><td>WAV אסינכרוני — אפשר כמה חופפים</td></tr>
+          <tr><td><code>שמע.נגן(נתיב)</code></td><td>ערוץ מוזיקה ראשי (WAV/MP3)</td></tr>
+          <tr><td><code>שמע.השהה()</code> / <code>המשך()</code> / <code>עצור()</code></td><td>שליטה בערוץ המוזיקה</td></tr>
+          <tr><td><code>שמע.לולאה(אמת/שקר)</code></td><td>חזרה על המוזיקה</td></tr>
+          <tr><td><code>שמע.עוצמה(0–100)</code></td><td>עוצמת ערוץ המוזיקה</td></tr>
+          <tr><td><code>שמע.מנגן()</code></td><td>האם המוזיקה מתנגנת</td></tr>
+          <tr><td><code>שמע.בעת_סיום(פונקציה)</code></td><td>קריאה בסיום (מסונכרן ל־UI אם יש חלון)</td></tr>
+        </tbody>
+      </table>
+
+      <figure class="example">
+        <span class="example-label">אפקט + מוזיקה</span>
+        <pre class="code-block">כלול "שמע"
+
+שמע.לולאה: אמת
+שמע.עוצמה: 70
+שמע.נגן: "מוזיקה.mp3"
+שמע.נגן_אפקט: "קליק.wav"</pre>
+      </figure>
+
+      <div class="callout tip">
+        בגרסה זו יש ערוץ מוזיקה אחד. אפקטי WAV יכולים להתנגן במקביל.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

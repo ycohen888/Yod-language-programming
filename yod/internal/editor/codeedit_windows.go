@@ -77,12 +77,12 @@ func NewCodeEdit(parent walk.Container) (*CodeEdit, error) {
 	// חובה ב־RichEdit — אחרת אין EN_CHANGE בזמן הקלדה (צבעים + מספרי שורות)
 	mask := ce.SendMessage(win.EM_GETEVENTMASK, 0, 0)
 	ce.SendMessage(win.EM_SETEVENTMASK, 0, mask|uintptr(win.ENM_CHANGE|win.ENM_SELCHANGE))
-	// בלי שוליים אופקיים — העורך דבוק לשולי האזור (ימין/שמאל)
+	// שוליים פנימיים — נוח יותר לקריאה בעברית
 	const (
 		ecLeftMargin  = 0x0001
 		ecRightMargin = 0x0002
 	)
-	ce.SendMessage(win.EM_SETMARGINS, ecLeftMargin|ecRightMargin, 0)
+	ce.SendMessage(win.EM_SETMARGINS, ecLeftMargin|ecRightMargin, uintptr(14|(14<<16)))
 	configureHebrewTyping(ce.Handle())
 
 	styleEditorPane(ce)

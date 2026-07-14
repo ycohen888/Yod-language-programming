@@ -124,6 +124,14 @@ func (c *Compiler) Compile(node ast.Node) error {
 		if err := c.compileInclude(node); err != nil {
 			return err
 		}
+	case *ast.ModuleStatement:
+		return nil // שם מודול — רלוונטי בעיקר במפרש / יבא
+	case *ast.ExportStatement:
+		return c.Compile(node.Stmt)
+	case *ast.ImportStatement:
+		return fmt.Errorf("יבא לא נתמך במכונה עדיין")
+	case *ast.EnumStatement:
+		return fmt.Errorf("סדרה לא נתמכת במכונה עדיין")
 	case *ast.NewExpression:
 		symbol, ok := c.symbolTable.Resolve(node.Name.Value)
 		if !ok {
@@ -270,6 +278,10 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(code.OpPop) // הסרת האיטרטור
 		c.popLoop(afterBody) // break קופץ ל־Pop של האיטרטור
 
+	case *ast.ForRangeStatement:
+		if err := c.compileForRange(node); err != nil {
+			return err
+		}
 	case *ast.BreakStatement:
 		if len(c.loops) == 0 {
 			return fmt.Errorf("עצור מחוץ ללולאה")
@@ -418,6 +430,8 @@ func (c *Compiler) Compile(node ast.Node) error {
 		c.emit(code.OpConstant, c.addConstant(&object.Number{Value: node.Value}))
 	case *ast.StringLiteral:
 		c.emit(code.OpConstant, c.addConstant(&object.String{Value: node.Value}))
+	case *ast.TemplateLiteral:
+		return fmt.Errorf("תבנית מחרוזת לא נתמכת במכונה עדיין")
 	case *ast.BooleanLiteral:
 		if node.Value {
 			c.emit(code.OpTrue)
@@ -911,6 +925,79 @@ func (c *Compiler) loadGet(symbol Symbol) {
 	case FreeScope:
 		c.emit(code.OpGetFree, symbol.Index)
 	}
+}
+
+// compileForRange — עבור i מ start עד end [בצע step], כולל קצוות.
+func (c *Compiler) compileForRange(node *ast.ForRangeStatement) error {
+	endName := fmt.Sprintf("__יוד_סוף_%d", len(c.loops))
+	stepName := fmt.Sprintf("__יוד_צעד_%d", len(c.loops))
+
+	if err := c.Compile(node.Start); err != nil {
+		return err
+	}
+	sym, ok := c.symbolTable.Resolve(node.Name.Value)
+	if !ok {
+		sym = c.symbolTable.Define(node.Name.Value)
+	}
+	c.loadSet(sym)
+
+	if err := c.Compile(node.End); err != nil {
+		return err
+	}
+	endSym := c.symbolTable.Define(endName)
+	c.loadSet(endSym)
+
+	if node.Step != nil {
+		if err := c.Compile(node.Step); err != nil {
+			return err
+		}
+	} else {
+		c.emit(code.OpConstant, c.addConstant(&object.Number{Value: 1}))
+	}
+	stepSym := c.symbolTable.Define(stepName)
+	c.loadSet(stepSym)
+
+	jumpToCond := c.emit(code.OpJump, 9999)
+
+	incPos := len(c.currentInstructions())
+	c.pushLoop(incPos)
+	c.loadGet(sym)
+	c.loadGet(stepSym)
+	c.emit(code.OpAdd)
+	c.loadSet(sym)
+
+	condPos := len(c.currentInstructions())
+	c.changeOperand(jumpToCond, condPos)
+
+	// (צעד > 0 && i <= סוף) או (צעד <= 0 && i >= סוף)
+	c.loadGet(stepSym)
+	c.emit(code.OpConstant, c.addConstant(&object.Number{Value: 0}))
+	c.emit(code.OpGreaterThan)
+	jumpNeg := c.emit(code.OpJumpNotTruthy, 9999)
+
+	c.loadGet(endSym)
+	c.loadGet(sym)
+	c.emit(code.OpGreaterEqual)
+	jumpMerged := c.emit(code.OpJump, 9999)
+
+	negPos := len(c.currentInstructions())
+	c.changeOperand(jumpNeg, negPos)
+	c.loadGet(sym)
+	c.loadGet(endSym)
+	c.emit(code.OpGreaterEqual)
+
+	merged := len(c.currentInstructions())
+	c.changeOperand(jumpMerged, merged)
+
+	jumpOut := c.emit(code.OpJumpNotTruthy, 9999)
+	if err := c.Compile(node.Body); err != nil {
+		return err
+	}
+	c.emit(code.OpJump, incPos)
+	after := len(c.currentInstructions())
+	c.changeOperand(jumpOut, after)
+	c.popLoop(after)
+	return nil
 }
 
 func (c *Compiler) loadSet(symbol Symbol) {

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>טיפוסים ותוצאה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">0.75.0</span><strong>טיפוסים · תוצאה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>הערות טיפוס וטיפוס תוצאה</h1>
+      <p class="lead">הערות אופציונליות לפרמטרים ולהחזרה, ובדיקה בזמן ריצה עם <code>--בדוק_טיפוסים</code>.</p>
+
+      <h2>תחביר</h2>
+      <pre class="code-block">פונקציה סכום א: מספר, ב: מספר -> מספר
+  החזר א + ב
+סוף</pre>
+      <p>טיפוסים: <code>מספר</code>, <code>מחרוזת</code>, <code>בוליאני</code>, <code>רשימה</code>, <code>מילון</code>, <code>ריק</code>, <code>תוצאה</code>, או שם מחלקה.</p>
+      <p>הפעלה: <code>yod הרץ --בדוק_טיפוסים תוכנית.יוד</code></p>
+
+      <h2>תוצאה</h2>
+      <pre class="code-block">משתנה ט = תוצאה.מ(42)
+משתנה ש = תוצאה.שגיאה("כשל", 1)
+אם ט.הצלחה
+  הדפס: ט.ערך
+סוף
+
+כלול "קבצים"
+משתנה ק = קבצים.קרא_תוצאה("קובץ.txt")
+אם ק.הצלחה
+  הדפס: ק.ערך
+אחרת
+  הדפס: ק.הודעה
+סוף</pre>
+
+      <nav class="page-nav">
+        <a href="נסה-תפוס.html"><span class="dir">הקודם</span><span class="title">נסה / תפוס</span></a>
+        <a href="משימה.html"><span class="dir">הבא</span><span class="title">משימה</span></a>
+      </nav>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

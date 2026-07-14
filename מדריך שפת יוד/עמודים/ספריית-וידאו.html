@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית וידאו | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.76.0</span><strong>וידאו</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית וידאו</h1>
+      <p class="lead">
+        רכיב נגן בחלון על WebView2 עם HTML5 <code>&lt;video&gt;</code> — כמו דפדפן מובנה.
+        תמיכה ראשונית: MP4 (H.264) לפי מה ש־Edge מנגן. טוענים עם <code>כלול "וידאו"</code>.
+      </p>
+
+      <h2>יצירה ומתודות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>וידאו.חלונית(נתיב)</code></td><td>רכיב נגן — מוסיפים לחלון עם <code>ח.הוסף</code></td></tr>
+          <tr><td><code>נ.נגן()</code> / <code>השהה()</code> / <code>עצור()</code></td><td>שליטה בנגינה</td></tr>
+          <tr><td><code>נ.קבע_לולאה(אמת/שקר)</code></td><td>חזרה על הסרט</td></tr>
+          <tr><td><code>נ.עוצמה(0–100)</code></td><td>עוצמת שמע</td></tr>
+          <tr><td><code>נ.טען(נתיב)</code></td><td>החלפת קובץ</td></tr>
+        </tbody>
+      </table>
+
+      <figure class="example">
+        <span class="example-label">נגן בחלון</span>
+        <pre class="code-block">כלול "חלונות"
+כלול "וידאו"
+
+משתנה ח = חלונות.חלון: "נגן"
+משתנה נ = וידאו.חלונית: "סרט.mp4"
+ח.הוסף: נ
+נ.קבע_לולאה: אמת
+נ.עוצמה: 50
+ח.הצג: ()
+נ.נגן: ()</pre>
+      </figure>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

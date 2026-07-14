@@ -3,6 +3,7 @@ package object
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"yod/internal/ast"
@@ -32,6 +33,8 @@ const (
 	ArrayObj    Type = "רשימה"
 	ModuleObj   Type = "מודול"
 	HashObj     Type = "מילון"
+	EnumObj     Type = "סדרה"
+	TaskObj     Type = "משימה"
 	GuiObj      Type = "רכיב_ממשק"
 )
 
@@ -278,16 +281,32 @@ var InvokeFunction func(fn *Function, args []Object) Object
 // InvokeCallable — מפרש או מכונה: Function / Closure / CompiledFunction
 var InvokeCallable func(fn Object, args []Object) Object
 
-// Hash — מילון פשוט (לשורות SQL וכו')
+// Hash — מילון; Order שומר סדר הכנסה ל־שמות()/עבור
 type Hash struct {
 	Pairs map[string]Object
+	Order []string
+}
+
+func NewHash() *Hash {
+	return &Hash{Pairs: map[string]Object{}, Order: []string{}}
+}
+
+func (h *Hash) Set(key string, val Object) {
+	if h.Pairs == nil {
+		h.Pairs = map[string]Object{}
+	}
+	if _, exists := h.Pairs[key]; !exists {
+		h.Order = append(h.Order, key)
+	}
+	h.Pairs[key] = val
 }
 
 func (h *Hash) Type() Type { return HashObj }
 func (h *Hash) Inspect() string {
-	parts := make([]string, 0, len(h.Pairs))
-	for k, v := range h.Pairs {
-		parts = append(parts, k+": "+v.Inspect())
+	keys := h.Keys()
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, k+": "+h.Pairs[k].Inspect())
 	}
 	return "{" + strings.Join(parts, ", ") + "}"
 }
@@ -297,8 +316,53 @@ func (h *Hash) Get(name string) (Object, bool) {
 	return v, ok
 }
 
+// Keys — סדר הכנסה; אם אין Order — ממוין (תאימות ליצירה ישנה מ־map)
+func (h *Hash) Keys() []string {
+	if len(h.Order) > 0 {
+		out := make([]string, 0, len(h.Order))
+		seen := map[string]bool{}
+		for _, k := range h.Order {
+			if _, ok := h.Pairs[k]; ok && !seen[k] {
+				out = append(out, k)
+				seen[k] = true
+			}
+		}
+		return out
+	}
+	return h.SortedKeys()
+}
+
+func (h *Hash) SortedKeys() []string {
+	keys := make([]string, 0, len(h.Pairs))
+	for k := range h.Pairs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// EnumValue — ערך בסדרה
+type EnumValue struct {
+	EnumName string
+	Name     string
+}
+
+func (e *EnumValue) Type() Type      { return EnumObj }
+func (e *EnumValue) Inspect() string { return e.EnumName + "." + e.Name }
+
+// Task — תוצאת משימה(…) — goroutine ממתינה
+type Task struct {
+	Ch   chan Object
+	Done bool
+	Val  Object
+}
+
+func (t *Task) Type() Type      { return TaskObj }
+func (t *Task) Inspect() string { return "משימה" }
+
 type Function struct {
 	Parameters []*ast.Parameter
+	ReturnType string
 	Body       *ast.BlockStatement
 	Env        *Environment
 }
@@ -366,11 +430,19 @@ type Environment struct {
 	outer        *Environment
 	BaseDir      string
 	Included     map[string]bool
-	CurrentClass *Class // מחלקה של המתודה הרצה כרגע (לבדיקת פרטי)
+	Imported     map[string]Object // נתיב מלא → Module (מטמון יבא)
+	Exports      map[string]bool   // שמות שסומנו ב־יצא
+	ModuleName   string            // מודול שם
+	CurrentClass *Class            // מחלקה של המתודה הרצה כרגע (לבדיקת פרטי)
 }
 
 func NewEnvironment() *Environment {
-	return &Environment{store: map[string]Object{}, Included: map[string]bool{}}
+	return &Environment{
+		store:    map[string]Object{},
+		Included: map[string]bool{},
+		Imported: map[string]Object{},
+		Exports:  map[string]bool{},
+	}
 }
 
 func NewEnclosedEnvironment(outer *Environment) *Environment {
@@ -379,6 +451,7 @@ func NewEnclosedEnvironment(outer *Environment) *Environment {
 	if outer != nil {
 		env.BaseDir = outer.BaseDir
 		env.Included = outer.Included
+		env.Imported = outer.Imported
 		env.CurrentClass = outer.CurrentClass
 	}
 	return env

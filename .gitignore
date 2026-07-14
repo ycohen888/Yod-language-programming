@@ -1,4 +1,4 @@
-# Binaries & build
+﻿# Binaries & build
 *.exe
 *.dll
 *.so
@@ -22,29 +22,30 @@ led_out.txt
 Thumbs.db
 desktop.ini
 **/drawing_out.png
-**/ציור_שלי.png
+yod/_*.txt
+guide.zip
+**/__rar_out/
+**/*.rar
 
-# SQLite / local DBs (demo data)
+# SQLite / local DBs
 *.db
 *.db-journal
 *.sqlite
 
-# Archive / extract scratch
+# Archive scratch
 yod/examples/archive_out/
 yod/examples/temp_*
 **/__debug_bin*
 
-# IDE / editor
+# IDE
 .idea/
 .vscode/
 *.swp
 *~
 
-# Cursor local (keep .cursorrules)
+# Cursor local
 .cursor/
 
-# Local build artifacts for Releases (uploaded via GitHub Release, not committed)
+# Release artifacts (attached via GitHub Release)
 dist/
 
-# Original screenshot drop folder (canonical copies live in docs/screenshots/)
-צילום מסך/

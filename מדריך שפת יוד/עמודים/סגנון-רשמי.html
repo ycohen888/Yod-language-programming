@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>סגנון רשמי | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">סגנון · PHP</span><strong>סגנון רשמי</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>סגנון רשמי יוד</h1>
+      <p class="lead">
+        הסגנון המומלץ הוא כמו PHP: סוגריים לפרמטרים ותנאים, וסוגריים מסולסלים לבלוקים.
+        הכלי <code>יוד סדר</code> / Shift+Alt+F ממיר קוד ישן (עם <code>סוף</code>) לסגנון זה.
+      </p>
+
+      <h2>בלוקים ופונקציות</h2>
+      <p>
+        כתבו <code>פונקציה שם(פרמטרים) { … }</code>,
+        <code>אם (תנאי) { … } אחרת { … }</code>,
+        ו־<code>כל_עוד (תנאי) { … }</code>.
+        מילת <code>סוף</code> עדיין נתמכת לתאימות לאחור, אבל אינה הסגנון המומלץ.
+        מילון נשאר: <code>{ "מפתח": ערך }</code>.
+      </p>
+      <figure class="example">
+        <span class="example-label">מומלץ</span>
+        <pre class="code-block">פונקציה התחל(שם, גיל) {
+  אם (גיל >= 18) {
+    הדפס("שלום " + שם)
+  } אחרת {
+    הדפס("צעיר מדי")
+  }
+}</pre>
+      </figure>
+
+      <h2>קריאות</h2>
+      <p>
+        שני הסגנונות חוקיים: <code>שם(א, ב)</code> ו־<code>שם: א, ב</code>.
+        הסגנון המומלץ לקריאות הוא עם סוגריים, כמו PHP.
+      </p>
+
+      <h2>מינוס</h2>
+      <p>
+        כתבו <code>-1</code> ו־<code>-x</code> במפורש. לחיסור השאירו רווחים: <code>א - ב</code>.
+        בארגומנט שלילי: <code>פונ(-1)</code>.
+      </p>
+
+      <h2>בדיקת סגנון</h2>
+      <figure class="example">
+        <span class="example-label">CLI</span>
+        <pre class="code-block">yod בדוק תוכנית.יוד
+yod סדר תוכנית.יוד
+yod בדוק תיקיית_פרויקט</pre>
+      </figure>
+      <p>
+        <code>יוד בדוק</code> מדווח על שגיאות תחביר ועל מינוס צמוד אחרי מזהה.
+        <code>יוד סדר</code> מסדר הזחות ומעביר ל־<code>()</code> / <code>{}</code>.
+      </p>
+
+      <nav class="page-nav">
+        <a href="התחלה.html"><span class="dir">הקודם</span><span class="title">התחלה</span></a>
+        <a href="אופרטורים.html"><span class="dir">הבא</span><span class="title">אופרטורים</span></a>
+      </nav>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

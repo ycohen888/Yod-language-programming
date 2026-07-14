@@ -4,7 +4,7 @@
 (function () {
   "use strict";
 
-  var VERSION = "0.65.1";
+  var VERSION = "0.75.0";
 
   /** עץ ניווט: פרקים + תת־סעיפים (עמודים) */
   var NAV = [
@@ -18,9 +18,12 @@
         { title: "קובץ יחיד או פרויקט", href: "עמודים/קובץ-או-פרויקט.html", keywords: "התחל תיקייה כלול קובץ יחיד" },
         { title: "עורך", href: "עמודים/עורך.html", keywords: "IDE השלמה סייר פרויקט התחל" },
         { title: "מכונה", href: "עמודים/מכונה.html", keywords: "bytecode VM" },
+        { title: "מכונה מול מפרש", href: "עמודים/מכונה-מול-מפרש.html", keywords: "fallback תמיכה" },
         { title: "ארוז", href: "עמודים/ארוז.html", keywords: "exe הפצה" },
-        { title: "אופרטורים", href: "עמודים/אופרטורים.html", keywords: "חשבון וגם או השמה" },
-        { title: "הערות", href: "עמודים/הערות.html", keywords: "// הערה" },
+        { title: "קונסול / חבילות", href: "עמודים/קונסול-חבילות.html", keywords: "REPL חבילה" },
+        { title: "סגנון רשמי", href: "עמודים/סגנון-רשמי.html", keywords: "בדוק lint סוף מינוס" },
+        { title: "אופרטורים", href: "עמודים/אופרטורים.html", keywords: "חשבון וגם או השמה מינוס" },
+        { title: "הערות", href: "עמודים/הערות.html", keywords: "// /* הערה בלוק" },
         { title: "זיכרון / סגירות", href: "עמודים/זיכרון.html", keywords: "GC הפניה" },
       ],
     },
@@ -33,14 +36,17 @@
         { title: "אם / אחרת", href: "עמודים/אם.html", keywords: "תנאי" },
         { title: "בחר / מקרה", href: "עמודים/בחר.html", keywords: "switch" },
         { title: "כל_עוד", href: "עמודים/כל_עוד.html", keywords: "לולאה while" },
-        { title: "עבור / בתוך", href: "עמודים/עבור.html", keywords: "foreach" },
+        { title: "עבור / מ עד / בתוך", href: "עמודים/עבור.html", keywords: "foreach range מספור" },
         { title: "עצור / המשך", href: "עמודים/עצור-המשך.html", keywords: "break continue" },
         { title: "פונקציה / החזר", href: "עמודים/פונקציה.html", keywords: "סגירה" },
         { title: "מחלקה / חדש / זה", href: "עמודים/מחלקה.html", keywords: "OOP בנאי" },
         { title: "מרחיב / הורה", href: "עמודים/מרחיב.html", keywords: "ירושה" },
         { title: "פרטי / ציבורי", href: "עמודים/פרטי-ציבורי.html", keywords: "גישה" },
         { title: "כלול", href: "עמודים/כלול.html", keywords: "מודול פרויקט התחל" },
+        { title: "יבא / יצא / מודול", href: "עמודים/יבא-יצא.html", keywords: "import export מתוך" },
         { title: "נסה / תפוס / זרוק", href: "עמודים/נסה-תפוס.html", keywords: "שגיאה" },
+        { title: "טיפוסים / תוצאה", href: "עמודים/טיפוסים-תוצאה.html", keywords: "בדוק_טיפוסים" },
+        { title: "משימה / המתן", href: "עמודים/משימה.html", keywords: "async במקביל" },
       ],
     },
     {
@@ -48,10 +54,11 @@
       title: "טיפוסים",
       keywords: "מחרוזת מספר רשימה מילון",
       children: [
-        { title: "מחרוזת", href: "עמודים/מחרוזת.html", keywords: "טקסט regex" },
+        { title: "מחרוזת", href: "עמודים/מחרוזת.html", keywords: "טקסט תבנית backtick" },
         { title: "מספר", href: "עמודים/מספר.html", keywords: "עיגול חזקה" },
         { title: "רשימה", href: "עמודים/רשימה.html", keywords: "מפה סנן מיון" },
-        { title: "מילון", href: "עמודים/מילון.html", keywords: "מפתח ערך" },
+        { title: "מילון", href: "עמודים/מילון.html", keywords: "מפתח ערך שמות סדר" },
+        { title: "סדרה", href: "עמודים/סדרה.html", keywords: "enum ערכים" },
         { title: "אמת / שקר / ריק", href: "עמודים/אמת-שקר-ריק.html", keywords: "לוגיקה ??" },
       ],
     },
@@ -84,6 +91,11 @@
         { title: "רכיבים", href: "עמודים/ספריית-רכיבים.html", keywords: "כפתור סליידר מתג משטח custom dark" },
         { title: "גרפים", href: "עמודים/ספריית-גרפים.html", keywords: "גרף עמודות קו עוגה סדרות מקרא" },
         { title: "עכבר", href: "עמודים/ספריית-עכבר.html", keywords: "מיקום כפתור שמאל ימין אמצע" },
+        { title: "מקלדת", href: "עמודים/ספריית-מקלדת.html", keywords: "סקרור מקש חצים WASD משחק" },
+        { title: "שמע", href: "עמודים/ספריית-שמע.html", keywords: "wav mp3 אפקט מוזיקה" },
+        { title: "וידאו", href: "עמודים/ספריית-וידאו.html", keywords: "mp4 נגן webview2" },
+        { title: "תמונות", href: "עמודים/ספריית-תמונות.html", keywords: "png jpg טען שמור" },
+        { title: "דיבור", href: "עמודים/ספריית-דיבור.html", keywords: "tts הקראה sapi" },
         { title: "ציור", href: "עמודים/ספריית-ציור.html", keywords: "PNG צורות" },
         { title: "הצפנה", href: "עמודים/ספריית-הצפנה.html", keywords: "sha md5" },
         { title: "לוח", href: "עמודים/ספריית-לוח.html", keywords: "clipboard" },
