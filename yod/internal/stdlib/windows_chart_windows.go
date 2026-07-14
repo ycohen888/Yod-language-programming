@@ -100,6 +100,12 @@ func newChartWidget(kind string) object.Object {
 	w.Attrs["קבע_טווח_Y"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return chartSetYRange(st, a...)
 	}}
+	w.Attrs["קבע_ערימה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return chartSetBool(st, &st.chartStacked, "קבע_ערימה", a...)
+	}}
+	w.Attrs["קבע_פורמט_ערכים"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return chartSetValueFormat(st, a...)
+	}}
 	w.Attrs["קבע_גובה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		if len(a) != 1 {
 			return errObj("גרף.קבע_גובה מצפה למספר")
@@ -236,6 +242,26 @@ func chartSetBool(st *controlState, dest *bool, method string, args ...object.Ob
 		return errObj("גרף." + method + " מצפה לאמת/שקר")
 	}
 	*dest = b.Value
+	invalidateChart(st)
+	return object.Nil
+}
+
+func chartSetValueFormat(st *controlState, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj(`גרף.קבע_פורמט_ערכים מצפה ל־"" / "רגיל" / "בתים"`)
+	}
+	s, ok := asString(args[0])
+	if !ok {
+		return errObj(`גרף.קבע_פורמט_ערכים מצפה למחרוזת`)
+	}
+	switch strings.TrimSpace(s) {
+	case "", "רגיל", "מספר":
+		st.chartValueFormat = ""
+	case "בתים", "bytes":
+		st.chartValueFormat = "בתים"
+	default:
+		return errObj(`גרף.קבע_פורמט_ערכים: השתמשו ב־"רגיל" או "בתים"`)
+	}
 	invalidateChart(st)
 	return object.Nil
 }
@@ -496,7 +522,7 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 				defer font.Dispose()
 				tr := walk.Rectangle{X: bounds.X + pad, Y: y, Width: bounds.Width - pad*2, Height: 18}
 				_ = canvas.DrawText(st.chartSubtitle, font, theme.tick, tr,
-					walk.TextCenter|walk.TextVCenter|walk.TextSingleLine)
+					walk.TextCenter|walk.TextVCenter|walk.TextSingleLine|walk.TextEndEllipsis)
 			}
 		}
 	}
@@ -509,10 +535,15 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 		}
 	}
 
+	leftAxis := 44
+	if st.chartValueFormat == "בתים" {
+		leftAxis = 86
+	}
+
 	plot := walk.Rectangle{
-		X:      bounds.X + pad + 44,
+		X:      bounds.X + pad + leftAxis,
 		Y:      bounds.Y + pad + titleH,
-		Width:  bounds.Width - pad*2 - 44 - legendW,
+		Width:  bounds.Width - pad*2 - leftAxis - legendW,
 		Height: bounds.Height - pad*2 - titleH - 36,
 	}
 	if plot.Width < 40 || plot.Height < 40 {
@@ -564,11 +595,35 @@ func chartThemeDark() chartTheme {
 }
 
 func chartMaxValue(series []chartSeries) float64 {
+	return chartMaxValueMode(series, false)
+}
+
+func chartMaxValueMode(series []chartSeries, stacked bool) float64 {
 	max := 0.0
-	for _, s := range series {
-		for _, v := range s.values {
-			if v > max {
-				max = v
+	if stacked && len(series) > 0 {
+		nCats := 0
+		for _, s := range series {
+			if len(s.values) > nCats {
+				nCats = len(s.values)
+			}
+		}
+		for i := 0; i < nCats; i++ {
+			sum := 0.0
+			for _, s := range series {
+				if i < len(s.values) && s.values[i] > 0 {
+					sum += s.values[i]
+				}
+			}
+			if sum > max {
+				max = sum
+			}
+		}
+	} else {
+		for _, s := range series {
+			for _, v := range s.values {
+				if v > max {
+					max = v
+				}
 			}
 		}
 	}
@@ -599,7 +654,8 @@ func niceCeiling(v float64) float64 {
 }
 
 func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int, isLine bool, theme chartTheme) error {
-	maxV := chartMaxValue(st.chartSeries)
+	stacked := st.chartStacked && !isLine && len(st.chartSeries) > 1
+	maxV := chartMaxValueMode(st.chartSeries, stacked)
 	minV := 0.0
 	if st.chartYRangeSet {
 		minV = st.chartYMin
@@ -634,13 +690,21 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 		defer gridPen.Dispose()
 	}
 
-	tickFont, _ := walk.NewFont("Segoe UI", 9, 0)
+	tickFont, _ := walk.NewFont("Segoe UI", 8, 0)
 	if tickFont != nil {
 		defer tickFont.Dispose()
 	}
 	labelFont, _ := walk.NewFont("Segoe UI", 9, 0)
 	if labelFont != nil {
 		defer labelFont.Dispose()
+	}
+	valueFont, _ := walk.NewFont("Segoe UI", 8, 0)
+	if valueFont != nil {
+		defer valueFont.Dispose()
+	}
+
+	fmtVal := func(v float64) string {
+		return formatChartNumberFmt(v, st.chartValueFormat)
 	}
 
 	// רשת + תוויות Y
@@ -653,10 +717,10 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 		}
 		if tickFont != nil {
 			val := minV + span*t
-			txt := formatChartNumber(val)
-			tr := walk.Rectangle{X: bounds.X + 4, Y: y - 8, Width: plot.X - bounds.X - 8, Height: 16}
+			txt := fmtVal(val)
+			tr := walk.Rectangle{X: bounds.X + 2, Y: y - 8, Width: plot.X - bounds.X - 6, Height: 16}
 			_ = canvas.DrawText(txt, tickFont, theme.tick, tr,
-				walk.TextRight|walk.TextVCenter|walk.TextSingleLine)
+				walk.TextRight|walk.TextVCenter|walk.TextSingleLine|walk.TextEndEllipsis)
 		}
 	}
 
@@ -666,7 +730,7 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 	}
 
 	if st.chartYLabel != "" && labelFont != nil {
-		tr := walk.Rectangle{X: bounds.X + 2, Y: plot.Y, Width: 40, Height: 18}
+		tr := walk.Rectangle{X: bounds.X + 2, Y: plot.Y, Width: 48, Height: 18}
 		_ = canvas.DrawText(st.chartYLabel, labelFont, theme.label, tr,
 			walk.TextLeft|walk.TextSingleLine)
 	}
@@ -705,7 +769,6 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 					brush.Dispose()
 				}
 			}
-			// נקודות
 			dot, _ := walk.NewSolidColorBrush(s.color)
 			if dot != nil {
 				for _, p := range pts {
@@ -715,6 +778,63 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 				dot.Dispose()
 			}
 			_ = si
+		}
+	} else if stacked {
+		barArea := slotW * 0.58
+		barW := barArea
+		if barW < 10 {
+			barW = 10
+		}
+		sepPen, _ := walk.NewCosmeticPen(walk.PenSolid, theme.plotBG)
+		if sepPen != nil {
+			defer sepPen.Dispose()
+		}
+		for i := 0; i < nCats; i++ {
+			base := 0.0
+			x0 := plot.X + int(float64(i)*slotW+(slotW-barW)/2)
+			topY := plot.Y + plot.Height
+			total := 0.0
+			segN := 0
+			for _, s := range st.chartSeries {
+				v := 0.0
+				if i < len(s.values) {
+					v = s.values[i]
+				}
+				if v < 0 {
+					v = 0
+				}
+				total += v
+				y0 := plot.Y + plot.Height - int(((base+v)-minV)/span*float64(plot.Height))
+				y1 := plot.Y + plot.Height - int((base-minV)/span*float64(plot.Height))
+				h := y1 - y0
+				if h < 1 && v > 0 {
+					h = 1
+					y0 = y1 - 1
+				}
+				if h < 0 {
+					h = 0
+				}
+				brush, err := walk.NewSolidColorBrush(s.color)
+				if err == nil {
+					rect := walk.Rectangle{X: x0, Y: y0, Width: int(barW), Height: h}
+					_ = canvas.FillRectangle(brush, rect)
+					brush.Dispose()
+				}
+				if sepPen != nil && segN > 0 && h > 2 {
+					_ = canvas.DrawLine(sepPen, walk.Point{X: x0, Y: y1}, walk.Point{X: x0 + int(barW), Y: y1})
+				}
+				segN++
+				base += v
+				if y0 < topY {
+					topY = y0
+				}
+			}
+			if valueFont != nil && total > 0 {
+				txt := fmtVal(total)
+				tr := walk.Rectangle{X: x0 - 8, Y: topY - 16, Width: int(barW) + 16, Height: 14}
+				_ = canvas.DrawText(txt, valueFont, theme.label, tr,
+					walk.TextCenter|walk.TextSingleLine|walk.TextEndEllipsis)
+			}
 		}
 	} else {
 		groupGap := 0.18
@@ -736,9 +856,6 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 				if ratio > 1 {
 					ratio = 1
 				}
-				if ratio < 0 {
-					ratio = 0
-				}
 				h := int(ratio * float64(plot.Height))
 				if h < 1 && v > 0 {
 					h = 1
@@ -750,6 +867,12 @@ func paintXYChart(st *controlState, canvas *walk.Canvas, bounds, plot walk.Recta
 					rect.Width = 1
 				}
 				_ = canvas.FillRectangle(brush, rect)
+				if valueFont != nil && v > 0 && nSeries == 1 {
+					txt := fmtVal(v)
+					tr := walk.Rectangle{X: x0 - 6, Y: y0 - 16, Width: rect.Width + 12, Height: 14}
+					_ = canvas.DrawText(txt, valueFont, theme.label, tr,
+						walk.TextCenter|walk.TextSingleLine|walk.TextEndEllipsis)
+				}
 			}
 			brush.Dispose()
 		}
@@ -973,6 +1096,13 @@ func drawChartEmpty(canvas *walk.Canvas, plot walk.Rectangle, theme chartTheme) 
 }
 
 func formatChartNumber(v float64) string {
+	return formatChartNumberFmt(v, "")
+}
+
+func formatChartNumberFmt(v float64, format string) string {
+	if format == "בתים" {
+		return formatBytes(v)
+	}
 	if math.Abs(v) >= 1000 {
 		return strconv.FormatFloat(v, 'f', 0, 64)
 	}

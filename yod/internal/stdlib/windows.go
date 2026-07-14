@@ -114,6 +114,8 @@ type controlState struct {
 	chartYMin       float64
 	chartYMax       float64
 	chartYRangeSet  bool
+	chartStacked      bool
+	chartValueFormat  string // "" | "בתים"
 	// רקע אופציונלי למסגרת
 	bgColor walk.Color
 	hasBg   bool

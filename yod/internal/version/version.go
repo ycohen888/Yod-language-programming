@@ -1,4 +1,4 @@
 package version
 
 // String — גרסת יוד הנוכחית (מקור אמת יחיד).
-const String = "0.67.0"
+const String = "0.67.1"
