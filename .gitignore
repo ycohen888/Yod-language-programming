@@ -24,6 +24,8 @@ desktop.ini
 **/drawing_out.png
 yod/_*.txt
 guide.zip
+yod-*-windows-amd64/
+yod-*-windows-amd64.zip
 **/__rar_out/
 **/*.rar
 

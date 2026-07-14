@@ -39,10 +39,16 @@
 
 ### אפשרות א׳ — הורדה מוכנה (Windows)
 
-ב־[Releases](https://github.com/ycohen888/Yod-language-programming/releases) יש `yod.exe` מוכן להורדה.
+ב־[Releases](https://github.com/ycohen888/Yod-language-programming/releases) הורידו את
+**`yod-*-windows-amd64.zip`** (לא רק את ה־`.exe` הבודד).
 הגרסה האחרונה: **[v0.77.0](https://github.com/ycohen888/Yod-language-programming/releases/tag/v0.77.0)**.
 
-להפעלת **העורך החדש** אחרי clone/הורדת הריפו:
+1. חלצו את **כל** התיקייה (כולל `yod-ide/`)
+2. הריצו `yod.exe` — נפתח **העורך החדש** (Electron)
+
+> בלי תיקיית `yod-ide` ליד `yod.exe` נפתח העורך הישן (Win32).
+
+לבנייה מקומית של העורך אחרי clone:
 
 ```powershell
 cd yod-ide
