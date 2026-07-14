@@ -218,6 +218,17 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		st.canvasLockH = on
 		return object.Nil
 	}}
+	w.Attrs["קבע_נעילת_רוחב"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("משטח.קבע_נעילת_רוחב מצפה לערך בוליאני")
+		}
+		on, errV := parseDarkBool("משטח.קבע_נעילת_רוחב", a...)
+		if errV != nil {
+			return errV
+		}
+		st.canvasLockW = on
+		return object.Nil
+	}}
 	w.Attrs["רוחב_נוכחי"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return &object.Number{Value: float64(st.canvasW)}
 	}}
@@ -795,10 +806,14 @@ func buildControlWidget(ch *controlState) Widget {
 		if hh < 40 {
 			hh = 40
 		}
+		ww := ch.canvasW
+		if ww < 40 {
+			ww = 40
+		}
 		sf := stretchOr(ch.stretchFactor, 0)
 		cw := CustomWidget{
 			AssignTo:            &ch.canvas,
-			MinSize:             Size{Width: 40, Height: hh},
+			MinSize:             Size{Width: ww, Height: hh},
 			StretchFactor:       sf,
 			InvalidatesOnResize: true,
 			PaintMode:           PaintBuffered,
@@ -842,8 +857,15 @@ func buildControlWidget(ch *controlState) Widget {
 				handleSurfaceKeyPress(ch, key)
 			},
 		}
-		if ch.canvasLockH {
-			cw.MaxSize = Size{Height: hh}
+		if ch.canvasLockH || ch.canvasLockW {
+			max := Size{}
+			if ch.canvasLockW {
+				max.Width = ww
+			}
+			if ch.canvasLockH {
+				max.Height = hh
+			}
+			cw.MaxSize = max
 		}
 		return cw
 	default:
@@ -918,6 +940,12 @@ func resizeSurfaceBoard(st *controlState, w, h int) {
 			h = 40
 		}
 	}
+	if st.canvasLockW {
+		w = st.canvasW
+		if w < 40 {
+			w = 40
+		}
+	}
 	ow, oh := st.board.img.Bounds().Dx(), st.board.img.Bounds().Dy()
 	if ow == w && oh == h {
 		st.canvasW, st.canvasH = w, h
@@ -946,15 +974,16 @@ func resizeSurfaceBoard(st *controlState, w, h int) {
 	st.board.img = neu
 	st.board.face = nil
 	st.canvasW, st.canvasH = w, h
-	if st.canvasLockH {
-		// גובה נשאר כפי שהוגדר בבנאי
-	} else {
+	if !st.canvasLockH {
 		st.canvasH = h
+	}
+	if !st.canvasLockW {
+		st.canvasW = w
 	}
 
 	if st.onSizeChange != nil {
 		invokeYod(st.onSizeChange, []object.Object{
-			&object.Number{Value: float64(w)},
+			&object.Number{Value: float64(st.canvasW)},
 			&object.Number{Value: float64(st.canvasH)},
 		})
 	}

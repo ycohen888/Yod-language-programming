@@ -74,6 +74,7 @@ type controlState struct {
 	onSizeChange object.Object // בשינוי_גודל(רוחב, גובה)
 	stretchFactor int          // -1 = ברירת מחדל לפי סוג רכיב; מסגרת/טבלה/גרף
 	canvasLockH   bool         // משטח: נעילת גובה (סרגלים) — רוחב גמיש
+	canvasLockW   bool         // משטח: נעילת רוחב (סרגל צד) — גובה גמיש
 	sizeWired     bool
 	sizeBusy      bool
 	undoStack   []*image.RGBA
