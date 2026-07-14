@@ -25,6 +25,11 @@ type yodTimer struct {
 	stopped  atomic.Bool
 }
 
+const (
+	// משחקים ולוחות בזמן־אמת — מינימום ~120fps
+	timerMinInterval = 8 * time.Millisecond
+)
+
 // setTimerUISync — כשחלון GUI פתוח, מריץ callbacks בחוט ה־UI.
 func setTimerUISync(fn func(func())) {
 	timerMu.Lock()
@@ -34,6 +39,10 @@ func setTimerUISync(fn func(func())) {
 
 func NewTimersModule() *object.Module {
 	m := &object.Module{Name: "טיימרים", Attrs: map[string]object.Object{}}
+	// מילישניות — מומלץ למשחקים / Dashboards
+	m.Attrs["טיימר"] = &object.Builtin{Fn: timerMsEvery}
+	m.Attrs["אחרי"] = &object.Builtin{Fn: timerMsOnce}
+	// שניות — תאימות לאחור
 	m.Attrs["כל_כמה"] = &object.Builtin{Fn: timerEvery}
 	m.Attrs["פעם_אחת"] = &object.Builtin{Fn: timerOnce}
 	m.Attrs["עצור"] = &object.Builtin{Fn: timerStop}
@@ -43,15 +52,38 @@ func NewTimersModule() *object.Module {
 	return m
 }
 
+func timerMsEvery(args ...object.Object) object.Object {
+	return startTimerMs(args, false, "טיימרים.טיימר")
+}
+
+func timerMsOnce(args ...object.Object) object.Object {
+	return startTimerMs(args, true, "טיימרים.אחרי")
+}
+
 func timerEvery(args ...object.Object) object.Object {
-	return startTimer(args, false, "טיימרים.כל_כמה")
+	return startTimerSeconds(args, false, "טיימרים.כל_כמה")
 }
 
 func timerOnce(args ...object.Object) object.Object {
-	return startTimer(args, true, "טיימרים.פעם_אחת")
+	return startTimerSeconds(args, true, "טיימרים.פעם_אחת")
 }
 
-func startTimer(args []object.Object, once bool, name string) object.Object {
+func startTimerMs(args []object.Object, once bool, name string) object.Object {
+	if len(args) != 2 {
+		return errObj(name + " מצפה למילישניות ולפונקציה")
+	}
+	ms, ok := args[0].(*object.Number)
+	if !ok || ms.Value <= 0 {
+		return errObj(name + " מצפה למספר מילישניות חיובי")
+	}
+	if !isCallable(args[1]) {
+		return errObj(name + " מצפה לפונקציה")
+	}
+	d := time.Duration(ms.Value * float64(time.Millisecond))
+	return registerTimer(args[1], d, once)
+}
+
+func startTimerSeconds(args []object.Object, once bool, name string) object.Object {
 	if len(args) != 2 {
 		return errObj(name + " מצפה לשניות ולפונקציה")
 	}
@@ -62,16 +94,21 @@ func startTimer(args []object.Object, once bool, name string) object.Object {
 	if !isCallable(args[1]) {
 		return errObj(name + " מצפה לפונקציה")
 	}
+	d := time.Duration(sec.Value * float64(time.Second))
+	return registerTimer(args[1], d, once)
+}
+
+func registerTimer(fn object.Object, interval time.Duration, once bool) object.Object {
+	if interval < timerMinInterval {
+		interval = timerMinInterval
+	}
 	id := atomic.AddInt64(&timerNextID, 1)
 	t := &yodTimer{
 		id:       id,
-		fn:       args[1],
-		interval: time.Duration(sec.Value * float64(time.Second)),
+		fn:       fn,
+		interval: interval,
 		once:     once,
 		stopCh:   make(chan struct{}),
-	}
-	if t.interval < 50*time.Millisecond {
-		t.interval = 50 * time.Millisecond
 	}
 	timerMu.Lock()
 	timersByID[id] = t

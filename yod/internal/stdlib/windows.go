@@ -1054,6 +1054,7 @@ func winShow(st *windowState) object.Object {
 	st.closed = true
 	st.mw = nil
 	setTimerUISync(nil)
+	_ = timerStopAll()
 	return &object.Null{}
 }
 
