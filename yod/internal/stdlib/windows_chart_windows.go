@@ -61,6 +61,7 @@ func newChartWidget(kind string) object.Object {
 		listMinH:        320,
 		chartLabels:     []string{},
 		chartSeries:     nil,
+		stretchFactor:   -1,
 	}
 	w := &object.GuiWidget{Kind: "גרף", Data: st, Attrs: map[string]object.Object{}}
 	w.Attrs["קבע_סוג"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
@@ -435,10 +436,11 @@ func buildChartWidget(ch *controlState) Widget {
 	if minH < 80 {
 		minH = 280
 	}
+	sf := stretchOr(ch.stretchFactor, 1)
 	return CustomWidget{
 		AssignTo:            &ch.chartWidget,
-		MinSize:             Size{Width: 280, Height: minH},
-		StretchFactor:       1,
+		MinSize:             Size{Width: 120, Height: minH},
+		StretchFactor:       sf,
 		InvalidatesOnResize: true,
 		PaintMode:           PaintBuffered,
 		Paint: func(canvas *walk.Canvas, bounds walk.Rectangle) error {

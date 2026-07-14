@@ -77,7 +77,7 @@ func winCreateFrame(args ...object.Object) object.Object {
 	if len(args) > 1 {
 		return errObj("חלונות.מסגרת מצפה ל־0 או 1 ארגומנטים")
 	}
-	st := &controlState{kind: "מסגרת", frameDir: dir, children: nil}
+	st := &controlState{kind: "מסגרת", frameDir: dir, children: nil, stretchFactor: -1}
 	w := &object.GuiWidget{Kind: "מסגרת", Data: st, Attrs: map[string]object.Object{}}
 	w.Attrs["הוסף"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return addChildControl(st, a, "מסגרת")
@@ -90,6 +90,9 @@ func winCreateFrame(args ...object.Object) object.Object {
 		st.bgColor = c
 		st.hasBg = true
 		return object.Nil
+	}}
+	w.Attrs["קבע_מתיחה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setStretchFactor(st, "מסגרת.קבע_מתיחה", a...)
 	}}
 	return w
 }
@@ -160,12 +163,14 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		fontSz: 16,
 	}
 	st := &controlState{
-		kind:      "משטח",
-		board:     board,
-		canvasW:   ww,
-		canvasH:   hh,
-		dragging:  false,
-		undoStack: nil,
+		kind:          "משטח",
+		board:         board,
+		canvasW:       ww,
+		canvasH:       hh,
+		dragging:      false,
+		undoStack:     nil,
+		canvasLockH:   true,
+		stretchFactor: -1,
 	}
 	w := &object.GuiWidget{Kind: "משטח", Data: st, Attrs: map[string]object.Object{}}
 
@@ -187,6 +192,9 @@ func winCreateCanvas(args ...object.Object) object.Object {
 	w.Attrs["בעת_מקש"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setMouseHandler(&st.onKeyCmd, "בעת_מקש", a)
 	}}
+	w.Attrs["בשינוי_גודל"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setMouseHandler(&st.onSizeChange, "בשינוי_גודל", a)
+	}}
 	w.Attrs["בקש_מיקוד"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		if st.canvas != nil {
 			_ = st.canvas.SetFocus()
@@ -195,6 +203,26 @@ func winCreateCanvas(args ...object.Object) object.Object {
 	}}
 	w.Attrs["קבע_רמז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setSurfaceHint(st, a...)
+	}}
+	w.Attrs["קבע_מתיחה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setStretchFactor(st, "משטח.קבע_מתיחה", a...)
+	}}
+	w.Attrs["קבע_נעילת_גובה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("משטח.קבע_נעילת_גובה מצפה לערך בוליאני")
+		}
+		on, errV := parseDarkBool("משטח.קבע_נעילת_גובה", a...)
+		if errV != nil {
+			return errV
+		}
+		st.canvasLockH = on
+		return object.Nil
+	}}
+	w.Attrs["רוחב_נוכחי"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return &object.Number{Value: float64(st.canvasW)}
+	}}
+	w.Attrs["גובה_נוכחי"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return &object.Number{Value: float64(st.canvasH)}
 	}}
 
 	w.Attrs["קבע_צבע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
@@ -740,11 +768,12 @@ func buildControlWidget(ch *controlState) Widget {
 		if hasBg {
 			bg = SolidColorBrush{Color: ch.bgColor}
 		}
-		margins := Margins{Left: 10, Top: 8, Right: 10, Bottom: 8}
+		margins := Margins{Left: 8, Top: 6, Right: 8, Bottom: 6}
+		sf := stretchOr(ch.stretchFactor, 1)
 		if ch.frameDir == "אופקי" {
 			comp := Composite{
 				Layout:        HBox{Margins: margins, Spacing: 8},
-				StretchFactor: 1,
+				StretchFactor: sf,
 				Children:      kids,
 			}
 			if hasBg {
@@ -754,7 +783,7 @@ func buildControlWidget(ch *controlState) Widget {
 		}
 		comp := Composite{
 			Layout:        VBox{Margins: margins, Spacing: 6},
-			StretchFactor: 1,
+			StretchFactor: sf,
 			Children:      kids,
 		}
 		if hasBg {
@@ -762,11 +791,15 @@ func buildControlWidget(ch *controlState) Widget {
 		}
 		return comp
 	case "משטח":
-		ww, hh := ch.canvasW, ch.canvasH
-		return CustomWidget{
+		hh := ch.canvasH
+		if hh < 40 {
+			hh = 40
+		}
+		sf := stretchOr(ch.stretchFactor, 0)
+		cw := CustomWidget{
 			AssignTo:            &ch.canvas,
-			MinSize:             Size{Width: ww, Height: hh},
-			StretchFactor:       1,
+			MinSize:             Size{Width: 40, Height: hh},
+			StretchFactor:       sf,
 			InvalidatesOnResize: true,
 			PaintMode:           PaintBuffered,
 			Paint: func(canvas *walk.Canvas, bounds walk.Rectangle) error {
@@ -809,6 +842,10 @@ func buildControlWidget(ch *controlState) Widget {
 				handleSurfaceKeyPress(ch, key)
 			},
 		}
+		if ch.canvasLockH {
+			cw.MaxSize = Size{Height: hh}
+		}
+		return cw
 	default:
 		return Label{Text: "?"}
 	}
@@ -818,17 +855,143 @@ func paintSurface(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) 
 	if st.board == nil || st.canvas == nil {
 		return nil
 	}
+	// מילוי כל השטח — מונע רקע שחור כשהווידג'ט רחב/גבוה מהביטמאפ
+	bgCol := walk.RGB(22, 27, 34)
+	if st.board.img != nil && st.board.img.Bounds().Dx() > 0 && st.board.img.Bounds().Dy() > 0 {
+		c := st.board.img.RGBAAt(0, 0)
+		bgCol = walk.RGB(c.R, c.G, c.B)
+	}
+	if br, err := walk.NewSolidColorBrush(bgCol); err == nil {
+		_ = canvas.FillRectanglePixels(br, bounds)
+		br.Dispose()
+	}
 	bmp, err := walk.NewBitmapFromImageForDPI(st.board.img, st.canvas.DPI())
 	if err != nil {
 		return err
 	}
 	defer bmp.Dispose()
-	dest := walk.Rectangle{
-		X: bounds.X, Y: bounds.Y,
-		Width:  st.board.img.Bounds().Dx(),
-		Height: st.board.img.Bounds().Dy(),
+	return canvas.DrawImageStretchedPixels(bmp, bounds)
+}
+
+func setStretchFactor(st *controlState, name string, a ...object.Object) object.Object {
+	if len(a) != 1 {
+		return errObj(name + " מצפה למספר >= 0")
 	}
-	return canvas.DrawImageStretchedPixels(bmp, dest)
+	n, ok := a[0].(*object.Number)
+	if !ok {
+		return errObj(name + " מצפה למספר >= 0")
+	}
+	v := int(n.Value)
+	if v < 0 {
+		return errObj(name + " מצפה למספר >= 0")
+	}
+	st.stretchFactor = v
+	return object.Nil
+}
+
+func stretchOr(v, def int) int {
+	if v < 0 {
+		return def
+	}
+	return v
+}
+
+func resizeSurfaceBoard(st *controlState, w, h int) {
+	if st == nil || st.board == nil || st.sizeBusy {
+		return
+	}
+	if w < 40 {
+		w = 40
+	}
+	if h < 40 {
+		h = 40
+	}
+	if w > 4000 {
+		w = 4000
+	}
+	if h > 4000 {
+		h = 4000
+	}
+	if st.canvasLockH {
+		h = st.canvasH
+		if h < 40 {
+			h = 40
+		}
+	}
+	ow, oh := st.board.img.Bounds().Dx(), st.board.img.Bounds().Dy()
+	if ow == w && oh == h {
+		st.canvasW, st.canvasH = w, h
+		return
+	}
+	st.sizeBusy = true
+	defer func() { st.sizeBusy = false }()
+
+	bg := color.RGBA{22, 27, 34, 255}
+	if ow > 0 && oh > 0 {
+		bg = st.board.img.RGBAAt(0, 0)
+	}
+	neu := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(neu, neu.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
+	cw := ow
+	if cw > w {
+		cw = w
+	}
+	ch := oh
+	if ch > h {
+		ch = h
+	}
+	if cw > 0 && ch > 0 {
+		draw.Draw(neu, image.Rect(0, 0, cw, ch), st.board.img, image.Point{}, draw.Src)
+	}
+	st.board.img = neu
+	st.board.face = nil
+	st.canvasW, st.canvasH = w, h
+	if st.canvasLockH {
+		// גובה נשאר כפי שהוגדר בבנאי
+	} else {
+		st.canvasH = h
+	}
+
+	if st.onSizeChange != nil {
+		invokeYod(st.onSizeChange, []object.Object{
+			&object.Number{Value: float64(w)},
+			&object.Number{Value: float64(st.canvasH)},
+		})
+	}
+	invalidateCanvas(st)
+}
+
+func wireSurfaceResize(ch *controlState) {
+	if ch == nil {
+		return
+	}
+	for _, c := range ch.children {
+		wireSurfaceResize(c)
+	}
+	if ch.kind != "משטח" || ch.canvas == nil || ch.sizeWired {
+		return
+	}
+	ch.sizeWired = true
+	ch.canvas.SizeChanged().Attach(func() {
+		if ch.canvas == nil {
+			return
+		}
+		b := ch.canvas.ClientBoundsPixels()
+		resizeSurfaceBoard(ch, b.Width, b.Height)
+	})
+}
+
+func syncSurfaceSizesRecursive(ch *controlState) {
+	if ch == nil {
+		return
+	}
+	if ch.kind == "משטח" && ch.canvas != nil {
+		b := ch.canvas.ClientBoundsPixels()
+		resizeSurfaceBoard(ch, b.Width, b.Height)
+	}
+	for _, c := range ch.children {
+		syncSurfaceSizesRecursive(c)
+	}
 }
 
 func paintSwatch(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) error {

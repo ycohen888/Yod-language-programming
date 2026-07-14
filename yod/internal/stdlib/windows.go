@@ -71,6 +71,11 @@ type controlState struct {
 	onMouseHover object.Object // תנועת עכבר בלי לחיצה (רמזים וכו')
 	onKeyChar    object.Object // בעת_תו — תו מוקלד (כולל עברית)
 	onKeyCmd     object.Object // בעת_מקש — מחיקה / אנטר / …
+	onSizeChange object.Object // בשינוי_גודל(רוחב, גובה)
+	stretchFactor int          // -1 = ברירת מחדל לפי סוג רכיב; מסגרת/טבלה/גרף
+	canvasLockH   bool         // משטח: נעילת גובה (סרגלים) — רוחב גמיש
+	sizeWired     bool
+	sizeBusy      bool
 	undoStack   []*image.RGBA
 	backup      *image.RGBA
 	// דגם צבע / סמל כלי
@@ -992,14 +997,21 @@ func winShow(st *windowState) object.Object {
 
 	for _, ch := range st.children {
 		wireBrowsersRecursive(ch, mw)
+		wireSurfaceResize(ch)
 	}
 
 	mw.SizeChanged().Attach(func() {
 		resizeBrowsersRecursive(st.children)
+		for _, ch := range st.children {
+			wireSurfaceResize(ch)
+			syncSurfaceSizesRecursive(ch)
+		}
 	})
 
 	mw.Starting().Attach(func() {
 		for _, ch := range st.children {
+			wireSurfaceResize(ch)
+			syncSurfaceSizesRecursive(ch)
 			startBrowsersRecursive(ch)
 		}
 		if st.onStart != nil {

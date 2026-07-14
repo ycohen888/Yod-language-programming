@@ -106,10 +106,11 @@ func winCreateTable(args ...object.Object) object.Object {
 	}
 	model := &yodTableModel{fields: []string{}, items: []yodTableRow{}}
 	st := &controlState{
-		kind:       "טבלה",
-		listMinH:   280,
-		tableModel: model,
-		tableCols:  []int{},
+		kind:          "טבלה",
+		listMinH:      280,
+		tableModel:    model,
+		tableCols:     []int{},
+		stretchFactor: -1,
 	}
 	w := &object.GuiWidget{Kind: "טבלה", Data: st, Attrs: map[string]object.Object{}}
 	w.Attrs["קבע_שדות"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
@@ -585,7 +586,7 @@ func buildTableWidget(ch *controlState) Widget {
 		LastColumnStretched: true,
 		Columns:             cols,
 		Model:               ch.tableModel,
-		StretchFactor:       1,
+		StretchFactor:       stretchOr(ch.stretchFactor, 1),
 		MinSize:             Size{Width: 200, Height: minH},
 		Font:                Font{Family: "Segoe UI", PointSize: 10},
 		OnCurrentIndexChanged: func() {
