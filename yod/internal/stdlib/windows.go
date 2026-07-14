@@ -116,6 +116,7 @@ type controlState struct {
 	chartYRangeSet  bool
 	chartStacked      bool
 	chartValueFormat  string // "" | "בתים"
+	chartLegendPos    string // ""|"צד" | "מעל" | "תחת"
 	// רקע אופציונלי למסגרת
 	bgColor walk.Color
 	hasBg   bool

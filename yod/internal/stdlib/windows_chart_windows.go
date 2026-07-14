@@ -88,6 +88,9 @@ func newChartWidget(kind string) object.Object {
 	w.Attrs["קבע_מקרא"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return chartSetBool(st, &st.chartShowLegend, "קבע_מקרא", a...)
 	}}
+	w.Attrs["קבע_מיקום_מקרא"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return chartSetLegendPos(st, a...)
+	}}
 	w.Attrs["קבע_רשת"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return chartSetBool(st, &st.chartShowGrid, "קבע_רשת", a...)
 	}}
@@ -264,6 +267,51 @@ func chartSetValueFormat(st *controlState, args ...object.Object) object.Object 
 	}
 	invalidateChart(st)
 	return object.Nil
+}
+
+func chartSetLegendPos(st *controlState, args ...object.Object) object.Object {
+	if len(args) != 1 {
+		return errObj(`גרף.קבע_מיקום_מקרא מצפה ל־"צד" / "מעל" / "תחת"`)
+	}
+	s, ok := asString(args[0])
+	if !ok {
+		return errObj(`גרף.קבע_מיקום_מקרא מצפה למחרוזת`)
+	}
+	switch strings.TrimSpace(s) {
+	case "", "צד", "ימין", "side", "right":
+		st.chartLegendPos = "צד"
+	case "מעל", "למעלה", "top", "above":
+		st.chartLegendPos = "מעל"
+	case "תחת", "למטה", "מתחת", "bottom", "below":
+		st.chartLegendPos = "תחת"
+	default:
+		return errObj(`גרף.קבע_מיקום_מקרא: השתמשו ב־"צד", "מעל" או "תחת"`)
+	}
+	invalidateChart(st)
+	return object.Nil
+}
+
+// chartLegendInsets — רוחב צד / גובה מעל / גובה מתחת למקרא.
+func chartLegendInsets(st *controlState) (sideW, topH, bottomH int) {
+	if !st.chartShowLegend || len(st.chartSeries) == 0 {
+		return 0, 0, 0
+	}
+	pos := st.chartLegendPos
+	if pos == "" {
+		pos = "צד"
+	}
+	switch pos {
+	case "מעל":
+		return 0, 22, 0
+	case "תחת":
+		return 0, 0, 22
+	default:
+		w := 120
+		if st.chartKind == "עוגה" {
+			w = 140
+		}
+		return w, 0, 0
+	}
 }
 
 func chartSetLabels(st *controlState, args ...object.Object) object.Object {
@@ -527,13 +575,7 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 		}
 	}
 
-	legendW := 0
-	if st.chartShowLegend && len(st.chartSeries) > 0 {
-		legendW = 120
-		if st.chartKind == "עוגה" {
-			legendW = 140
-		}
-	}
+	legendW, legendTopH, legendBottomH := chartLegendInsets(st)
 
 	leftAxis := 44
 	if st.chartValueFormat == "בתים" {
@@ -542,9 +584,9 @@ func paintChart(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) er
 
 	plot := walk.Rectangle{
 		X:      bounds.X + pad + leftAxis,
-		Y:      bounds.Y + pad + titleH,
+		Y:      bounds.Y + pad + titleH + legendTopH,
 		Width:  bounds.Width - pad*2 - leftAxis - legendW,
-		Height: bounds.Height - pad*2 - titleH - 36,
+		Height: bounds.Height - pad*2 - titleH - legendTopH - legendBottomH - 36,
 	}
 	if plot.Width < 40 || plot.Height < 40 {
 		return nil
@@ -1062,7 +1104,7 @@ func fillWedgeRGBA(img *image.RGBA, cx, cy, r int, a0, a1 float64, c color.RGBA)
 }
 
 func paintChartLegend(st *controlState, canvas *walk.Canvas, bounds, plot walk.Rectangle, legendW int, theme chartTheme) error {
-	if !st.chartShowLegend || legendW <= 0 || len(st.chartSeries) == 0 {
+	if !st.chartShowLegend || len(st.chartSeries) == 0 {
 		return nil
 	}
 	font, err := walk.NewFont("Segoe UI", 9, 0)
@@ -1070,17 +1112,73 @@ func paintChartLegend(st *controlState, canvas *walk.Canvas, bounds, plot walk.R
 		return nil
 	}
 	defer font.Dispose()
-	lx := bounds.X + bounds.Width - legendW - 6
-	ly := plot.Y
+
+	pos := st.chartLegendPos
+	if pos == "" {
+		pos = "צד"
+	}
+	if pos == "צד" && legendW > 0 {
+		lx := bounds.X + bounds.Width - legendW - 6
+		ly := plot.Y
+		for _, s := range st.chartSeries {
+			br, err := walk.NewSolidColorBrush(s.color)
+			if err == nil {
+				_ = canvas.FillRectangle(br, walk.Rectangle{X: lx, Y: ly + 3, Width: 12, Height: 12})
+				br.Dispose()
+			}
+			tr := walk.Rectangle{X: lx + 18, Y: ly, Width: legendW - 22, Height: 18}
+			_ = canvas.DrawText(s.name, font, theme.label, tr, walk.TextLeft|walk.TextSingleLine)
+			ly += 22
+		}
+		return nil
+	}
+
+	// מקרא אופקי — מעל או מתחת לגרף
+	const swatch, gap, after = 12, 6, 18
+	type item struct {
+		name  string
+		color walk.Color
+		w     int
+	}
+	items := make([]item, 0, len(st.chartSeries))
+	total := 0
 	for _, s := range st.chartSeries {
-		br, err := walk.NewSolidColorBrush(s.color)
+		tw := 48
+		if m, _, err := canvas.MeasureText(s.name, font, walk.Rectangle{Width: 200, Height: 20}, walk.TextSingleLine); err == nil {
+			tw = m.Width
+			if tw < 24 {
+				tw = 24
+			}
+		}
+		w := swatch + gap + tw
+		items = append(items, item{name: s.name, color: s.color, w: w})
+		total += w
+	}
+	if len(items) > 1 {
+		total += after * (len(items) - 1)
+	}
+	lx := bounds.X + (bounds.Width-total)/2
+	ly := plot.Y - 20
+	if pos == "תחת" {
+		ly = plot.Y + plot.Height + 26
+	} else if pos == "מעל" {
+		ly = plot.Y - 20
+	}
+	if ly < bounds.Y+2 {
+		ly = bounds.Y + 2
+	}
+	for i, it := range items {
+		br, err := walk.NewSolidColorBrush(it.color)
 		if err == nil {
-			_ = canvas.FillRectangle(br, walk.Rectangle{X: lx, Y: ly + 3, Width: 12, Height: 12})
+			_ = canvas.FillRectangle(br, walk.Rectangle{X: lx, Y: ly + 3, Width: swatch, Height: swatch})
 			br.Dispose()
 		}
-		tr := walk.Rectangle{X: lx + 18, Y: ly, Width: legendW - 22, Height: 18}
-		_ = canvas.DrawText(s.name, font, theme.label, tr, walk.TextLeft|walk.TextSingleLine)
-		ly += 22
+		tr := walk.Rectangle{X: lx + swatch + gap, Y: ly, Width: it.w - swatch - gap, Height: 18}
+		_ = canvas.DrawText(it.name, font, theme.label, tr, walk.TextLeft|walk.TextSingleLine)
+		lx += it.w
+		if i+1 < len(items) {
+			lx += after
+		}
 	}
 	return nil
 }
