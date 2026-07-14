@@ -75,6 +75,8 @@ type controlState struct {
 	stretchFactor int          // -1 = ברירת מחדל לפי סוג רכיב; מסגרת/טבלה/גרף
 	canvasLockH   bool         // משטח: נעילת גובה (סרגלים) — רוחב גמיש
 	canvasLockW   bool         // משטח: נעילת רוחב (סרגל צד) — גובה גמיש
+	canvasKeysWired bool
+	canvasKeyKeep   uintptr // מונע GC מ־NewCallback לחצי מקלדת
 	sizeWired     bool
 	sizeBusy      bool
 	undoStack   []*image.RGBA

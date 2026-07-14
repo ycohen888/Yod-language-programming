@@ -817,6 +817,7 @@ func buildControlWidget(ch *controlState) Widget {
 			StretchFactor:       sf,
 			InvalidatesOnResize: true,
 			PaintMode:           PaintBuffered,
+			Style:               0x00010000, // WS_TABSTOP — מיקוד מקלדת
 			Paint: func(canvas *walk.Canvas, bounds walk.Rectangle) error {
 				return paintSurface(ch, canvas, bounds)
 			},
@@ -997,7 +998,11 @@ func wireSurfaceResize(ch *controlState) {
 	for _, c := range ch.children {
 		wireSurfaceResize(c)
 	}
-	if ch.kind != "משטח" || ch.canvas == nil || ch.sizeWired {
+	if ch.kind != "משטח" || ch.canvas == nil {
+		return
+	}
+	enableSurfaceArrowKeys(ch, ch.canvas)
+	if ch.sizeWired {
 		return
 	}
 	ch.sizeWired = true
