@@ -20,6 +20,8 @@ func invokeYod(fn object.Object, args []object.Object) {
 		res = object.InvokeCallable(fn, args)
 	} else if f, ok := fn.(*object.Function); ok && object.InvokeFunction != nil {
 		res = object.InvokeFunction(f, args)
+	} else if b, ok := fn.(*object.Builtin); ok && b.Fn != nil {
+		res = b.Fn(args...)
 	}
 	_ = res
 }

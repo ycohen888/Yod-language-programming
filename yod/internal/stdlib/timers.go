@@ -23,6 +23,7 @@ type yodTimer struct {
 	stopCh   chan struct{}
 	paused   atomic.Bool
 	stopped  atomic.Bool
+	canceled atomic.Bool // עצירה מפורשת (עצור) — לא סיום רגיל של טיימר חד־פעמי
 }
 
 const (
@@ -159,10 +160,14 @@ func fireTimer(t *yodTimer) {
 	timerMu.Lock()
 	syncFn := uiSyncFn
 	timerMu.Unlock()
+	// חשוב: Synchronize של Walk הוא אסינכרוני (תור + PostMessage).
+	// טיימר חד־פעמי מסמן stopped מיד אחרי enqueue — אסור לבדוק stopped כאן,
+	// אחרת הקולבק לעולם לא רץ (למשל AI נשאר על «חושב»).
 	run := func() {
-		if !t.stopped.Load() {
-			invokeYod(t.fn, nil)
+		if t.canceled.Load() {
+			return
 		}
+		invokeYod(t.fn, nil)
 	}
 	if syncFn != nil {
 		syncFn(run)
@@ -186,8 +191,11 @@ func timerStop(args ...object.Object) object.Object {
 		delete(timersByID, id)
 	}
 	timerMu.Unlock()
-	if exists && t != nil && !t.stopped.Swap(true) {
-		close(t.stopCh)
+	if exists && t != nil {
+		t.canceled.Store(true)
+		if !t.stopped.Swap(true) {
+			close(t.stopCh)
+		}
 	}
 	return object.Nil
 }
@@ -204,8 +212,11 @@ func timerStopAll(args ...object.Object) object.Object {
 	timersByID = map[int64]*yodTimer{}
 	timerMu.Unlock()
 	for _, t := range list {
-		if t != nil && !t.stopped.Swap(true) {
-			close(t.stopCh)
+		if t != nil {
+			t.canceled.Store(true)
+			if !t.stopped.Swap(true) {
+				close(t.stopCh)
+			}
 		}
 	}
 	return object.Nil
