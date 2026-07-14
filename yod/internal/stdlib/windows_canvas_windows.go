@@ -520,6 +520,37 @@ func invalidateCanvas(st *controlState) {
 	}
 }
 
+func mapSurfaceMouse(ch *controlState, x, y int) (int, int) {
+	if ch == nil || ch.canvas == nil || ch.board == nil || ch.board.img == nil {
+		return x, y
+	}
+	b := ch.canvas.ClientBoundsPixels()
+	if b.Width < 1 || b.Height < 1 {
+		return x, y
+	}
+	iw := ch.board.img.Bounds().Dx()
+	ih := ch.board.img.Bounds().Dy()
+	if iw < 1 || ih < 1 {
+		return x, y
+	}
+	// עכבר בפיקסלים טבעיים; הציור נמתח לביטמאפ הלוגי
+	nx := x * iw / b.Width
+	ny := y * ih / b.Height
+	if nx < 0 {
+		nx = 0
+	}
+	if ny < 0 {
+		ny = 0
+	}
+	if nx >= iw {
+		nx = iw - 1
+	}
+	if ny >= ih {
+		ny = ih - 1
+	}
+	return nx, ny
+}
+
 func invokeYodMouse(fn object.Object, x, y int, button string) {
 	if fn == nil {
 		return
@@ -825,12 +856,14 @@ func buildControlWidget(ch *controlState) Widget {
 				if ch.canvas != nil {
 					_ = ch.canvas.SetFocus()
 				}
+				x, y = mapSurfaceMouse(ch, x, y)
 				name := walkButtonName(button)
 				ch.dragging = true
 				ch.dragButton = name
 				invokeYodMouse(ch.onMouseDown, x, y, name)
 			},
 			OnMouseMove: func(x, y int, button walk.MouseButton) {
+				x, y = mapSurfaceMouse(ch, x, y)
 				if ch.dragging {
 					btn := ch.dragButton
 					if btn == "" {
@@ -842,6 +875,7 @@ func buildControlWidget(ch *controlState) Widget {
 				invokeYodMouse(ch.onMouseHover, x, y, walkButtonName(button))
 			},
 			OnMouseUp: func(x, y int, button walk.MouseButton) {
+				x, y = mapSurfaceMouse(ch, x, y)
 				name := walkButtonName(button)
 				ch.dragging = false
 				btn := ch.dragButton
