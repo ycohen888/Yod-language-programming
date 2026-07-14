@@ -281,6 +281,9 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		board.face = nil
 		return object.Nil
 	}}
+	w.Attrs["קבע_יישור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setBoardTextAlign(board, a...)
+	}}
 
 	w.Attrs["צלם"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		st.undoStack = append(st.undoStack, cloneRGBA(board.img))
@@ -426,6 +429,14 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		}
 		if err := drawTextOnBoard(board, s, vals[0], vals[1]); err != nil {
 			return errObj(err.Error())
+		}
+		invalidateCanvas(st)
+		return object.Nil
+	}}
+	w.Attrs["טקסט_בתיבה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		res := boardDrawTextBox(board, a...)
+		if res != nil && res.Type() == object.ErrorObj {
+			return res
 		}
 		invalidateCanvas(st)
 		return object.Nil

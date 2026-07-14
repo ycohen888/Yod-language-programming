@@ -39,6 +39,8 @@ type drawBoard struct {
 	width  int // עובי קו
 	fontSz float64
 	face   font.Face
+	// align: 0 שמאל, 1 ימין, 2 מרכז — קובע איך מפרשים את x בטקסט
+	align int
 }
 
 type drawImage struct {
@@ -116,6 +118,9 @@ func wrapBoard(st *drawBoard) *object.GuiWidget {
 		}
 		st.face = nil
 		return object.Nil
+	}}
+	w.Attrs["קבע_יישור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setBoardTextAlign(st, a...)
 	}}
 	w.Attrs["נקה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		c := color.RGBA{255, 255, 255, 255}
@@ -207,6 +212,9 @@ func wrapBoard(st *drawBoard) *object.GuiWidget {
 			return errObj(e.Error())
 		}
 		return object.Nil
+	}}
+	w.Attrs["טקסט_בתיבה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return boardDrawTextBox(st, a...)
 	}}
 	w.Attrs["רוחב_טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return boardTextWidth(st, a...)
@@ -770,17 +778,86 @@ func setPx(img *image.RGBA, x, y int, c color.RGBA) {
 }
 
 
+func setBoardTextAlign(st *drawBoard, a ...object.Object) object.Object {
+	if len(a) != 1 {
+		return errObj("קבע_יישור מצפה ל־שמאל / ימין / מרכז")
+	}
+	s, ok := asString(a[0])
+	if !ok {
+		return errObj("קבע_יישור מצפה למחרוזת: שמאל, ימין או מרכז")
+	}
+	switch s {
+	case "שמאל", "לשמאל", "left":
+		st.align = 0
+	case "ימין", "לימין", "right":
+		st.align = 1
+	case "מרכז", "center":
+		st.align = 2
+	default:
+		return errObj("קבע_יישור: ערך לא מוכר — השתמשו ב־שמאל, ימין או מרכז")
+	}
+	return object.Nil
+}
+
+func boardDrawTextBox(st *drawBoard, a ...object.Object) object.Object {
+	if len(a) != 4 {
+		return errObj("טקסט_בתיבה מצפה למחרוזת, x, y, רוחב")
+	}
+	s, ok := asString(a[0])
+	if !ok {
+		s = a[0].Inspect()
+	}
+	vals, err := nums("טקסט_בתיבה", a[1:], 3)
+	if err != nil {
+		return err
+	}
+	x, y, boxW := vals[0], vals[1], vals[2]
+	if boxW < 1 {
+		return errObj("טקסט_בתיבה: רוחב חייב להיות חיובי")
+	}
+	prev := st.align
+	st.align = 1 // יישור לימין בתוך התיבה
+	defer func() { st.align = prev }()
+	if e := drawTextOnBoard(st, s, x+boxW, y); e != nil {
+		return errObj(e.Error())
+	}
+	return object.Nil
+}
+
+func measureBoardText(st *drawBoard, text string) (float64, string, error) {
+	face, err := st.ensureFace()
+	if err != nil {
+		return 0, "", err
+	}
+	visual := visualOrderRTL(text)
+	if visual == "" {
+		return 0, visual, nil
+	}
+	adv := font.MeasureString(face, visual)
+	return float64(adv) / 64.0, visual, nil
+}
+
 func drawTextOnBoard(st *drawBoard, text string, x, y int) error {
 	face, err := st.ensureFace()
 	if err != nil {
 		return err
 	}
-	visual := visualOrderLTR(text)
+	w, visual, err := measureBoardText(st, text)
+	if err != nil {
+		return err
+	}
+	drawX := x
+	switch st.align {
+	case 1: // ימין — x הוא הקצה הימני של הטקסט
+		drawX = x - int(math.Ceil(w))
+	case 2: // מרכז — x הוא מרכז הטקסט
+		drawX = x - int(math.Ceil(w/2))
+	}
 	d := &font.Drawer{
 		Dst:  st.img,
 		Src:  image.NewUniform(st.stroke),
 		Face: face,
-		Dot:  fixed.P(x, y+int(st.fontSz)),
+		Dot:  fixed.P(drawX, y+int(st.fontSz)),
 	}
 	d.DrawString(visual)
 	return nil
@@ -798,21 +875,18 @@ func boardTextWidth(st *drawBoard, args ...object.Object) object.Object {
 			return errObj("רוחב_טקסט מצפה למחרוזת")
 		}
 	}
-	face, err := st.ensureFace()
-	if err != nil {
-		return errObj(err.Error())
-	}
 	if s == "" {
 		return &object.Number{Value: 0}
 	}
-	visual := visualOrderLTR(s)
-	adv := font.MeasureString(face, visual)
-	px := float64(adv) / 64.0
-	return &object.Number{Value: px}
+	w, _, err := measureBoardText(st, s)
+	if err != nil {
+		return errObj(err.Error())
+	}
+	return &object.Number{Value: w}
 }
 
-// visualOrderLTR — סדר חזותי לציור LTR (עברית לא תצא הפוכה)
-func visualOrderLTR(s string) string {
+// visualOrderRTL — סדר חזותי לציור: עברית נקראת מימין, ספרות/אנגלית נשארות טבעיות
+func visualOrderRTL(s string) string {
 	if s == "" {
 		return s
 	}
@@ -840,6 +914,11 @@ func visualOrderLTR(s string) string {
 		b.WriteString(part)
 	}
 	return b.String()
+}
+
+// visualOrderLTR — תאימות לשם ישן; משתמש באותו עיבוד BiDi
+func visualOrderLTR(s string) string {
+	return visualOrderRTL(s)
 }
 
 func hasRTLRune(s string) bool {
