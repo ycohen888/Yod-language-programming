@@ -74,6 +74,11 @@ export default function App() {
   const [paletteIdx, setPaletteIdx] = useState(0);
   const [busy, setBusy] = useState(false);
   const [yodExe, setYodExe] = useState("");
+  const [aboutOpen, setAboutOpen] = useState<{
+    engineVer: string;
+    ideVer: string;
+  } | null>(null);
+  const [emailCopied, setEmailCopied] = useState(false);
   const [inputPrompt, setInputPrompt] = useState<{
     title: string;
     message: string;
@@ -995,11 +1000,17 @@ export default function App() {
           break;
         case "help.about": {
           const paths = await window.yod.getPaths();
-          await window.yod.dialogPrompt({
-            kind: "info",
-            title: "אודות יוד",
-            message: `יוד IDE ${paths.version}`,
-            detail: `מנוע: ${paths.yodExe}\nעורך Electron + CodeMirror · RTL`,
+          let engineVer = "";
+          try {
+            const ver = await window.yod.runYod(["גרסה"], undefined);
+            engineVer = (ver.stdout || "").trim().split(/\r?\n/)[0] || "";
+          } catch {
+            /* ignore */
+          }
+          setEmailCopied(false);
+          setAboutOpen({
+            engineVer: engineVer || `יוד ${paths.version}`,
+            ideVer: paths.version,
           });
           break;
         }
@@ -1391,9 +1402,8 @@ export default function App() {
   return (
     <div className="app">
       <header className="titlebar titlebar-slim">
-        <div className="brand">
-          <img className="brand-icon" src={`${import.meta.env.BASE_URL}icon.png`} alt="" width={18} height={18} />
-          <span>יוד</span>
+        <div className="brand" title="יוד">
+          <img className="brand-icon" src={`${import.meta.env.BASE_URL}icon.png`} alt="יוד" width={16} height={16} />
         </div>
         <MenuBar onAction={(a) => void handleMenu(a)} />
         <div style={{ marginInlineStart: "auto", color: "var(--fg-dim)", fontSize: 12 }}>
@@ -1839,6 +1849,75 @@ export default function App() {
               <button type="button" className="palette-item active" onClick={() => void runFindInFiles(findQ)}>
                 <span>חפש Enter</span>
                 <span className="kb">Ctrl+Shift+F</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {aboutOpen ? (
+        <div
+          className="palette-backdrop"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setAboutOpen(null);
+          }}
+        >
+          <div
+            className="palette about-box"
+            role="dialog"
+            aria-label="אודות יוד"
+            tabIndex={-1}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setAboutOpen(null);
+            }}
+            ref={(n) => n?.focus()}
+          >
+            <div className="prompt-title">אודות יוד</div>
+            <div className="about-body">
+              <div className="about-heading">שפת יוד</div>
+              <div className="about-meta">
+                {aboutOpen.engineVer}
+                <br />
+                עורך: יוד IDE {aboutOpen.ideVer}
+              </div>
+              <p className="about-text">
+                יוד היא שפת תכנות מודרנית בעברית — תחביר מימין־לשמאל, ספריות מובנות,
+                עורך בסגנון Visual Studio Code, ומכונה וירטואלית. נועדה לדוברי עברית
+                שרוצים לפתח בלי תלות באנגלית.
+              </p>
+              <div className="about-author">יוסי.כ</div>
+              <div className="about-email-row">
+                <button
+                  type="button"
+                  className="about-email-link"
+                  title="פתח Gmail לשליחה"
+                  onClick={() => {
+                    void window.yod.openExternal(
+                      "https://mail.google.com/mail/?view=cm&fs=1&to=ycohen888@gmail.com"
+                    );
+                  }}
+                >
+                  ycohen888@gmail.com
+                </button>
+                <button
+                  type="button"
+                  className="about-copy-btn"
+                  title="העתק כתובת"
+                  onClick={() => {
+                    void (async () => {
+                      await window.yod.writeClipboard("ycohen888@gmail.com");
+                      setEmailCopied(true);
+                      window.setTimeout(() => setEmailCopied(false), 1800);
+                    })();
+                  }}
+                >
+                  {emailCopied ? "הועתק" : "העתק"}
+                </button>
+              </div>
+            </div>
+            <div className="prompt-actions">
+              <button type="button" className="primary" onClick={() => setAboutOpen(null)}>
+                סגור
               </button>
             </div>
           </div>

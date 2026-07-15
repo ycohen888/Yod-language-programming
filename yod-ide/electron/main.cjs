@@ -287,6 +287,20 @@ ipcMain.handle("shell:openPath", async (_e, p) => {
   await shell.openPath(p);
 });
 
+ipcMain.handle("shell:openExternal", async (_e, url) => {
+  if (typeof url !== "string" || !/^(https?:|mailto:)/i.test(url)) {
+    return false;
+  }
+  await shell.openExternal(url);
+  return true;
+});
+
+ipcMain.handle("clipboard:writeText", async (_e, text) => {
+  const { clipboard } = require("electron");
+  clipboard.writeText(String(text ?? ""));
+  return true;
+});
+
 const GUIDE_DIR = "מדריך שפת יוד";
 const GUIDE_INDEX = "מדריך שפת יוד.html";
 

@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld("yod", {
   dialogPrompt: (opts) => ipcRenderer.invoke("dialog:prompt", opts),
   showItem: (p) => ipcRenderer.invoke("shell:showItem", p),
   openPath: (p) => ipcRenderer.invoke("shell:openPath", p),
+  openExternal: (url) => ipcRenderer.invoke("shell:openExternal", url),
+  writeClipboard: (text) => ipcRenderer.invoke("clipboard:writeText", text),
   openGuide: () => ipcRenderer.invoke("guide:open"),
   getPaths: () => ipcRenderer.invoke("app:getPaths"),
   quit: () => ipcRenderer.invoke("app:quit"),

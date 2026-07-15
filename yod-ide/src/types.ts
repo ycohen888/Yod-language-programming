@@ -48,6 +48,8 @@ export type YodApi = {
   dialogPrompt: (opts: DialogPromptOpts) => Promise<boolean | null>;
   showItem: (p: string) => Promise<void>;
   openPath: (p: string) => Promise<void>;
+  openExternal: (url: string) => Promise<boolean>;
+  writeClipboard: (text: string) => Promise<boolean>;
   openGuide: () => Promise<{ ok: boolean; path?: string; error?: string }>;
   getPaths: () => Promise<{
     yodExe: string;

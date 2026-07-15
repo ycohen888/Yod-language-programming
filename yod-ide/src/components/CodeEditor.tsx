@@ -23,6 +23,7 @@ import {
   highlightSelectionMatches,
   openSearchPanel,
 } from "@codemirror/search";
+import { createYodSearchPanel } from "../lib/yodSearchPanel";
 import { bracketMatching } from "@codemirror/language";
 import { yodStreamLanguage } from "../lib/yodCmLanguage";
 import { yodSyntaxHighlighting, yodPhpDarkColors } from "../lib/yodHighlightStyle";
@@ -102,7 +103,7 @@ function buildExtensions(
     history(),
     bracketMatching(),
     highlightSelectionMatches(),
-    search({ top: true }),
+    search({ top: true, createPanel: createYodSearchPanel }),
     ...yodDiagnosticsExt,
     yodSyntaxHighlighting,
     yodStreamLanguage,
@@ -191,31 +192,13 @@ function buildExtensions(
         ".cm-diag-line-error": { backgroundColor: "rgba(241, 76, 76, 0.12)" },
         ".cm-diag-line-warning": { backgroundColor: "rgba(204, 167, 0, 0.10)" },
         ".cm-diag-line-info": { backgroundColor: "rgba(55, 148, 255, 0.08)" },
-        ".cm-panel.cm-search": {
-          backgroundColor: "#252526",
-          color: "#cccccc",
-          borderBottom: "1px solid #3c3c3c",
-          padding: "6px 8px",
-          fontFamily: 'Segoe UI, "Noto Sans Hebrew", sans-serif',
-          fontSize: "13px",
+        ".cm-panels.cm-panels-top": {
+          backgroundColor: "transparent",
+          borderBottom: "none",
         },
-        ".cm-panel.cm-search input": {
-          borderRadius: "0",
-          border: "1px solid #3c3c3c",
-          background: "#3c3c3c",
-          color: "#cccccc",
-          padding: "3px 6px",
-        },
-        ".cm-panel.cm-search button": {
-          borderRadius: "0",
-          border: "1px solid #3c3c3c",
-          background: "#2d2d2d",
-          color: "#cccccc",
-          padding: "2px 8px",
-          cursor: "pointer",
-        },
-        ".cm-panel.cm-search button:hover": {
-          background: "#3c3c3c",
+        ".cm-searchMatch": { backgroundColor: "rgba(234, 92, 0, 0.33)" },
+        ".cm-searchMatch.cm-searchMatch-selected": {
+          backgroundColor: "rgba(234, 92, 0, 0.55)",
         },
         ".cm-activeLineGutter": { backgroundColor: "#2a2d2e" },
         ".cm-activeLine": { backgroundColor: "#2a2d2e" },
@@ -476,19 +459,24 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     },
     openFind() {
       const v = viewRef.current;
-      if (v) openSearchPanel(v);
+      if (!v) return;
+      v.dom.classList.remove("cm-yod-prefer-replace");
+      openSearchPanel(v);
     },
     openReplace() {
       const v = viewRef.current;
       if (!v) return;
+      v.dom.classList.add("cm-yod-prefer-replace");
       openSearchPanel(v);
       requestAnimationFrame(() => {
-        const inputs = v.dom.querySelectorAll(".cm-panel.cm-search input");
-        const replace = inputs[1] as HTMLInputElement | undefined;
+        const panel = v.dom.querySelector(".cm-yod-search");
+        panel?.classList.add("cm-yod-search--replace");
+        const replace = panel?.querySelector<HTMLInputElement>("[data-yod-replace]");
         if (replace) {
           replace.focus();
           replace.select();
         }
+        v.dom.classList.remove("cm-yod-prefer-replace");
       });
     },
     toggleComment() {
