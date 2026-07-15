@@ -74,7 +74,6 @@ export default function App() {
   const [paletteIdx, setPaletteIdx] = useState(0);
   const [busy, setBusy] = useState(false);
   const [yodExe, setYodExe] = useState("");
-  const [guideHtml, setGuideHtml] = useState("");
   const [inputPrompt, setInputPrompt] = useState<{
     title: string;
     message: string;
@@ -975,17 +974,17 @@ export default function App() {
           setPaletteQ("");
           setPaletteIdx(0);
           break;
-        case "help.guide":
-          if (guideHtml && (await window.yod.exists(guideHtml))) {
-            await window.yod.openPath(guideHtml);
-          } else {
+        case "help.guide": {
+          const res = await window.yod.openGuide();
+          if (!res?.ok) {
             await window.yod.dialogPrompt({
               kind: "info",
               title: "מדריך",
-              message: "לא נמצא קובץ המדריך ליד הפרויקט.",
+              message: res?.error || "לא נמצא קובץ המדריך ליד העורך.",
             });
           }
           break;
+        }
         case "help.shortcuts":
           await window.yod.dialogPrompt({
             kind: "info",
@@ -1028,7 +1027,6 @@ export default function App() {
       gotoDefinition,
       findReferences,
       cursor.line,
-      guideHtml,
       showError,
     ]
   );
@@ -1036,7 +1034,6 @@ export default function App() {
   useEffect(() => {
     void window.yod.getPaths().then((p) => {
       setYodExe(p.yodExe);
-      setGuideHtml(p.guideHtml);
     });
     const offPath = window.yod.onOpenPath((p) => {
       void openPath(p);

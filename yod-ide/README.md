@@ -13,12 +13,15 @@ npm run dist
 נוצרת תיקייה `release/win-unpacked/` עם **`Yod IDE.exe`** — בלי צורך ב־Node אצל המשתמש הסופי.
 `yod עורך` מזהה את האפליקציה הארוזה ליד `yod.exe` (או ב־`yod-ide/release/win-unpacked`).
 
+תפריט **עזרה ← מדריך** פותח את המדריך בחלון פנימי של העורך (לא בדפדפן).
+בחבילת Release מועתקת גם תיקיית `מדריך שפת יוד/`.
+
 | פקודה | תוצאה |
 |--------|--------|
 | `npm run dist` | תיקייה ארוזה (`dir`) |
 | `npm run dist:portable` | קובץ portable יחיד |
 
-אריזת הפצה מלאה (yod.exe + IDE + דוגמאות):
+אריזת הפצה מלאה (yod.exe + IDE + מדריך + דוגמאות):
 
 ```powershell
 powershell -File yod\tools\pack_windows_release.ps1

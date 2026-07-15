@@ -3,6 +3,7 @@ const path = require("node:path");
 const fs = require("node:fs/promises");
 const fssync = require("node:fs");
 const { spawn } = require("node:child_process");
+const { fileURLToPath } = require("node:url");
 
 const isPackaged = app.isPackaged;
 const appRoot = isPackaged ? path.join(__dirname, "..") : path.join(__dirname, "..");
@@ -286,6 +287,96 @@ ipcMain.handle("shell:openPath", async (_e, p) => {
   await shell.openPath(p);
 });
 
+const GUIDE_DIR = "מדריך שפת יוד";
+const GUIDE_INDEX = "מדריך שפת יוד.html";
+
+/** @type {BrowserWindow | null} */
+let guideWindow = null;
+
+function resolveGuideHtml() {
+  const candidates = [
+    path.join(path.dirname(process.execPath), GUIDE_DIR, GUIDE_INDEX),
+    path.join(process.resourcesPath || "", GUIDE_DIR, GUIDE_INDEX),
+    path.join(__dirname, "..", "..", GUIDE_DIR, GUIDE_INDEX),
+    path.join(__dirname, "..", GUIDE_DIR, GUIDE_INDEX),
+    path.join(app.getAppPath(), "..", GUIDE_DIR, GUIDE_INDEX),
+  ];
+  for (const c of candidates) {
+    if (c && fssync.existsSync(c)) return c;
+  }
+  return "";
+}
+
+function openGuideWindow() {
+  const html = resolveGuideHtml();
+  if (!html) {
+    return { ok: false, error: "לא נמצא תיקיית המדריך ליד העורך." };
+  }
+  if (guideWindow && !guideWindow.isDestroyed()) {
+    guideWindow.focus();
+    return { ok: true, path: html };
+  }
+
+  const guideRoot = path.dirname(html);
+  const icon = resolveAppIcon();
+  guideWindow = new BrowserWindow({
+    width: 1120,
+    height: 820,
+    minWidth: 720,
+    minHeight: 480,
+    backgroundColor: "#0f1419",
+    title: "מדריך שפת יוד",
+    autoHideMenuBar: true,
+    show: false,
+    ...(icon ? { icon } : {}),
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  guideWindow.once("ready-to-show", () => {
+    guideWindow?.show();
+  });
+
+  guideWindow.on("closed", () => {
+    guideWindow = null;
+  });
+
+  // ניווט רק בתוך תיקיית המדריך (קובץ מקומי)
+  guideWindow.webContents.on("will-navigate", (event, url) => {
+    try {
+      if (!url.startsWith("file:")) {
+        event.preventDefault();
+        return;
+      }
+      const dest = path.normalize(fileURLToPath(url));
+      const rootNorm = path.normalize(guideRoot);
+      const destLow = dest.toLowerCase();
+      const rootLow = rootNorm.toLowerCase();
+      const prefix = rootLow.endsWith(path.sep) ? rootLow : rootLow + path.sep;
+      if (destLow !== rootLow && !destLow.startsWith(prefix)) {
+        event.preventDefault();
+      }
+    } catch {
+      event.preventDefault();
+    }
+  });
+
+  guideWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("http:") || url.startsWith("https:")) {
+      shell.openExternal(url);
+    }
+    return { action: "deny" };
+  });
+
+  void guideWindow.loadFile(html);
+  return { ok: true, path: html };
+}
+
+ipcMain.handle("guide:open", async () => openGuideWindow());
+
 ipcMain.handle("app:getPaths", async () => {
   const ideRoot = path.join(__dirname, "..");
   const repoRoot = path.join(ideRoot, "..");
@@ -294,7 +385,7 @@ ipcMain.handle("app:getPaths", async () => {
     userData: app.getPath("userData"),
     version: app.getVersion(),
     ideRoot,
-    guideHtml: path.join(repoRoot, "מדריך שפת יוד", "מדריך שפת יוד.html"),
+    guideHtml: resolveGuideHtml() || path.join(repoRoot, GUIDE_DIR, GUIDE_INDEX),
   };
 });
 

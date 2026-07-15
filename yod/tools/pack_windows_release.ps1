@@ -70,6 +70,23 @@ if (-not (Test-Path $examples)) {
   Copy-Item $examples (Join-Path $OutDir $examplesName) -Recurse
 }
 
+$guideName = (
+  [char]0x05DE + [char]0x05D3 + [char]0x05E8 + [char]0x05D9 + [char]0x05DA +
+  " " +
+  [char]0x05E9 + [char]0x05E4 + [char]0x05EA +
+  " " +
+  [char]0x05D9 + [char]0x05D5 + [char]0x05D3
+) # מדריך שפת יוד
+$guideSrc = Join-Path $Root $guideName
+if (-not (Test-Path $guideSrc)) {
+  Write-Warning "Guide folder not found: $guideName"
+} else {
+  Write-Host "Copying guide..."
+  $guideOut = Join-Path $OutDir $guideName
+  & robocopy $guideSrc $guideOut /E /NFL /NDL /NJH /NJS /nc /ns /np /XF gen_sections.py | Out-Null
+  if ($LASTEXITCODE -ge 8) { throw "robocopy guide failed: $LASTEXITCODE" }
+}
+
 # אפליקציית Electron ארוזה ליד yod.exe (בלי node_modules)
 Write-Host "Copying win-unpacked -> release folder..."
 & robocopy $Unpacked $OutDir /E /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
@@ -85,6 +102,7 @@ $readmeLines = @(
   "3. Or double-click '" + $IdeExeName + "'.",
   "4. Or: yod.exe editor / yod.exe עורך",
   "5. Examples: Hebrew-named folder next to yod.exe.",
+  "6. Guide: folder '" + $guideName + "' - open from Help menu (window inside the IDE).",
   "",
   "No Node.js required to use the editor.",
   "There is no Win32 legacy editor."

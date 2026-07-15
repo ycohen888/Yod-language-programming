@@ -31,6 +31,15 @@
       {
         "from": "build/icon.ico",
         "to": "icon.ico"
+      },
+      {
+        "from": "../מדריך שפת יוד",
+        "to": "מדריך שפת יוד",
+        "filter": [
+          "**/*",
+          "!**/js/gen_sections.py",
+          "!**/.DS_Store"
+        ]
       }
     ],
     "win": {
