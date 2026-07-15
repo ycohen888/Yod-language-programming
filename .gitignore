@@ -51,8 +51,9 @@ yod/examples/temp_*
 # Cursor local
 .cursor/
 
-# מסמך תכנון מקומי — לא מעלה לריפו
+# מסמכים מקומיים לסוכן — לא מעלה לריפו
 info_program.html
+.cursorrules
 
 # Release artifacts (attached via GitHub Release)
 dist/
