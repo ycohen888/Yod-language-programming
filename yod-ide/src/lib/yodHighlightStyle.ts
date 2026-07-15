@@ -2,7 +2,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 
 /**
- * צבעי PHP Dark+ כמו ב־yod/internal/highlight/spans.go (Cursor theme-defaults).
+ * צבעי PHP Dark+ (Cursor theme-defaults) להדגשת תחביר ביוד.
  */
 export const yodPhpDarkColors = {
   background: "#1E1E1E",

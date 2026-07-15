@@ -1,5 +1,5 @@
 /**
- * מילות מפתח של יוד — מסווגות כמו ב־yod/internal/highlight (צבעי PHP Dark+).
+ * מילות מפתח של יוד — מסווגות לצבעי PHP Dark+.
  */
 export const YOD_CONTROL = [
   "אם",

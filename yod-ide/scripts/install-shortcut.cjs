@@ -40,7 +40,7 @@ const r = spawnSync(
     "-WorkDir",
     ideRoot,
     "-IconIco",
-    fs.existsSync(iconIco) ? iconIco : path.join(repoRoot, "yod.ico"),
+    fs.existsSync(iconIco) ? iconIco : path.join(repoRoot, "yod", "assets", "yod.ico"),
     "-AppId",
     "il.yod.ide",
     "-Arguments",

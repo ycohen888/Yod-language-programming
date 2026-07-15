@@ -58,12 +58,42 @@ func handleSurfaceKeyDown(ch *controlState, key walk.Key) {
 		name = "למעלה"
 	case walk.KeyDown:
 		name = "למטה"
+	case walk.KeyPrior:
+		name = "עמוד למעלה"
+	case walk.KeyNext:
+		name = "עמוד למטה"
 	case walk.KeySpace:
 		name = "רווח"
+	case walk.KeyOEMPeriod:
+		name = "."
+	case walk.KeyF1:
+		name = "F1"
+	case walk.KeyF5:
+		name = "F5"
+	case walk.KeyF9:
+		name = "F9"
+	case walk.Key1:
+		name = "1"
+	case walk.Key2:
+		name = "2"
+	case walk.Key3:
+		name = "3"
 	case walk.KeyP:
 		name = "P"
 	case walk.KeyR:
 		name = "R"
+	case walk.KeyT:
+		name = "T"
+	case walk.KeyB:
+		name = "B"
+	case walk.KeyC:
+		name = "C"
+	case walk.KeyI:
+		name = "I"
+	case walk.KeyH:
+		name = "H"
+	case walk.KeyN:
+		name = "N"
 	case walk.KeyW:
 		name = "W"
 	case walk.KeyA:
@@ -79,7 +109,7 @@ func handleSurfaceKeyDown(ch *controlState, key walk.Key) {
 }
 
 func handleSurfaceKeyPress(ch *controlState, key walk.Key) {
-	// KeyPress חוזר אוטומטית בלחיצה ארוכה — מתאים למחיקה
+	// KeyPress חוזר אוטומטית בלחיצה ארוכה — מתאים למחיקה ולהקלדה
 	if walk.ModifiersDown()&walk.ModControl != 0 {
 		return
 	}
@@ -94,12 +124,11 @@ func handleSurfaceKeyPress(ch *controlState, key walk.Key) {
 	case walk.KeyDelete:
 		invokeKeyCmd(ch, "מחק")
 		return
-	// חצים / WASD / רווח מטופלים ב־KeyDown (למשחקים)
+	// ניווט / קיצורים — לא תווים (תווים כולל עברית מגיעים מ־ToUnicode למטה)
 	case walk.KeyLeft, walk.KeyRight, walk.KeyUp, walk.KeyDown,
 		walk.KeyReturn, walk.KeyEscape, walk.KeyTab,
 		walk.KeyHome, walk.KeyEnd, walk.KeyPrior, walk.KeyNext,
-		walk.KeySpace, walk.KeyW, walk.KeyA, walk.KeyS, walk.KeyD,
-		walk.KeyP, walk.KeyR,
+		walk.KeyF1, walk.KeyF5, walk.KeyF9,
 		walk.KeyShift, walk.KeyControl, walk.KeyAlt, walk.KeyCapital:
 		return
 	}

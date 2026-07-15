@@ -4,8 +4,11 @@ const fs = require("node:fs/promises");
 const fssync = require("node:fs");
 const { spawn } = require("node:child_process");
 
-const distIndex = path.join(__dirname, "..", "dist", "index.html");
-const useDevServer = process.env.YOD_IDE_DEV === "1" || !fssync.existsSync(distIndex);
+const isPackaged = app.isPackaged;
+const appRoot = isPackaged ? path.join(__dirname, "..") : path.join(__dirname, "..");
+const distIndex = path.join(appRoot, "dist", "index.html");
+const useDevServer =
+  !isPackaged && (process.env.YOD_IDE_DEV === "1" || !fssync.existsSync(distIndex));
 
 const MAX_OPEN_BYTES = 8 * 1024 * 1024;
 
@@ -20,12 +23,13 @@ function resolveYodExe() {
   if (env && fssync.existsSync(env)) return env;
   const candidates = [
     path.join(path.dirname(process.execPath), "yod.exe"),
+    path.join(process.resourcesPath || "", "..", "yod.exe"),
     path.join(__dirname, "..", "..", "yod.exe"),
     path.join(__dirname, "..", "..", "yod", "yod.exe"),
     path.join(__dirname, "..", "yod.exe"),
   ];
   for (const c of candidates) {
-    if (fssync.existsSync(c)) return c;
+    if (c && fssync.existsSync(c)) return c;
   }
   return "yod";
 }
@@ -38,14 +42,15 @@ function sendMenu(action) {
 
 function resolveAppIcon() {
   const candidates = [
+    path.join(process.resourcesPath || "", "icon.ico"),
     path.join(__dirname, "..", "build", "icon.ico"),
+    path.join(appRoot, "build", "icon.ico"),
     path.join(__dirname, "..", "public", "icon.ico"),
-    path.join(__dirname, "..", "..", "yod.ico"),
-    path.join(__dirname, "..", "..", "יוד.ico"),
+    path.join(appRoot, "public", "icon.ico"),
     path.join(__dirname, "..", "..", "yod", "assets", "yod.ico"),
   ];
   for (const c of candidates) {
-    if (fssync.existsSync(c)) return c;
+    if (c && fssync.existsSync(c)) return c;
   }
   return undefined;
 }
@@ -97,18 +102,21 @@ function createWindow(openPath) {
 app.whenReady().then(() => {
   if (process.platform === "win32") {
     app.setAppUserModelId("il.yod.ide");
-    try {
-      const shortcutInstaller = path.join(__dirname, "..", "scripts", "install-shortcut.cjs");
-      if (fssync.existsSync(shortcutInstaller)) {
-        spawn("node", [shortcutInstaller], {
-          cwd: path.join(__dirname, ".."),
-          detached: true,
-          stdio: "ignore",
-          windowsHide: true,
-        }).unref();
+    // קיצור Start Menu רק בפיתוח (דורש Node)
+    if (!isPackaged) {
+      try {
+        const shortcutInstaller = path.join(__dirname, "..", "scripts", "install-shortcut.cjs");
+        if (fssync.existsSync(shortcutInstaller)) {
+          spawn("node", [shortcutInstaller], {
+            cwd: path.join(__dirname, ".."),
+            detached: true,
+            stdio: "ignore",
+            windowsHide: true,
+          }).unref();
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
     }
   }
   try {
@@ -117,7 +125,14 @@ app.whenReady().then(() => {
     /* ignore */
   }
   const argPath = process.argv.find(
-    (a, i) => i > 0 && !a.startsWith("-") && a !== "." && !a.includes("electron") && a !== "עורך"
+    (a, i) =>
+      i > 0 &&
+      !a.startsWith("-") &&
+      a !== "." &&
+      !a.includes("electron") &&
+      a !== "עורך" &&
+      !a.endsWith("Yod IDE.exe") &&
+      !a.endsWith("YodIDE.exe")
   );
   createWindow(argPath && fssync.existsSync(argPath) ? argPath : "");
 });

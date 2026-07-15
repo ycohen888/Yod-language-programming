@@ -1,4 +1,4 @@
-# Pack Windows release with Electron IDE (not yod.exe alone).
+# Pack Windows release with standalone Yod IDE (electron-builder).
 # From repo root:
 #   powershell -File yod\tools\pack_windows_release.ps1
 #   powershell -File yod\tools\pack_windows_release.ps1 -SkipIdeBuild
@@ -17,6 +17,8 @@ $OutDir = Join-Path $Root $OutName
 $ZipPath = Join-Path $Root "$OutName.zip"
 $YodExe = Join-Path $Root "yod.exe"
 $IdeSrc = Join-Path $Root "yod-ide"
+$Unpacked = Join-Path $IdeSrc "release\win-unpacked"
+$IdeExeName = "Yod IDE.exe"
 
 if (-not (Test-Path $YodExe)) {
   Write-Host "Building yod.exe..."
@@ -26,21 +28,15 @@ if (-not (Test-Path $YodExe)) {
 }
 
 if (-not $SkipIdeBuild) {
-  Write-Host "Building yod-ide..."
+  Write-Host "Building packaged Yod IDE (electron-builder)..."
   Push-Location $IdeSrc
-  npm run build
+  npm run dist
   Pop-Location
 }
 
-if (-not (Test-Path (Join-Path $IdeSrc "dist\index.html"))) {
-  throw "Missing yod-ide/dist - run: cd yod-ide; npm run build"
-}
-
-$electronDist = Join-Path $IdeSrc "node_modules\electron\dist"
-$yodElectron = Join-Path $electronDist ([char]0x05D9 + [char]0x05D5 + [char]0x05D3 + ".exe") # יוד.exe
-$plainElectron = Join-Path $electronDist "electron.exe"
-if (-not (Test-Path $yodElectron) -and -not (Test-Path $plainElectron)) {
-  throw "Missing Electron - run: cd yod-ide; npm install"
+$IdeExe = Join-Path $Unpacked $IdeExeName
+if (-not (Test-Path $IdeExe)) {
+  throw "Missing packaged IDE at $IdeExe - run: cd yod-ide; npm run dist"
 }
 
 if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }
@@ -51,57 +47,47 @@ foreach ($ico in @("yod.ico", ([char]0x05D9 + [char]0x05D5 + [char]0x05D3 + ".ic
   $p = Join-Path $Root $ico
   if (Test-Path $p) { Copy-Item $p (Join-Path $OutDir (Split-Path $p -Leaf)) }
 }
+$ideIco = Join-Path $IdeSrc "build\icon.ico"
+if (Test-Path $ideIco) {
+  Copy-Item $ideIco (Join-Path $OutDir "yod.ico") -Force
+}
 
 $relNotes = Join-Path $Root "docs\RELEASE-v$Version.md"
 if (Test-Path $relNotes) {
   Copy-Item $relNotes (Join-Path $OutDir "RELEASE.md")
 }
 
-$examplesName = [char]0x05E4 + [char]0x05E8 + [char]0x05D5 + [char]0x05D9 + [char]0x05E7 + [char]0x05D8 + " " + [char]0x05D3 + [char]0x05D5 + [char]0x05D2 + [char]0x05DE + [char]0x05D4
+$examplesName = (
+  [char]0x05E4 + [char]0x05E8 + [char]0x05D5 + [char]0x05D9 + [char]0x05D9 + [char]0x05E7 + [char]0x05D8 +
+  " " +
+  [char]0x05D3 + [char]0x05D5 + [char]0x05D2 + [char]0x05DE + [char]0x05D4
+) # פרוייקט דוגמה
 $examples = Join-Path $Root $examplesName
-if (Test-Path $examples) {
+if (-not (Test-Path $examples)) {
+  Write-Warning "Examples folder not found: $examplesName"
+} else {
+  Write-Host "Copying examples..."
   Copy-Item $examples (Join-Path $OutDir $examplesName) -Recurse
 }
 
-$IdeOut = Join-Path $OutDir "yod-ide"
-New-Item -ItemType Directory -Path $IdeOut | Out-Null
-Copy-Item (Join-Path $IdeSrc "package.json") (Join-Path $IdeOut "package.json")
-Copy-Item (Join-Path $IdeSrc "electron") (Join-Path $IdeOut "electron") -Recurse
-Copy-Item (Join-Path $IdeSrc "dist") (Join-Path $IdeOut "dist") -Recurse
-foreach ($extra in @("build", "public")) {
-  $src = Join-Path $IdeSrc $extra
-  if (Test-Path $src) {
-    Copy-Item $src (Join-Path $IdeOut $extra) -Recurse
-  }
-}
-
-$ePkgSrc = Join-Path $IdeSrc "node_modules\electron"
-$ePkgOut = Join-Path $IdeOut "node_modules\electron"
-New-Item -ItemType Directory -Path (Join-Path $IdeOut "node_modules") -Force | Out-Null
-& robocopy $ePkgSrc $ePkgOut /E /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
-if ($LASTEXITCODE -ge 8) { throw "robocopy electron failed: $LASTEXITCODE" }
-
-$outYod = Join-Path $ePkgOut ("dist\" + [char]0x05D9 + [char]0x05D5 + [char]0x05D3 + ".exe")
-$outEle = Join-Path $ePkgOut "dist\electron.exe"
-if ((Test-Path $outYod) -and (Test-Path $outEle)) {
-  Remove-Item $outEle -Force
-}
+# אפליקציית Electron ארוזה ליד yod.exe (בלי node_modules)
+Write-Host "Copying win-unpacked -> release folder..."
+& robocopy $Unpacked $OutDir /E /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
+if ($LASTEXITCODE -ge 8) { throw "robocopy IDE failed: $LASTEXITCODE" }
 
 $readmeLines = @(
   "Yod $Version - Windows (amd64)",
   "",
   "How to run",
   "----------",
-  "1. Extract the FULL folder (do not run only the exe from inside the zip).",
-  "2. Run yod.exe - opens the new Electron editor (folder yod-ide required).",
-  "3. Or: yod.exe editor",
-  "4. Examples: folder next to yod.exe (Hebrew name).",
+  "1. Extract the FULL folder (do not run only one file from inside the zip).",
+  "2. Run yod.exe - opens Yod IDE (Electron app bundled beside yod.exe).",
+  "3. Or double-click '" + $IdeExeName + "'.",
+  "4. Or: yod.exe editor / yod.exe עורך",
+  "5. Examples: Hebrew-named folder next to yod.exe.",
   "",
-  "If you delete yod-ide, yod.exe falls back to the old Win32 editor.",
-  "",
-  "Force legacy editor:",
-  "  set YOD_LEGACY_EDITOR=1",
-  "  yod.exe editor"
+  "No Node.js required to use the editor.",
+  "There is no Win32 legacy editor."
 )
 [IO.File]::WriteAllLines((Join-Path $OutDir "README.txt"), $readmeLines, [Text.UTF8Encoding]::new($true))
 

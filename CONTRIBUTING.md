@@ -70,13 +70,12 @@ go test ./...
 | `yod/cmd/yod` | CLI |
 | `yod/internal/lexer|parser|evaluator|vm` | ליבת השפה |
 | `yod/internal/stdlib` | ספריות מובנות |
-| `yod/internal/editor` | עורך Win32 + השקת Electron |
+| `yod/internal/editor` | השקת עורך Electron (`yod-ide`) |
 | `yod/internal/format` | `יוד סדר` |
-| `yod-ide/` | עורך Electron (ברירת מחדל) |
+| `yod-ide/` | עורך Electron (יחיד) |
 | `פרוייקט דוגמה/` | פרויקטי הדגמה מלאים |
 | `yod/examples` | דוגמאות קצרות `.יוד` |
-| `מדריך שפת יוד/` | מדריך למשתמש (מקור; משובץ גם ב־`yod/internal/guide/guide.zip`) |
-| `yod/internal/guide/` | שיבוץ המדריך בבינארי — אחרי עדכון HTML: `go generate ./internal/guide` |
+| `מדריך שפת יוד/` | מדריך למשתמש (HTML; נפתח מה־IDE) |
 
 ## רישיון
 

@@ -3,13 +3,57 @@
   "version": "0.77.0",
   "private": true,
   "description": "עורך יוד — IDE בסגנון Visual Studio Code",
+  "author": "Yod",
   "main": "electron/main.cjs",
   "scripts": {
     "stamp-icon": "node scripts/stamp-electron-icon.cjs && node scripts/write-electron-app-bootstrap.cjs && node scripts/install-shortcut.cjs",
     "dev": "npm run stamp-icon && concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && node scripts/run-yod-electron.cjs\"",
     "build": "vite build && npm run stamp-icon",
     "start": "npm run stamp-icon && node scripts/run-yod-electron.cjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder --win dir",
+    "dist:portable": "npm run build && electron-builder --win portable"
+  },
+  "build": {
+    "appId": "il.yod.ide",
+    "productName": "Yod IDE",
+    "copyright": "Copyright © Yod",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "target": [
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "יוד"
+    },
+    "portable": {
+      "artifactName": "Yod-IDE-${version}-portable.exe"
+    },
+    "asar": true
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -21,8 +65,6 @@
     "@codemirror/view": "^6.43.6",
     "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.3",
-    "@monaco-editor/react": "^4.7.0",
-    "monaco-editor": "^0.52.2",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -32,6 +74,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "concurrently": "^9.2.0",
     "electron": "^37.2.0",
+    "electron-builder": "^26.15.3",
     "rcedit": "^5.0.2",
     "typescript": "^5.8.3",
     "vite": "^7.0.4",

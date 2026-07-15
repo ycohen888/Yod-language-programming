@@ -62,6 +62,8 @@ type controlState struct {
 	// שורה / עמודה / מסגרת
 	children  []*controlState
 	frameDir  string // אופקי | אנכי (למסגרת)
+	panel  *walk.Composite // מסגרת — AssignTo + קבע_נראה
+	hidden bool            // קבע_נראה:שקר
 	// משטח ציור
 	board       *drawBoard
 	canvas      *walk.CustomWidget
@@ -73,6 +75,7 @@ type controlState struct {
 	onMouseDrag  object.Object
 	onMouseUp    object.Object
 	onMouseHover object.Object // תנועת עכבר בלי לחיצה (רמזים וכו')
+	onMouseWheel object.Object // בעכבר_גלגל(דלתא) — גלגל עכבר
 	onKeyChar    object.Object // בעת_תו — תו מוקלד (כולל עברית)
 	onKeyCmd     object.Object // בעת_מקש — מחיקה / אנטר / …
 	onSizeChange object.Object // בשינוי_גודל(רוחב, גובה)
@@ -80,6 +83,9 @@ type controlState struct {
 	canvasLockH   bool         // משטח: נעילת גובה (סרגלים) — רוחב גמיש
 	canvasLockW   bool         // משטח: נעילת רוחב (סרגל צד) — גובה גמיש
 	canvasKeysWired bool
+	wheelWired      bool
+	canvasBatch     bool // אחרי נקה — בלי Invalidate עד רענן
+	canvasDirty     bool
 	canvasKeyKeep   uintptr // מונע GC מ־NewCallback לחצי מקלדת
 	sizeWired     bool
 	sizeBusy      bool
@@ -341,6 +347,7 @@ func winCreateButton(args ...object.Object) object.Object {
 	w.Attrs["קבע_רמז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setControlHint(st, "כפתור.קבע_רמז", a...)
 	}}
+	attachVisible(w, st, "כפתור")
 	return w
 }
 
@@ -367,6 +374,7 @@ func winCreateLabel(args ...object.Object) object.Object {
 	w.Attrs["קבע_צבע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setControlColor(st, a...)
 	}}
+	attachVisible(w, st, "תווית")
 	return w
 }
 
@@ -640,7 +648,48 @@ func winCreateEdit(args ...object.Object) object.Object {
 	w.Attrs["קבע_רמז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setControlHint(st, "שדה.קבע_רמז", a...)
 	}}
+	attachVisible(w, st, "שדה")
 	return w
+}
+
+func attachVisible(w *object.GuiWidget, st *controlState, kind string) {
+	w.Attrs["קבע_נראה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj(kind + ".קבע_נראה מצפה לערך בוליאני")
+		}
+		on, errV := parseDarkBool(kind+".קבע_נראה", a...)
+		if errV != nil {
+			return errV
+		}
+		st.hidden = !on
+		applyControlVisible(st)
+		return object.Nil
+	}}
+}
+
+func applyControlVisible(st *controlState) {
+	if st == nil {
+		return
+	}
+	vis := !st.hidden
+	if st.button != nil {
+		st.button.SetVisible(vis)
+	}
+	if st.label != nil {
+		st.label.SetVisible(vis)
+	}
+	if st.edit != nil {
+		st.edit.SetVisible(vis)
+	}
+	if st.canvas != nil {
+		st.canvas.SetVisible(vis)
+	}
+	if st.panel != nil {
+		st.panel.SetVisible(vis)
+	}
+	if st.host != nil {
+		st.host.SetVisible(vis)
+	}
 }
 
 func setControlDisabled(st *controlState, name string, a ...object.Object) object.Object {
@@ -1160,6 +1209,7 @@ func applyEditDark(st *controlState) {
 		st.edit.SetBackground(brush)
 	}
 	st.edit.SetTextColor(darkCtlText())
+	_ = st.edit.SetTextAlignment(walk.AlignFar)
 	st.edit.Invalidate()
 }
 

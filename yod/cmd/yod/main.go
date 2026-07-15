@@ -301,7 +301,7 @@ func printHelp() {
 	console.Println("  yod גרסה")
 	console.Println("  yod עזרה")
 	console.Println()
-	console.Println("עורך: אחרי build של yod-ide/ — Electron+CodeMirror. עורך ישן: YOD_LEGACY_EDITOR=1")
+	console.Println("עורך: אחרי build של yod-ide/ — Electron+CodeMirror (npm install && npm run build)")
 	console.Println("פרויקט: הקובץ הראשי הוא תמיד התחל.יוד — ממנו כוללים קבצים אחרים עם כלול/יבא.")
 }
 

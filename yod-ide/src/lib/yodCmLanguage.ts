@@ -20,7 +20,7 @@ type State = {
 };
 
 /**
- * שפת יוד ל־CodeMirror — סיווג טוקנים כמו yod/internal/highlight (PHP Dark+).
+ * שפת יוד ל־CodeMirror — סיווג טוקנים (PHP Dark+).
  */
 export const yodStreamLanguage = StreamLanguage.define({
   name: "yod",

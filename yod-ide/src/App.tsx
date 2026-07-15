@@ -485,7 +485,7 @@ export default function App() {
           setTreeSelected(full);
           setTreeExpanded((prev) => ({ ...prev, [full]: true }));
           setStatus(`נוצרה תיקייה: ${trimmed}`);
-        } else {
+        } else if (edit.kind === "rename") {
           if (trimmed === pathBase(edit.targetPath)) return;
           const dest = joinPath(pathDir(edit.targetPath), trimmed);
           if (await window.yod.exists(dest)) {
@@ -732,8 +732,8 @@ export default function App() {
       try {
         if (tab?.dirty && tab.path) await saveActive(false);
 
-        let cwd = tab?.path ? pathDir(tab.path) : projectRoot || undefined;
-        let target: string | undefined = tab?.path;
+        let cwd: string | undefined = tab?.path ? pathDir(tab.path) : projectRoot ?? undefined;
+        let target: string | undefined = tab?.path ?? undefined;
 
         // עם תיקיית פרויקט — מריצים/אורזים דרך התחל.יוד (תיקייה → ResolveEntry)
         if (projectRoot && projectCmds) {
@@ -873,6 +873,9 @@ export default function App() {
           break;
         case "edit.duplicate":
           ed?.duplicateLine();
+          break;
+        case "edit.matchPair":
+          ed?.jumpToMatchingPair();
           break;
         case "run.interpreter":
           await runYodCmd(["הרץ"], "מריץ");
@@ -1095,6 +1098,7 @@ export default function App() {
       { id: "yod.check", label: "בדיקת סגנון ותחביר", keybinding: "F7", run: () => handleMenu("run.check") },
       { id: "yod.pack", label: "ארוז ל־EXE", keybinding: "Ctrl+Shift+P", run: () => handleMenu("run.pack") },
       { id: "view.format", label: "סדר קוד", keybinding: "Shift+Alt+F", run: () => handleMenu("view.format") },
+      { id: "edit.matchPair", label: "זוג תואם (התחלה/סוף / סוגריים)", keybinding: "Ctrl+}", run: () => handleMenu("edit.matchPair") },
       { id: "edit.replace", label: "החלפה…", keybinding: "Ctrl+H", run: () => handleMenu("edit.replace") },
       { id: "view.palette", label: "הצגת פלטת פקודות", keybinding: "F1", run: () => handleMenu("view.palette") },
     ],
@@ -1212,6 +1216,22 @@ export default function App() {
       } else if (key === "/" || e.code === "Slash") {
         e.preventDefault();
         void handleMenu("edit.comment");
+      } else if (
+        (key === "}" ||
+          key === "{" ||
+          key === "]" ||
+          key === "[" ||
+          e.code === "BracketRight" ||
+          e.code === "BracketLeft") &&
+        !(e.target as HTMLElement)?.closest("input, textarea")
+      ) {
+        // בעורך: CodeMirror כבר קופץ — קריאה נוספת כאן קופצת חזרה לצד ההפוך
+        if ((e.target as HTMLElement)?.closest(".cm-editor, .cm-content, .cm-scroller")) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        void handleMenu("edit.matchPair");
       } else if (key === "=" || key === "+") {
         e.preventDefault();
         void handleMenu("view.zoomIn");

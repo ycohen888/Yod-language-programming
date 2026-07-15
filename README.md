@@ -1,4 +1,4 @@
-﻿# יוד (Yod) — שפת תכנות בעברית
+# יוד (Yod) — שפת תכנות בעברית
 
 **יוד** היא שפת תכנות מודרנית בעברית: תחביר מימין־לשמאל, ספריות מובנות, עורך בסגנון VS Code, ומכונה וירטואלית.
 
@@ -24,8 +24,8 @@
 
 | נתיב | תוכן |
 |------|------|
-| [`yod/`](yod/) | קוד המקור של השפה, ה־CLI, הספריות והעורך הישן (Win32) |
-| [`yod-ide/`](yod-ide/) | **עורך יוד החדש** — Electron + React + CodeMirror 6 |
+| [`yod/`](yod/) | קוד המקור של השפה, ה־CLI והספריות המובנות |
+| [`yod-ide/`](yod-ide/) | **עורך יוד** — Electron + React + CodeMirror 6 |
 | [`פרוייקט דוגמה/`](פרוייקט%20דוגמה/) | פרויקטי הדגמה (סנייק, מכרות, צייר, גרפים, רכיבים…) |
 | [`מדריך שפת יוד/`](מדריך%20שפת%20יוד/) | מדריך HTML בעברית (תחביר + ספריות) |
 | [`docs/screenshots/`](docs/screenshots/) | צילומי מסך של העורך והשרת |
@@ -43,24 +43,24 @@
 **`yod-*-windows-amd64.zip`** (לא רק את ה־`.exe` הבודד).
 הגרסה האחרונה: **[v0.77.0](https://github.com/ycohen888/Yod-language-programming/releases/tag/v0.77.0)**.
 
-1. חלצו את **כל** התיקייה (כולל `yod-ide/`)
-2. הריצו `yod.exe` — נפתח **העורך החדש** (Electron)
+1. חלצו את **כל** התיקייה (כולל `Yod IDE.exe` ו־`resources/`)
+2. הריצו `yod.exe` — נפתח **יוד IDE** (אפליקציית Electron עצמאית; בלי Node)
 
-> בלי תיקיית `yod-ide` ליד `yod.exe` נפתח העורך הישן (Win32).
+> בלי `Yod IDE.exe` ליד `yod.exe` תופיע הודעה בעברית איך לבנות את העורך.
 
-לבנייה מקומית של העורך אחרי clone:
+לבנייה מקומית של עורך ארוז אחרי clone:
 
 ```powershell
 cd yod-ide
 npm install
-npm run build
+npm run dist
 cd ..
 .\yod.exe עורך
 ```
 
 ### אפשרות ב׳ — בנייה מקוד המקור
 
-דרוש [Go](https://go.dev/dl/) 1.22+ ו־[Node.js](https://nodejs.org/) (לעורך החדש).
+דרוש [Go](https://go.dev/dl/) 1.22+ ו־[Node.js](https://nodejs.org/) (לבניית העורך).
 
 ```powershell
 cd yod
@@ -68,23 +68,16 @@ go build -o ..\yod.exe ./cmd/yod
 
 cd ..\yod-ide
 npm install
-npm run build
+npm run dist
 ```
 
 הרצה:
 
 ```powershell
-.\yod.exe              # פותח את העורך (Electron אם נבנה, אחרת Win32)
+.\yod.exe              # פותח Yod IDE.exe (ארוז) או Electron פיתוח
 .\yod.exe גרסה
 .\yod.exe הרץ "פרוייקט דוגמה\סנייק"
 .\yod.exe עזרה
-```
-
-עורך ישן (Win32):
-
-```powershell
-$env:YOD_LEGACY_EDITOR=1
-.\yod.exe עורך
 ```
 
 ---
@@ -149,6 +142,7 @@ $env:YOD_LEGACY_EDITOR=1
 
 ### עורך יוד (חדש — `yod-ide/`)
 - Electron + React + CodeMirror 6, ממשק כהה בסגנון VS Code
+- אריזה עם **electron-builder** → `Yod IDE.exe` עצמאי (`npm run dist`)
 - RTL מלא לעברית, צביעת תחביר PHP Dark+
 - סייר קבצים, ניתוח קובץ, סמלי פרויקט
 - F12 / Ctrl+לחיצה להגדרה, Shift+F12 להפניות, Ctrl+P / Ctrl+Shift+F

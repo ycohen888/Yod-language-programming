@@ -280,6 +280,8 @@ func evalWhile(stmt *ast.WhileStatement, env *object.Environment) object.Object 
 			case object.BreakObj:
 				return NULL
 			case object.ContinueObj:
+				// לא להשאיר Continue כתוצאת הלולאה — אחרת זה בורח החוצה מהפונקציה
+				result = NULL
 				continue
 			}
 		}
@@ -321,6 +323,8 @@ func evalForIn(stmt *ast.ForInStatement, env *object.Environment) object.Object 
 			case object.BreakObj:
 				return NULL
 			case object.ContinueObj:
+				// לא להשאיר Continue כתוצאת הלולאה — אחרת זה בורח החוצה מהפונקציה
+				result = NULL
 				continue
 			}
 		}
@@ -365,6 +369,8 @@ func evalForRange(stmt *ast.ForRangeStatement, env *object.Environment) object.O
 			case object.BreakObj:
 				return NULL
 			case object.ContinueObj:
+				// לא להשאיר Continue כתוצאת הלולאה — אחרת זה בורח החוצה מהפונקציה
+				result = NULL
 				continue
 			}
 		}
@@ -618,10 +624,22 @@ func evalParentLiteral(node *ast.ParentLiteral, env *object.Environment) object.
 	if !ok {
 		return newError(node.Line(), "שימוש ב־הורה מחוץ למתודה")
 	}
-	if inst.Class.Parent == nil {
-		return newError(node.Line(), fmt.Sprintf("למחלקה %q אין הורה", inst.Class.Name))
+	// CurrentClass = המחלקה שבמתודתה רצים (ירושה מרובת־רמות: הורה מתוך בנאי של אבא)
+	cls := env.CurrentClass
+	if cls == nil {
+		cls = inst.Class
 	}
-	return &object.ParentRef{Instance: inst}
+	if cls == nil || cls.Parent == nil {
+		name := ""
+		if inst.Class != nil {
+			name = inst.Class.Name
+		}
+		return newError(node.Line(), fmt.Sprintf("למחלקה %q אין הורה", name))
+	}
+	return &object.ParentRef{Instance: &object.Instance{
+		Class:  cls,
+		Fields: inst.Fields,
+	}}
 }
 
 func callUserFunction(fn *object.Function, args []object.Object, this *object.Instance, owner *object.Class, line int) object.Object {

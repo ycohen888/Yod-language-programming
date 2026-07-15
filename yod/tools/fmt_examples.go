@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	root := filepath.Join("..", "פרוייקט דוגמה")
+	root := filepath.Join("..", "..", "פרוייקט דוגמה")
 	changed := 0
 	total := 0
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {

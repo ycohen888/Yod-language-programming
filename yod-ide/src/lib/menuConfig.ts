@@ -62,6 +62,7 @@ export const APP_MENU: MenuGroup[] = [
       { type: "separator" },
       { label: "מעבר להגדרה", action: "nav.gotoDef", kb: "F12 / Ctrl+לחיצה" },
       { label: "מצא הפניות", action: "nav.findRefs", kb: "Shift+F12" },
+      { label: "זוג תואם (התחלה/סוף)", action: "edit.matchPair", kb: "Ctrl+}" },
       { type: "separator" },
       { label: "הערה / ביטול הערה", action: "edit.comment", kb: "Ctrl+/" },
       { label: "שכפול שורה", action: "edit.duplicate", kb: "Ctrl+Shift+D" },

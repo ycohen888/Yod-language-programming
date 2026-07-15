@@ -2,14 +2,34 @@
 
 עורך בסגנון **Visual Studio Code**: Electron + React + **CodeMirror 6** (RTL מלא לעברית).
 
-אחרי `npm run build`, הפקודה `yod` / `yod עורך` מפעילה אוטומטית את העורך הזה (אם תיקיית `dist/` קיימת).
+## הפצה (אפליקציה עצמאית)
 
-## דרישות
+```powershell
+cd yod-ide
+npm install
+npm run dist
+```
+
+נוצרת תיקייה `release/win-unpacked/` עם **`Yod IDE.exe`** — בלי צורך ב־Node אצל המשתמש הסופי.
+`yod עורך` מזהה את האפליקציה הארוזה ליד `yod.exe` (או ב־`yod-ide/release/win-unpacked`).
+
+| פקודה | תוצאה |
+|--------|--------|
+| `npm run dist` | תיקייה ארוזה (`dir`) |
+| `npm run dist:portable` | קובץ portable יחיד |
+
+אריזת הפצה מלאה (yod.exe + IDE + דוגמאות):
+
+```powershell
+powershell -File yod\tools\pack_windows_release.ps1
+```
+
+## דרישות (למפתחים)
 
 - [Node.js](https://nodejs.org/) 18+
 - `yod.exe` בשורש הריפו (או ב־`PATH`) — להרצה / בדיקה / אריזה מהעורך
 
-## התקנה
+## פיתוח מקומי (בלי אריזה)
 
 ```powershell
 cd yod-ide
@@ -19,8 +39,10 @@ npm run build
 
 `npm run build` גם:
 - בונה את ממשק Vite ל־`dist/`
-- חותם איקון יוד על `יוד.exe` (עותק של Electron)
-- יוצר קיצור Start Menu בשם **Yod** (להצמדה לפס המשימות)
+- חותם איקון יוד על `יוד.exe` (עותק של Electron בפיתוח)
+- יוצר קיצור Start Menu בשם **Yod**
+
+אחרי build פיתוח, `yod עורך` יכול להפעיל גם את Electron מתוך `node_modules` (fallback).
 
 ## פיתוח (Hot reload)
 
@@ -49,6 +71,7 @@ npm run dev
 | Ctrl+Shift+P | ארוז ל־EXE |
 | Shift+Alt+F | סדר קוד (`yod סדר` או הזחה מקומית) |
 | Ctrl+H | חיפוש והחלפה |
+| Ctrl+} | מעבר לזוג תואם (`{`/`}` או פתיחה/`סוף`) |
 
 ## סיידבר
 
@@ -60,14 +83,7 @@ npm run dev
 
 האיקון הרשמי: `build/icon.ico` (מקור: `../yod/assets/yod-icon-source.png`).
 
-לפתיחה מהצמדה: הפעילו את העורך פעם אחת אחרי build, ואז הצמידו את **Yod** מתפריט התחל (לא את `electron.exe` הגולמי).
-
-## עורך ישן (Win32)
-
-```powershell
-$env:YOD_LEGACY_EDITOR=1
-yod עורך
-```
+אחרי `npm run dist`, האיקון מוטמע ב־`Yod IDE.exe`. בפיתוח: הצמידו את **Yod** מתפריט התחל (לא את `electron.exe` הגולמי).
 
 ## ביצועים
 

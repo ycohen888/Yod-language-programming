@@ -13,21 +13,52 @@ import (
 
 const createNoWindow = 0x08000000 // CREATE_NO_WINDOW
 
-// tryLaunchWebIDE — מפעיל את עורך Electron (yod-ide) אם זמין.
-// מחזיר true אם הושק בהצלחה (והתהליך הקורא צריך לצאת).
+// tryLaunchWebIDE — מפעיל את עורך Electron אם זמין (אפליקציה ארוזה או תיקיית פיתוח).
 func tryLaunchWebIDE(openPath string) bool {
+	if tryLaunchPackagedIDE(openPath) {
+		return true
+	}
+	return tryLaunchDevIDE(openPath)
+}
+
+func tryLaunchPackagedIDE(openPath string) bool {
+	exe := findPackagedIDEExe()
+	if exe == "" {
+		return false
+	}
+	var args []string
+	if openPath != "" {
+		if abs, err := filepath.Abs(openPath); err == nil {
+			args = append(args, abs)
+		} else {
+			args = append(args, openPath)
+		}
+	}
+	cmd := exec.Command(exe, args...)
+	cmd.Dir = filepath.Dir(exe)
+	cmd.Env = append(os.Environ(), "ELECTRON_NO_ATTACH_CONSOLE=1")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	cmd.Stdin = nil
+	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: createNoWindow}
+	if err := cmd.Start(); err != nil {
+		return false
+	}
+	_ = cmd.Process.Release()
+	return true
+}
+
+func tryLaunchDevIDE(openPath string) bool {
 	ideDir := findYodIDEDir()
 	if ideDir == "" {
 		return false
 	}
-	// מעדיפים יוד.exe (עם איקון) על פני electron.exe הגנרי
 	electronExe := filepath.Join(ideDir, "node_modules", "electron", "dist", "יוד.exe")
 	if _, err := os.Stat(electronExe); err != nil {
 		electronExe = filepath.Join(ideDir, "node_modules", "electron", "dist", "electron.exe")
 		if _, err := os.Stat(electronExe); err != nil {
 			return false
 		}
-		// ניסיון לחתום איקון אם Node זמין (פעם אחת / אחרי npm install)
 		_ = tryStampYodIcon(ideDir)
 		if stamped := filepath.Join(ideDir, "node_modules", "electron", "dist", "יוד.exe"); fileExists(stamped) {
 			electronExe = stamped
@@ -35,7 +66,6 @@ func tryLaunchWebIDE(openPath string) bool {
 	}
 	distIndex := filepath.Join(ideDir, "dist", "index.html")
 	if _, err := os.Stat(distIndex); err != nil {
-		// אין build — לא מפעילים אוטומטית (נדרש npm run build)
 		return false
 	}
 
@@ -53,10 +83,7 @@ func tryLaunchWebIDE(openPath string) bool {
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	cmd.Stdin = nil
-	// CREATE_NO_WINDOW בלבד — בלי HideWindow (HideWindow מסתיר גם את חלון ה־GUI של Electron)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: createNoWindow,
-	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: createNoWindow}
 	if err := cmd.Start(); err != nil {
 		return false
 	}
@@ -86,35 +113,66 @@ func tryStampYodIcon(ideDir string) error {
 	return cmd.Run()
 }
 
-func findYodIDEDir() string {
-	var candidates []string
+func collectSearchDirs() []string {
+	var dirs []string
+	seen := map[string]bool{}
+	add := func(d string) {
+		abs, err := filepath.Abs(d)
+		if err != nil {
+			return
+		}
+		if seen[abs] {
+			return
+		}
+		seen[abs] = true
+		dirs = append(dirs, abs)
+	}
 	if exe, err := os.Executable(); err == nil {
 		if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 			exe = resolved
 		}
 		dir := filepath.Dir(exe)
-		candidates = append(candidates,
-			filepath.Join(dir, "yod-ide"),
-			filepath.Join(dir, "..", "yod-ide"),
-		)
+		add(dir)
+		add(filepath.Join(dir, "Yod IDE"))
+		add(filepath.Join(dir, "עורך"))
+		add(filepath.Join(dir, "yod-ide"))
+		add(filepath.Join(dir, "yod-ide", "release", "win-unpacked"))
+		add(filepath.Join(dir, ".."))
+		add(filepath.Join(dir, "..", "yod-ide"))
+		add(filepath.Join(dir, "..", "yod-ide", "release", "win-unpacked"))
 	}
 	if wd, err := os.Getwd(); err == nil {
-		candidates = append(candidates,
-			filepath.Join(wd, "yod-ide"),
-			filepath.Join(wd, "..", "yod-ide"),
-		)
+		add(wd)
+		add(filepath.Join(wd, "Yod IDE"))
+		add(filepath.Join(wd, "עורך"))
+		add(filepath.Join(wd, "yod-ide"))
+		add(filepath.Join(wd, "yod-ide", "release", "win-unpacked"))
+		add(filepath.Join(wd, "..", "yod-ide", "release", "win-unpacked"))
 	}
-	// יחסי לקוד המקור כשמריצים מ־yod/
-	candidates = append(candidates,
-		filepath.Join("..", "yod-ide"),
-		"yod-ide",
-	)
+	add(filepath.Join("..", "yod-ide", "release", "win-unpacked"))
+	add("yod-ide")
+	return dirs
+}
 
-	for _, c := range candidates {
-		abs, err := filepath.Abs(c)
-		if err != nil {
-			continue
+func findPackagedIDEExe() string {
+	names := []string{"Yod IDE.exe", "YodIDE.exe"}
+	for _, dir := range collectSearchDirs() {
+		for _, name := range names {
+			p := filepath.Join(dir, name)
+			if !fileExists(p) {
+				continue
+			}
+			// electron-builder: resources/ ליד ה־exe (או בתוך asar ב־portable)
+			if fileExists(filepath.Join(dir, "resources")) {
+				return p
+			}
 		}
+	}
+	return ""
+}
+
+func findYodIDEDir() string {
+	for _, abs := range collectSearchDirs() {
 		mainJS := filepath.Join(abs, "electron", "main.cjs")
 		if _, err := os.Stat(mainJS); err == nil {
 			return abs
@@ -125,10 +183,13 @@ func findYodIDEDir() string {
 
 // webIDEHint — הודעה כשאין IDE מובנה.
 func webIDEHint() string {
-	return strings.TrimSpace(fmt.Sprintf(`עורך Electron לא נמצא או לא נבנה.
-התקינו ובנו:
-  cd yod-ide
-  npm install
-  npm run build
-ואז הריצו שוב: yod עורך`))
+	return strings.TrimSpace(`עורך יוד לא נמצא.
+אפשרויות:
+  1) אפליקציה ארוזה: Yod IDE.exe ליד yod.exe
+     (בנייה: cd yod-ide && npm run dist)
+  2) מצב פיתוח:
+     cd yod-ide
+     npm install
+     npm run build
+ואז הריצו שוב: yod עורך`)
 }

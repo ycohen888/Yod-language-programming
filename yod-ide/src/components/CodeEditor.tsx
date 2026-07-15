@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { EditorState, type Extension } from "@codemirror/state";
+import { EditorState, Prec, type Extension } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -34,6 +34,7 @@ import {
   type EditorDiagnostic,
 } from "../lib/yodDiagnostics";
 import { setLiveDocument, clearLiveDocument } from "../lib/projectIndex";
+import { jumpToYodPair } from "../lib/yodBlockMatch";
 
 export type CodeEditorHandle = {
   openDocument: (key: string, text: string) => void;
@@ -51,6 +52,7 @@ export type CodeEditorHandle = {
   openReplace: () => void;
   toggleComment: () => void;
   duplicateLine: () => void;
+  jumpToMatchingPair: () => void;
   zoom: (delta: number) => void;
   zoomReset: () => void;
   getFontSize: () => number;
@@ -67,6 +69,12 @@ type Props = {
 };
 
 const BASE_FONT = 14;
+
+/** תמיד מחזיר true — מונע מ־defaultKeymap להפעיל הזחה על Ctrl+[ / Ctrl+] */
+function jumpToYodPairAlways(view: EditorView): boolean {
+  jumpToYodPair(view);
+  return true;
+}
 
 const IDENT_RE = /[א-תA-Za-z_][א-תA-Za-z0-9_]*/g;
 
@@ -100,6 +108,23 @@ function buildExtensions(
     yodStreamLanguage,
     yodBidiIsolates(),
     ...yodAutocompletion,
+    Prec.highest(
+      keymap.of([
+        // גובר על defaultKeymap: Mod-] / Mod-[ = הזחה כמו Tab
+        { key: "Ctrl-}", run: jumpToYodPairAlways },
+        { key: "Ctrl-{", run: jumpToYodPairAlways },
+        { key: "Ctrl-]", run: jumpToYodPairAlways },
+        { key: "Ctrl-[", run: jumpToYodPairAlways },
+        { key: "Ctrl-Shift-]", run: jumpToYodPairAlways },
+        { key: "Ctrl-Shift-[", run: jumpToYodPairAlways },
+        { key: "Mod-}", run: jumpToYodPairAlways },
+        { key: "Mod-{", run: jumpToYodPairAlways },
+        { key: "Mod-]", run: jumpToYodPairAlways },
+        { key: "Mod-[", run: jumpToYodPairAlways },
+        { key: "Mod-Shift-]", run: jumpToYodPairAlways },
+        { key: "Mod-Shift-[", run: jumpToYodPairAlways },
+      ])
+    ),
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
     EditorView.domEventHandlers({
       click(event, view) {
@@ -473,6 +498,10 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     duplicateLine() {
       const v = viewRef.current;
       if (v) duplicateLine(v);
+    },
+    jumpToMatchingPair() {
+      const v = viewRef.current;
+      if (v) jumpToYodPair(v);
     },
     zoom(delta) {
       fontSizeRef.current = Math.min(28, Math.max(10, fontSizeRef.current + delta));

@@ -1,0 +1,3 @@
+# אייקונים — Material Icons (Apache 2.0)
+# מקור: yod-ide/MaterialIcons/MaterialIcons-Regular.ttf
+# check_box (E834), check_box_outline_blank (E835)

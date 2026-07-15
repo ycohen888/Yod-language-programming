@@ -38,6 +38,9 @@ yod-*-windows-amd64.zip
 yod/examples/archive_out/
 yod/examples/temp_*
 **/__debug_bin*
+**/_dl/
+*.zip
+!docs/**/*.zip
 
 # IDE
 .idea/
@@ -48,6 +51,11 @@ yod/examples/temp_*
 # Cursor local
 .cursor/
 
+# מסמך תכנון מקומי — לא מעלה לריפו
+info_program.html
+
 # Release artifacts (attached via GitHub Release)
 dist/
+yod-ide/release/
+yod-ide/dist/
 

@@ -94,6 +94,7 @@ func winCreateFrame(args ...object.Object) object.Object {
 	w.Attrs["קבע_מתיחה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setStretchFactor(st, "מסגרת.קבע_מתיחה", a...)
 	}}
+	attachVisible(w, st, "מסגרת")
 	return w
 }
 
@@ -185,6 +186,9 @@ func winCreateCanvas(args ...object.Object) object.Object {
 	}}
 	w.Attrs["בעכבר_זוז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setMouseHandler(&st.onMouseHover, "בעכבר_זוז", a)
+	}}
+	w.Attrs["בעכבר_גלגל"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setMouseHandler(&st.onMouseWheel, "בעכבר_גלגל", a)
 	}}
 	w.Attrs["בעת_תו"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setMouseHandler(&st.onKeyChar, "בעת_תו", a)
@@ -325,7 +329,9 @@ func winCreateCanvas(args ...object.Object) object.Object {
 			c = parsed
 		}
 		draw.Draw(board.img, board.img.Bounds(), &image.Uniform{C: c}, image.Point{}, draw.Src)
-		invalidateCanvas(st)
+		// אצווה: ציורים עד רענן() בלי Invalidate חוזר ונשנה
+		st.canvasBatch = true
+		st.canvasDirty = true
 		return object.Nil
 	}}
 	w.Attrs["נקודה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
@@ -502,7 +508,14 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		return object.Nil
 	}}
 	w.Attrs["רענן"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
-		invalidateCanvas(st)
+		st.canvasDirty = true
+		flushCanvasInvalidate(st)
+		return object.Nil
+	}}
+	w.Attrs["השהה_הצגה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		// ציורים הבאים בלי Invalidate עד רענן — להקלדה מהירה / רענון חלקי
+		st.canvasBatch = true
+		st.canvasDirty = true
 		return object.Nil
 	}}
 	w.Attrs["רוחב"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
@@ -528,9 +541,23 @@ func setMouseHandler(dst *object.Object, name string, a []object.Object) object.
 }
 
 func invalidateCanvas(st *controlState) {
-	if st != nil && st.canvas != nil {
-		st.canvas.Invalidate()
+	if st == nil {
+		return
 	}
+	st.canvasDirty = true
+	if st.canvasBatch {
+		return
+	}
+	flushCanvasInvalidate(st)
+}
+
+func flushCanvasInvalidate(st *controlState) {
+	if st == nil || st.canvas == nil {
+		return
+	}
+	st.canvasDirty = false
+	st.canvasBatch = false
+	st.canvas.Invalidate()
 }
 
 func mapSurfaceMouse(ch *controlState, x, y int) (int, int) {
@@ -701,12 +728,15 @@ func buildControlWidget(ch *controlState) Widget {
 		}
 	case "שדה":
 		le := LineEdit{
-			AssignTo: &ch.edit,
-			Text:     ch.text,
-			Enabled:  !ch.ctrlDisabled,
+			AssignTo:           &ch.edit,
+			Text:               ch.text,
+			Enabled:            !ch.ctrlDisabled,
+			TextAlignment:      AlignFar,
+			RightToLeftReading: true,
 		}
 		if ch.ctrlHint != "" {
 			le.ToolTipText = ch.ctrlHint
+			le.CueBanner = ch.ctrlHint
 		}
 		if ch.ctrlDark {
 			le.Background = SolidColorBrush{Color: darkFieldBG()}
@@ -827,8 +857,10 @@ func buildControlWidget(ch *controlState) Widget {
 		sf := stretchOr(ch.stretchFactor, 1)
 		if ch.frameDir == "אופקי" {
 			comp := Composite{
+				AssignTo:      &ch.panel,
 				Layout:        HBox{Margins: margins, Spacing: 8},
 				StretchFactor: sf,
+				Visible:       !ch.hidden,
 				Children:      kids,
 			}
 			if hasBg {
@@ -837,8 +869,10 @@ func buildControlWidget(ch *controlState) Widget {
 			return comp
 		}
 		comp := Composite{
+			AssignTo:      &ch.panel,
 			Layout:        VBox{Margins: margins, Spacing: 6},
 			StretchFactor: sf,
+			Visible:       !ch.hidden,
 			Children:      kids,
 		}
 		if hasBg {
@@ -1049,6 +1083,27 @@ func wireSurfaceResize(ch *controlState) {
 		return
 	}
 	enableSurfaceArrowKeys(ch, ch.canvas)
+	if !ch.wheelWired && ch.canvas != nil {
+		ch.wheelWired = true
+		ch.canvas.MouseWheel().Attach(func(x, y int, button walk.MouseButton) {
+			_ = x
+			_ = y
+			delta := walk.MouseWheelEventDelta(button)
+			steps := delta / 120
+			if steps == 0 {
+				if delta > 0 {
+					steps = 1
+				} else if delta < 0 {
+					steps = -1
+				}
+			}
+			if ch.onMouseWheel != nil {
+				invokeYod(ch.onMouseWheel, []object.Object{
+					&object.Number{Value: float64(steps)},
+				})
+			}
+		})
+	}
 	if ch.sizeWired {
 		return
 	}

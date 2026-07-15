@@ -16,7 +16,7 @@
         { title: "מדריך למתחילים", href: "עמודים/מתחילים.html", keywords: "אפס שלום פלט" },
         { title: "התחלה מהירה", href: "עמודים/התחלה.html", keywords: "build exe הרץ" },
         { title: "קובץ יחיד או פרויקט", href: "עמודים/קובץ-או-פרויקט.html", keywords: "התחל תיקייה כלול קובץ יחיד" },
-        { title: "עורך", href: "עמודים/עורך.html", keywords: "IDE השלמה סייר פרויקט התחל" },
+        { title: "עורך", href: "עמודים/עורך.html", keywords: "IDE Electron CodeMirror השלמה סייר פרויקט התחל yod-ide" },
         { title: "מכונה", href: "עמודים/מכונה.html", keywords: "bytecode VM" },
         { title: "מכונה מול מפרש", href: "עמודים/מכונה-מול-מפרש.html", keywords: "fallback תמיכה" },
         { title: "ארוז", href: "עמודים/ארוז.html", keywords: "exe הפצה" },

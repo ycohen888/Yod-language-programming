@@ -23,8 +23,9 @@
     <article class="article">
       <h1>עורך יוד (IDE)</h1>
       <p class="lead">
-        מגרסה 0.77 העורך הראשי הוא <strong>יוד IDE</strong> — Electron + Monaco בסגנון Visual Studio Code:
-        סייר, טאבים מהירים, פלטת פקודות, מינימפה, פאנל בעיות/פלט, והרצה דרך <code>yod.exe</code>.
+        מגרסה 0.77 העורך הוא <strong>יוד IDE</strong> בלבד — Electron + React + CodeMirror 6,
+        בסגנון Visual Studio Code: סייר, טאבים, פלטת פקודות, מינימפה, פאנל בעיות/פלט,
+        והרצה דרך <code>yod.exe</code>. אין עורך Win32 מובנה.
       </p>
 
       <h2>הפעלה</h2>
@@ -32,11 +33,14 @@
 yod עורך
 yod עורך נתיב\לפרויקט</pre>
       <p>
-        בפעם הראשונה יש לבנות את ה־IDE:
+        בהפצה: ליד <code>yod.exe</code> נמצאת אפליקציה עצמאית <code>Yod IDE.exe</code>
+        (בלי Node אצל המשתמש). אפשר גם ללחוץ ישירות על <code>Yod IDE.exe</code>.
       </p>
+      <p>בנייה מקומית של האפליקציה הארוזה (למפתחים):</p>
       <pre class="code-block">cd yod-ide
 npm install
-npm run build</pre>
+npm run dist</pre>
+      <p>או מצב פיתוח בלבד (<code>npm run build</code>) — Electron מתוך <code>node_modules</code>.</p>
 
       <h2>קיצורים</h2>
       <table class="method-table">
@@ -46,27 +50,28 @@ npm run build</pre>
         <tbody>
           <tr><td><code>Ctrl+Shift+P</code></td><td>פלטת פקודות</td></tr>
           <tr><td><code>Ctrl+O</code></td><td>פתיחת קובץ</td></tr>
+          <tr><td><code>Ctrl+Shift+O</code></td><td>פתיחת תיקיית פרויקט</td></tr>
           <tr><td><code>Ctrl+S</code></td><td>שמירה</td></tr>
           <tr><td><code>Ctrl+N</code></td><td>קובץ חדש</td></tr>
           <tr><td><code>F5</code></td><td>הרצה</td></tr>
           <tr><td><code>F6</code></td><td>מכונה</td></tr>
           <tr><td><code>F7</code></td><td>בדיקה</td></tr>
+          <tr><td><code>Ctrl+}</code> / <code>Ctrl+{</code> (או <code>Ctrl+]</code> / <code>Ctrl+[</code>)</td><td>מעבר לזוג תואם — <code>{ }</code> / פתיחת בלוק ↔ <code>סוף</code> (לא הזחה)</td></tr>
         </tbody>
       </table>
 
       <h2>ביצועים</h2>
       <ul>
         <li>טעינת קבצים אסינכרונית (main process)</li>
-        <li>מעבר טאבים = החלפת מודל Monaco בלי טעינה מחדש</li>
-        <li>הדגשת תחביר ב־web worker</li>
+        <li>מעבר טאבים = מצב CodeMirror נפרד לכל קובץ (בלי טעינה מחדש מהדיסק)</li>
+        <li>הדגשת תחביר בעברית (RTL) ב־CodeMirror</li>
       </ul>
 
-      <h2>עורך Win32 הישן</h2>
+      <h2>אם העורך לא נפתח</h2>
       <p>
-        אם צריך את העורך הקודם:
+        בלי <code>Yod IDE.exe</code> ארוז וללא build פיתוח, <code>yod עורך</code> מדפיס הודעה בעברית
+        עם פקודות ההתקנה — ולא נופל לעורך ישן.
       </p>
-      <pre class="code-block">set YOD_LEGACY_EDITOR=1
-yod עורך</pre>
 
       <div class="callout tip">
         פירוט טכני: <code>yod-ide/README.md</code>
