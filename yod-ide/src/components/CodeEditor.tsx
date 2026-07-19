@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { EditorState, Prec, type Extension } from "@codemirror/state";
+import { EditorState, Prec, type Extension, type StateEffect } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -295,7 +295,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const statesRef = useRef<Map<string, EditorState>>(new Map());
-  const scrollRef = useRef<Map<string, { top: number; left: number }>>(new Map());
+  const scrollRef = useRef<Map<string, StateEffect<unknown>>>(new Map());
   const activeKeyRef = useRef<string | null>(null);
   const fontSizeRef = useRef(BASE_FONT);
   const [contentDir, setContentDir] = useState<"rtl" | "ltr">("rtl");
@@ -311,28 +311,19 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     setContentDir(rtl ? "rtl" : "ltr");
   };
 
+  // scrollSnapshot מייצר StateEffect שמשחזר את מיקום הגלילה בצורה יציבה
+  // (מיקום הגלילה אינו חלק מ-EditorState, לכן הוא מתאפס בכל setState).
   const saveScroll = (key: string | null) => {
     const view = viewRef.current;
     if (!view || !key) return;
-    scrollRef.current.set(key, {
-      top: view.scrollDOM.scrollTop,
-      left: view.scrollDOM.scrollLeft,
-    });
+    scrollRef.current.set(key, view.scrollSnapshot());
   };
 
   const restoreScroll = (key: string) => {
     const view = viewRef.current;
     if (!view) return;
-    const pos = scrollRef.current.get(key);
-    const apply = () => {
-      const v = viewRef.current;
-      if (!v) return;
-      v.scrollDOM.scrollTop = pos ? pos.top : 0;
-      v.scrollDOM.scrollLeft = pos ? pos.left : 0;
-    };
-    // מיד + אחרי מדידה מחדש, כי setState מרנדר מחדש את התוכן
-    apply();
-    view.requestMeasure({ read: () => null, write: apply });
+    const snap = scrollRef.current.get(key);
+    if (snap) view.dispatch({ effects: snap });
   };
 
   const recreateActiveWithFont = (size: number) => {
