@@ -85,8 +85,10 @@ yod-ide/dist/
 _*.txt
 
 # נכסים מקומיים — לא מעלים לגיט
-ads/                 # מערכת באנר הפרסום (ads.json + באנרים) — מתארחת ב-servxx.com/ads
-docs/screenshots/    # צילומי מסך של העורך והשרת
+# מערכת באנר הפרסום (ads.json + באנרים) — מתארחת ב-servxx.com/ads
+ads/
+# צילומי מסך של העורך והשרת
+docs/screenshots/
 
 # תוכנות חופשיות ודוגמאות — לא מעלים קוד מקור/EXE, רק README + קישור הורדה.
 # ההרצות מופצות כ־ZIP דרך servxx.com/ads/ (ראו README של כל תוכנה).

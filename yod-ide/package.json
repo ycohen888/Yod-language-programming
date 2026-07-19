@@ -1,6 +1,6 @@
 {
   "name": "yod-ide",
-  "version": "0.77.0",
+  "version": "0.99.1",
   "private": true,
   "description": "עורך יוד — IDE בסגנון Visual Studio Code",
   "author": "Yod",

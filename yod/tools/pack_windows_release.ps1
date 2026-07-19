@@ -5,7 +5,8 @@
 
 param(
   [string]$Version = "0.77.0",
-  [switch]$SkipIdeBuild
+  [switch]$SkipIdeBuild,
+  [switch]$SkipExamples
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,7 +64,9 @@ $examplesName = (
   [char]0x05D3 + [char]0x05D5 + [char]0x05D2 + [char]0x05DE + [char]0x05D4
 ) # פרוייקט דוגמה
 $examples = Join-Path $Root $examplesName
-if (-not (Test-Path $examples)) {
+if ($SkipExamples) {
+  Write-Host "Skipping examples (SkipExamples)."
+} elseif (-not (Test-Path $examples)) {
   Write-Warning "Examples folder not found: $examplesName"
 } else {
   Write-Host "Copying examples..."
@@ -100,9 +103,13 @@ $readmeLines = @(
   "1. Extract the FULL folder (do not run only one file from inside the zip).",
   "2. Run yod.exe - opens Yod IDE (Electron app bundled beside yod.exe).",
   "3. Or double-click '" + $IdeExeName + "'.",
-  "4. Or: yod.exe editor / yod.exe עורך",
-  "5. Examples: Hebrew-named folder next to yod.exe.",
-  "6. Guide: folder '" + $guideName + "' - open from Help menu (window inside the IDE).",
+  "4. Or: yod.exe editor / yod.exe עורך"
+)
+if (-not $SkipExamples) {
+  $readmeLines += "5. Examples: Hebrew-named folder next to yod.exe."
+}
+$readmeLines += @(
+  "Guide: folder '" + $guideName + "' - open from Help menu (window inside the IDE).",
   "",
   "No Node.js required to use the editor.",
   "There is no Win32 legacy editor."
