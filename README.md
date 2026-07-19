@@ -6,6 +6,14 @@
 
 גרסה נוכחית: **0.99.1**
 
+<p align="center">
+  <img src="docs/screenshots/editor-code.png" alt="עורך יוד — קוד בעברית" width="820" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/editor-autocomplete.png" alt="השלמה אוטומטית בעורך" width="820" />
+</p>
+
 ---
 
 ## מה יש בריפו

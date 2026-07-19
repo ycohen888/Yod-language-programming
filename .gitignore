@@ -87,8 +87,10 @@ _*.txt
 # נכסים מקומיים — לא מעלים לגיט
 # מערכת באנר הפרסום (ads.json + באנרים) — מתארחת ב-servxx.com/ads
 ads/
-# צילומי מסך של העורך והשרת
-docs/screenshots/
+# צילומי מסך: תמונות העורך נשמרות בגיט (לתיעוד README); צילומי השרת נשארים מקומיים
+docs/screenshots/*
+!docs/screenshots/editor-code.png
+!docs/screenshots/editor-autocomplete.png
 
 # תוכנות חופשיות ודוגמאות — לא מעלים קוד מקור/EXE, רק README + קישור הורדה.
 # ההרצות מופצות כ־ZIP דרך servxx.com/ads/ (ראו README של כל תוכנה).
