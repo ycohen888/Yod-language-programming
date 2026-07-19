@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { EditorState, Prec, type Extension, type StateEffect } from "@codemirror/state";
+import { EditorState, Prec, StateEffect, StateField, type Extension } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -7,6 +7,8 @@ import {
   lineNumbers,
   drawSelection,
   dropCursor,
+  gutter,
+  GutterMarker,
 } from "@codemirror/view";
 import {
   defaultKeymap,
@@ -61,6 +63,8 @@ export type CodeEditorHandle = {
   getFontSize: () => number;
   getIdentifierAtCursor: () => string | null;
   setDiagnostics: (diags: EditorDiagnostic[]) => void;
+  /** מסמן שורות כנקודות (סימניות) בשוליים, לכל טאב לפי מפתח. */
+  setBookmarkLines: (key: string, lines: number[]) => void;
 };
 
 type Props = {
@@ -78,6 +82,45 @@ function jumpToYodPairAlways(view: EditorView): boolean {
   jumpToYodPair(view);
   return true;
 }
+
+/** אפקט לעדכון רשימת שורות הנקודות (סימניות) שמסומנות בשוליים. */
+const setBookmarkLinesEffect = StateEffect.define<number[]>();
+
+/** שדה מצב עם קבוצת מספרי-השורות המסומנות כנקודות. */
+const bookmarkLinesField = StateField.define<Set<number>>({
+  create: () => new Set<number>(),
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(setBookmarkLinesEffect)) return new Set(e.value);
+    }
+    return value;
+  },
+});
+
+class BookmarkMarker extends GutterMarker {
+  toDOM() {
+    const el = document.createElement("span");
+    el.className = "cm-bookmark-mark";
+    el.title = "נקודת קוד";
+    return el;
+  }
+}
+const bookmarkMarker = new BookmarkMarker();
+
+const bookmarkGutter = gutter({
+  class: "cm-bookmark-gutter",
+  lineMarker(view, line) {
+    const set = view.state.field(bookmarkLinesField, false);
+    if (!set || set.size === 0) return null;
+    const n = view.state.doc.lineAt(line.from).number;
+    return set.has(n) ? bookmarkMarker : null;
+  },
+  lineMarkerChange(update) {
+    return update.transactions.some((tr) =>
+      tr.effects.some((e) => e.is(setBookmarkLinesEffect))
+    );
+  },
+});
 
 const IDENT_RE = /[א-תA-Za-z_][א-תA-Za-z0-9_]*/g;
 
@@ -135,6 +178,8 @@ function buildExtensions(
 
   return [
     lineNumbers(),
+    bookmarkLinesField,
+    bookmarkGutter,
     highlightActiveLine(),
     drawSelection(),
     dropCursor(),
@@ -220,7 +265,26 @@ function buildExtensions(
           backgroundColor: "rgba(234, 92, 0, 0.55)",
         },
         ".cm-activeLineGutter": { backgroundColor: "#2a2d2e" },
-        ".cm-activeLine": { backgroundColor: "#2a2d2e" },
+        // רקע חצי-שקוף כדי שצבע הסימון (selection) ייראה גם בשורה הפעילה
+        ".cm-activeLine": { backgroundColor: "rgba(255, 255, 255, 0.055)" },
+        ".cm-bookmark-gutter": {
+          width: "12px",
+          minWidth: "12px",
+        },
+        ".cm-bookmark-mark": {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+        },
+        ".cm-bookmark-mark::before": {
+          content: '""',
+          width: "7px",
+          height: "7px",
+          borderRadius: "50%",
+          backgroundColor: "#e0a33e",
+          boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
+        },
         "&.cm-focused .cm-cursor": { borderLeftColor: yodPhpDarkColors.foreground },
         "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
           backgroundColor: "#264f78 !important",
@@ -296,6 +360,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
   const viewRef = useRef<EditorView | null>(null);
   const statesRef = useRef<Map<string, EditorState>>(new Map());
   const scrollRef = useRef<Map<string, StateEffect<unknown>>>(new Map());
+  const bookmarkLinesRef = useRef<Map<string, number[]>>(new Map());
   const activeKeyRef = useRef<string | null>(null);
   const fontSizeRef = useRef(BASE_FONT);
   const [contentDir, setContentDir] = useState<"rtl" | "ltr">("rtl");
@@ -346,6 +411,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     });
     statesRef.current.set(key, state);
     view.setState(state);
+    const bmLines = bookmarkLinesRef.current.get(key) ?? [];
+    view.dispatch({ effects: setBookmarkLinesEffect.of(bmLines) });
     restoreScroll(key);
   };
 
@@ -435,11 +502,14 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       setLiveDocument(key, state.doc.toString());
       syncHostDir(key);
       view.focus();
+      const bmLines = bookmarkLinesRef.current.get(key) ?? [];
+      view.dispatch({ effects: setBookmarkLinesEffect.of(bmLines) });
       restoreScroll(key);
     },
     closeDocument(key) {
       statesRef.current.delete(key);
       scrollRef.current.delete(key);
+      bookmarkLinesRef.current.delete(key);
       clearLiveDocument(key);
       if (activeKeyRef.current === key) {
         activeKeyRef.current = null;
@@ -559,6 +629,13 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       const v = viewRef.current;
       if (!v) return;
       v.dispatch({ effects: setEditorDiagnostics.of(diags) });
+    },
+    setBookmarkLines(key, lines) {
+      bookmarkLinesRef.current.set(key, lines);
+      const v = viewRef.current;
+      if (v && activeKeyRef.current === key) {
+        v.dispatch({ effects: setBookmarkLinesEffect.of(lines) });
+      }
     },
   }));
 

@@ -454,6 +454,20 @@ export default function App() {
     setStatus("כל הנקודות נמחקו");
   }, []);
 
+  // דחיפת שורות הנקודות לעורך (סימון בשוליים) לכל הטאבים הפתוחים
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const byKey = new Map<string, number[]>();
+    for (const t of tabs) byKey.set(t.key, []);
+    for (const b of bookmarks) {
+      const arr = byKey.get(b.key);
+      if (arr) arr.push(b.line);
+      else byKey.set(b.key, [b.line]);
+    }
+    for (const [key, lines] of byKey) ed.setBookmarkLines(key, lines);
+  }, [bookmarks, tabs]);
+
   const gotoBookmark = useCallback(
     async (bm: Bookmark) => {
       const existing = tabsRef.current.find((t) => t.key === bm.key || t.path === bm.path);
