@@ -58,7 +58,7 @@
 
 ב־[Releases](https://github.com/ycohen888/Yod-language-programming/releases) הורידו את
 **`yod-*-windows-amd64.zip`** (לא רק את ה־`.exe` הבודד).
-הגרסה האחרונה: **[v0.99.1](https://github.com/ycohen888/Yod-language-programming/releases/tag/v0.99.1)**.
+הגרסה האחרונה: **v0.99.1** (ראו [דף ה־Releases](https://github.com/ycohen888/Yod-language-programming/releases)).
 
 1. חלצו את **כל** התיקייה (כולל `Yod IDE.exe` ו־`resources/`)
 2. הריצו `yod.exe` — נפתח **יוד IDE** (אפליקציית Electron עצמאית; בלי Node)
