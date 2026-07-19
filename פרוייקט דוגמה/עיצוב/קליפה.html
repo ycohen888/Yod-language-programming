@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl" data-bs-theme="dark">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>עיצוב · יוד</title>
+<!-- CSS קריטי — מונע הבזק כהה/לבן לפני טעינת Bootstrap -->
+<style id="yod-boot">
+html,body{margin:0;height:100%;background:#0e1116;color:#e8edf5;font-family:"Segoe UI",Tahoma,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+#yod-splash{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1.25rem;background:radial-gradient(900px 420px at 80% -10%,rgba(46,196,182,.14),transparent 55%),radial-gradient(700px 380px at 10% 110%,rgba(61,139,253,.12),transparent 50%),#0e1116;transition:opacity .45s ease,visibility .45s ease}
+#yod-splash.yod-splash-out{opacity:0;visibility:hidden;pointer-events:none}
+#yod-splash-mark{position:relative;width:88px;height:88px;display:flex;align-items:center;justify-content:center}
+#yod-splash-logo{width:72px;height:72px;object-fit:contain;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,.35);animation:yod-splash-float 2.4s ease-in-out infinite;background:rgba(255,255,255,.03)}
+#yod-splash-fallback{display:none;width:72px;height:72px;border-radius:18px;align-items:center;justify-content:center;font-size:2.4rem;font-weight:800;color:#2ec4b6;background:linear-gradient(145deg,#1c2330,#151a22);box-shadow:0 12px 40px rgba(0,0,0,.35);animation:yod-splash-float 2.4s ease-in-out infinite}
+#yod-splash.yod-splash-no-logo #yod-splash-logo{display:none}
+#yod-splash.yod-splash-no-logo #yod-splash-fallback{display:flex}
+#yod-splash-title{margin:0;font-size:1.55rem;font-weight:800;letter-spacing:.02em;background:linear-gradient(90deg,#e8edf5,#2ec4b6 55%,#3d8bfd);-webkit-background-clip:text;background-clip:text;color:transparent;animation:yod-splash-fade 1.2s ease both}
+#yod-splash-sub{margin:0;font-size:.95rem;color:#8b98ab;animation:yod-splash-fade 1.2s .15s ease both}
+#yod-splash-spin{width:36px;height:36px;border-radius:50%;border:3px solid rgba(255,255,255,.1);border-top-color:#2ec4b6;border-right-color:#3d8bfd;animation:yod-splash-spin .85s linear infinite;margin-top:.35rem}
+#yod-splash-bar{width:140px;height:3px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:.15rem}
+#yod-splash-bar>i{display:block;height:100%;width:40%;border-radius:99px;background:linear-gradient(90deg,#2ec4b6,#3d8bfd);animation:yod-splash-bar 1.4s ease-in-out infinite}
+@keyframes yod-splash-spin{to{transform:rotate(360deg)}}
+@keyframes yod-splash-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes yod-splash-fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes yod-splash-bar{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="bootstrap/bootstrap.rtl.min.css" id="bs-rtl"/>
+<link rel="stylesheet" href="bootstrap/bootstrap.min.css" id="bs-ltr" disabled/>
+<link rel="stylesheet" href="tippy/tippy.css"/>
+<link rel="stylesheet" href="tippy/light-border.css"/>
+<link rel="stylesheet" href="tabulator/tabulator.min.css"/>
+<link rel="stylesheet" href="ערכות.css"/>
+<!--YOD_EARLY_LOGO-->
+</head>
+<body class="yod-app">
+<div id="yod-splash" role="status" aria-live="polite" aria-label="טוען">
+  <div id="yod-splash-mark">
+    <img id="yod-splash-logo" alt="יוד" width="72" height="72" src="לוגו-יוד.png"/>
+    <div id="yod-splash-fallback" aria-hidden="true">י׳</div>
+  </div>
+  <h1 id="yod-splash-title">שפת יוד</h1>
+  <p id="yod-splash-sub">טוען…</p>
+  <div id="yod-splash-spin" aria-hidden="true"></div>
+  <div id="yod-splash-bar" aria-hidden="true"><i></i></div>
+</div>
+<script>
+(function () {
+  var root = document.getElementById("yod-splash");
+  var img = document.getElementById("yod-splash-logo");
+  function applyLogo() {
+    if (!img) return;
+    if (window.__יוד_לוגו) {
+      img.src = window.__יוד_לוגו;
+      if (root) root.classList.remove("yod-splash-no-logo");
+      return;
+    }
+    img.onerror = function () {
+      if (root) root.classList.add("yod-splash-no-logo");
+    };
+  }
+  applyLogo();
+  window.__יוד_הצג_טעינה = function (text) {
+    if (!root) return;
+    root.classList.remove("yod-splash-out");
+    var sub = document.getElementById("yod-splash-sub");
+    if (sub && text != null && String(text) !== "") sub.textContent = String(text);
+    else if (sub) sub.textContent = "טוען…";
+  };
+  window.__יוד_הסתר_טעינה = function () {
+    if (!root) return;
+    root.classList.add("yod-splash-out");
+  };
+  // מודיעים למנוע שה־splash מצויר — לחשיפת החלון השקוף
+  function notifySplashReady() {
+    if (window.__יוד_splash_ready) return;
+    window.__יוד_splash_ready = true;
+    var payload = { סוג: "אירוע", שם: "טעינה_מוכנה", ערכים: {} };
+    var raw = JSON.stringify(payload);
+    // גשר HTTP (מוזרק לפני הניווט) — אמין יותר מ־postMessage כשיש localhost bridge
+    try {
+      if (window.__יוד_גשר) {
+        if (window.fetch) {
+          window.fetch(window.__יוד_גשר, {
+            method: "POST",
+            body: raw,
+            mode: "no-cors",
+            keepalive: true
+          }).catch(function () {});
+        } else {
+          var img = new Image();
+          img.src = window.__יוד_גשר + "?" + encodeURIComponent(raw) + "&_=" + Date.now();
+        }
+      }
+    } catch (e) {}
+    try {
+      if (window.chrome && window.chrome.webview && window.chrome.webview.postMessage) {
+        window.chrome.webview.postMessage(raw);
+      }
+    } catch (e) {}
+    try {
+      if (window.__יוד_מנוע && typeof window.__יוד_מנוע.post === "function") {
+        window.__יוד_מנוע.post(payload);
+      }
+    } catch (e) {}
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(notifySplashReady);
+      });
+    });
+  } else {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(notifySplashReady);
+    });
+  }
+})();
+</script>
+<main id="תוכן" class="container-fluid px-3 py-2">
+  <p class="text-secondary mb-0" id="רמז_ריק">ממשק עיצוב מוכן — הוסיפו פקדים מיוד.</p>
+</main>
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="yod-toasts"></div>
+<script src="bootstrap/bootstrap.bundle.min.js"></script>
+<script src="tippy/popper.min.js"></script>
+<script src="tippy/tippy-bundle.umd.min.js"></script>
+<script src="tabulator/tabulator.min.js"></script>
+<script src="מנוע.js"></script>
+</body>
+</html>
