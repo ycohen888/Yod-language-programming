@@ -7,17 +7,11 @@
 גרסה נוכחית: **0.99.1**
 
 <p align="center">
-  <img src="docs/screenshots/editor-code.png" alt="עורך יוד — קוד בעברית" width="720" />
+  <img src="docs/screenshots/editor-code.png" alt="עורך יוד — קוד בעברית" width="820" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/editor-autocomplete.png" alt="השלמה אוטומטית בעורך" width="360" />
-  &nbsp;
-  <img src="docs/screenshots/server-gui-browser.png" alt="שרת יוד — GUI ודפדפן" width="360" />
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/editor-error.png" alt="עורך יוד — הצגת שגיאת קומפילציה" width="720" />
+  <img src="docs/screenshots/editor-autocomplete.png" alt="השלמה אוטומטית בעורך" width="820" />
 </p>
 
 ---
