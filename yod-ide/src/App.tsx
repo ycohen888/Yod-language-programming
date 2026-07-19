@@ -7,7 +7,7 @@ import { TreeInlineInput } from "./components/TreeInlineInput";
 import { parseProblems, pathBase, pathDir, resolveFilePath, isYodFamilyFile, joinPath } from "./lib/paths";
 import { formatYodSource } from "./lib/yodFormat";
 import { buildProjectIndex, clearProjectIndex, getMergedSymbols, getProjectIndex, getSymbolsForFile, type ProjectSymbol } from "./lib/projectIndex";
-import type { CommandItem, OpenTab, PanelKind, Problem } from "./types";
+import type { Bookmark, CommandItem, OpenTab, PanelKind, Problem } from "./types";
 import { SymbolTree } from "./components/SymbolTree";
 import "./styles/app.css";
 
@@ -40,6 +40,7 @@ const SHORTCUTS_TEXT =
   "Ctrl+F / H  חיפוש / החלפה\n" +
   "Ctrl+G  מעבר לשורה\n" +
   "Ctrl+/  הערה · Ctrl+Shift+D  שכפול שורה\n" +
+  "Ctrl+B  קבע נקודה בקוד (לשונית נקודות)\n" +
   "Ctrl± / Ctrl+0  גודל גופן";
 
 export default function App() {
@@ -67,6 +68,7 @@ export default function App() {
   const [panel, setPanel] = useState<PanelKind>("output");
   const [output, setOutput] = useState("");
   const [problems, setProblems] = useState<Problem[]>([]);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQ, setPaletteQ] = useState("");
   const [paletteIdx, setPaletteIdx] = useState(0);
@@ -89,12 +91,14 @@ export default function App() {
   const activeKeyRef = useRef(activeKey);
   const rootRef = useRef(root);
   const treeSelectedRef = useRef(treeSelected);
+  const cursorRef = useRef(cursor);
   const savingRef = useRef(false);
 
   tabsRef.current = tabs;
   activeKeyRef.current = activeKey;
   rootRef.current = root;
   treeSelectedRef.current = treeSelected;
+  cursorRef.current = cursor;
 
   const activeTab = tabs.find((t) => t.key === activeKey) ?? null;
 
@@ -388,6 +392,84 @@ export default function App() {
         editorRef.current?.focus();
       });
       setStatus(`${sym.kind}: ${sym.name} · שורה ${sym.line}`);
+    },
+    [activateTab, openFile]
+  );
+
+  const bookmarksStorageKey = useCallback(
+    () => `yod-ide:bookmarks:${rootRef.current ?? "__no-root"}`,
+    []
+  );
+
+  // טעינת נקודות שמורות בעת פתיחת/החלפת תיקיית פרויקט
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`yod-ide:bookmarks:${root ?? "__no-root"}`);
+      const parsed = raw ? (JSON.parse(raw) as Bookmark[]) : [];
+      setBookmarks(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setBookmarks([]);
+    }
+  }, [root]);
+
+  // שמירה אוטומטית של הנקודות
+  useEffect(() => {
+    try {
+      localStorage.setItem(bookmarksStorageKey(), JSON.stringify(bookmarks));
+    } catch {
+      /* אחסון מלא/חסום — מתעלמים */
+    }
+  }, [bookmarks, bookmarksStorageKey]);
+
+  const addBookmark = useCallback(() => {
+    const key = activeKeyRef.current;
+    const tab = tabsRef.current.find((t) => t.key === key);
+    if (!key || !tab) {
+      setStatus("אין קובץ פעיל לקביעת נקודה");
+      return;
+    }
+    const line = cursorRef.current.line;
+    const bm: Bookmark = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      key,
+      path: tab.path,
+      title: tab.title,
+      line,
+    };
+    setBookmarks((prev) => {
+      // מניעת כפילות מדויקת (אותו קובץ + אותה שורה)
+      if (prev.some((b) => b.key === key && b.line === line)) return prev;
+      return [...prev, bm];
+    });
+    setPanel("bookmarks");
+    setStatus(`נקבעה נקודה: ${tab.title} · שורה ${line}`);
+  }, []);
+
+  const removeBookmark = useCallback((id: string) => {
+    setBookmarks((prev) => prev.filter((b) => b.id !== id));
+  }, []);
+
+  const clearBookmarks = useCallback(() => {
+    setBookmarks([]);
+    setStatus("כל הנקודות נמחקו");
+  }, []);
+
+  const gotoBookmark = useCallback(
+    async (bm: Bookmark) => {
+      const existing = tabsRef.current.find((t) => t.key === bm.key || t.path === bm.path);
+      if (existing) {
+        activateTab(existing.key);
+      } else if (bm.path) {
+        await openFile(bm.path);
+      } else {
+        setStatus(`הקובץ אינו פתוח: ${bm.title}`);
+        return;
+      }
+      requestAnimationFrame(() => {
+        editorRef.current?.revealLine(bm.line);
+        editorRef.current?.focus();
+      });
+      setStatus(`נקודה: ${bm.title} · שורה ${bm.line}`);
     },
     [activateTab, openFile]
   );
@@ -1075,6 +1157,15 @@ export default function App() {
           ed?.zoomReset();
           setStatus("גופן 14");
           break;
+        case "code.addBookmark":
+          addBookmark();
+          break;
+        case "code.showBookmarks":
+          setPanel("bookmarks");
+          break;
+        case "code.clearBookmarks":
+          clearBookmarks();
+          break;
         case "view.problems":
           setPanel("problems");
           break;
@@ -1147,6 +1238,8 @@ export default function App() {
       gotoDefinition,
       findReferences,
       cursor.line,
+      addBookmark,
+      clearBookmarks,
       showError,
     ]
   );
@@ -1231,6 +1324,8 @@ export default function App() {
         label: "פתח מיקום EXE",
         run: () => handleMenu("run.openDistExe"),
       },
+      { id: "code.addBookmark", label: "קבע נקודה בקוד", keybinding: "Ctrl+B", run: () => handleMenu("code.addBookmark") },
+      { id: "code.showBookmarks", label: "נקודות — הצג לשונית", run: () => handleMenu("code.showBookmarks") },
       { id: "view.format", label: "סדר קוד", keybinding: "Shift+Alt+F", run: () => handleMenu("view.format") },
       { id: "edit.matchPair", label: "זוג תואם (התחלה/סוף / סוגריים)", keybinding: "Ctrl+}", run: () => handleMenu("edit.matchPair") },
       { id: "edit.replace", label: "החלפה…", keybinding: "Ctrl+H", run: () => handleMenu("edit.replace") },
@@ -1328,6 +1423,9 @@ export default function App() {
       } else if (key === "w") {
         e.preventDefault();
         void handleMenu("file.closeTab");
+      } else if (key === "b") {
+        e.preventDefault();
+        void handleMenu("code.addBookmark");
       } else if (key === "z") {
         e.preventDefault();
         void handleMenu("edit.undo");
@@ -1811,13 +1909,44 @@ export default function App() {
                 <Icon name="search" size={14} />
                 <span>חיפוש{searchHits.length ? ` (${searchHits.length})` : ""}</span>
               </button>
+              <button type="button" className={panel === "bookmarks" ? "active" : ""} onClick={() => setPanel("bookmarks")}>
+                <Icon name="push_pin" size={14} />
+                <span>נקודות{bookmarks.length ? ` (${bookmarks.length})` : ""}</span>
+              </button>
               <button type="button" className={panel === "output" ? "active" : ""} onClick={() => setPanel("output")}>
                 <Icon name="terminal" size={14} />
                 <span>פלט</span>
               </button>
             </div>
             <div className="panel-body">
-              {panel === "output"
+              {panel === "bookmarks"
+                ? bookmarks.length === 0
+                  ? "אין נקודות. הצב את הסמן בשורה ולחץ 'קוד ← קבע נקודה' (Ctrl+B)."
+                  : bookmarks.map((b, i) => (
+                      <div key={b.id} className="bookmark-row">
+                        <button
+                          type="button"
+                          className="bookmark-goto"
+                          title={`${b.path ?? b.title} · שורה ${b.line}`}
+                          onClick={() => void gotoBookmark(b)}
+                        >
+                          <span className="bookmark-num">{i + 1}:</span>
+                          <span className="bookmark-label">
+                            {b.title} , שורה {b.line}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className="bookmark-del"
+                          title="מחק נקודה"
+                          aria-label="מחק נקודה"
+                          onClick={() => removeBookmark(b.id)}
+                        >
+                          <Icon name="delete" size={14} />
+                        </button>
+                      </div>
+                    ))
+                : panel === "output"
                 ? output || "אין פלט עדיין."
                 : panel === "search"
                   ? searchHits.length === 0

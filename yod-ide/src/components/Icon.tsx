@@ -31,6 +31,8 @@ export type MaterialIconName =
   | "upload"
   | "list_alt"
   | "account_tree"
+  | "push_pin"
+  | "delete"
   | "widgets";
 
 export function iconForSymbolKind(kind: SymbolKind): MaterialIconName {

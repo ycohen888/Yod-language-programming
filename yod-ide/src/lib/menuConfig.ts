@@ -69,6 +69,16 @@ export const APP_MENU: MenuGroup[] = [
     ],
   },
   {
+    id: "code",
+    label: "קוד",
+    items: [
+      { label: "קבע נקודה", action: "code.addBookmark", kb: "Ctrl+B" },
+      { label: "נקודות — הצג לשונית", action: "code.showBookmarks" },
+      { type: "separator" },
+      { label: "נקה את כל הנקודות", action: "code.clearBookmarks" },
+    ],
+  },
+  {
     id: "run",
     label: "הרצה",
     items: [

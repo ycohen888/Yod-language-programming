@@ -12,7 +12,19 @@ export type OpenTab = {
   modelUri: string;
 };
 
-export type PanelKind = "output" | "problems" | "search";
+export type PanelKind = "output" | "problems" | "search" | "bookmarks";
+
+/** נקודה שמורה בקוד — קפיצה מהירה לטאב+שורה. */
+export type Bookmark = {
+  id: string;
+  /** מפתח הטאב (בדרך כלל נתיב הקובץ) */
+  key: string;
+  /** נתיב הקובץ (null לקובץ ללא שם) */
+  path: string | null;
+  /** שם התצוגה של הקובץ */
+  title: string;
+  line: number;
+};
 
 export type Problem = {
   file?: string;
