@@ -3082,6 +3082,89 @@ html[data-bs-theme="light"] #yod-splash-bar {
   color: var(--yod-muted);
   text-decoration: line-through;
 }
+/* קו-חוצה חל רק על עמודת המטלה — לא על תיבת הסימון/כפתורים/תגים */
+.yod-datagrid .tabulator-row.yod-row-done .yod-grid-check,
+.yod-datagrid .tabulator-row.yod-row-done .yod-grid-action,
+.yod-datagrid .tabulator-row.yod-row-done .yod-grid-badge {
+  text-decoration: none;
+}
+
+/* ——— תיבת סימון בתא ——— */
+.yod-grid-check {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 1.6px solid var(--yod-muted);
+  border-radius: 5px;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.yod-grid-check:hover {
+  border-color: var(--yod-accent);
+}
+.yod-grid-check.on {
+  background: var(--yod-accent);
+  border-color: var(--yod-accent);
+}
+.yod-grid-check.on::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ——— כפתורי פעולה בתא (מחיקה וכו') ——— */
+.yod-grid-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+.yod-grid-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--yod-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.yod-grid-action:hover {
+  background: var(--yod-surface-3);
+  color: var(--yod-danger);
+}
+.yod-grid-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ——— אייקון מותאם בכותרת הסרגל העליון ——— */
+.yod-brand-ico {
+  display: inline-flex;
+  align-items: center;
+}
+.yod-brand-ico svg {
+  width: 26px;
+  height: 26px;
+  color: var(--yod-accent);
+}
+.yod-brand-emoji {
+  font-size: 1.4rem;
+  line-height: 1;
+}
 
 /* ——— תג מצב (badge) ——— */
 .yod-grid-badge {

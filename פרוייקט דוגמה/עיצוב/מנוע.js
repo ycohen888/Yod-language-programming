@@ -1125,7 +1125,10 @@
     clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
     pause: '<circle cx="12" cy="12" r="10"/><path d="M10 8v8M14 8v8"/>',
     globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>',
-    alert: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>'
+    alert: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+    moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    dots: '<circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/>',
+    clipboard: '<path d="M9 4h6a1 1 0 0 1 1 1v1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h1V5a1 1 0 0 1 1-1z"/><path d="M9 13l2 2 4-4"/>'
   };
 
   var LABEL_ICO = {
@@ -3627,6 +3630,53 @@
     );
   }
 
+  function gridIsTruthy(v) {
+    return v === true || v === 1 || v === "1" || v === "אמת" || v === "true" || v === "כן";
+  }
+
+  // תיבת סימון אמיתית (לחיצה מחליפה מצב דרך אירוע "עריכה")
+  function gridCheckbox(v) {
+    var on = gridIsTruthy(v);
+    return (
+      '<span class="yod-grid-check' +
+      (on ? " on" : "") +
+      '" role="checkbox" aria-checked="' +
+      (on ? "true" : "false") +
+      '" tabindex="0"></span>'
+    );
+  }
+
+  // עמודת כפתורי פעולה (למשל מחיקה) — לחיצה שולחת אירוע "תפריט"
+  function gridActions(colOpt) {
+    var btns = Array.isArray(colOpt.כפתורים) ? colOpt.כפתורים : [{ פעולה: "מחק", איקון: "trash" }];
+    var html = '<div class="yod-grid-actions">';
+    for (var i = 0; i < btns.length; i++) {
+      var b = btns[i] || {};
+      var act = b.פעולה != null ? String(b.פעולה) : b.תווית != null ? String(b.תווית) : "";
+      var icoKey = b.איקון != null ? String(b.איקון) : "";
+      var inner =
+        icoKey && ICO[icoKey]
+          ? svgIcon(icoKey, "")
+          : gridEscape(b.תווית != null ? String(b.תווית) : act);
+      var title = b.רמז != null ? String(b.רמז) : i18nT(act);
+      var cls = b.סגנון === "סכנה" || b.סגנון === "danger" ? " yod-grid-action-danger" : "";
+      html +=
+        '<button type="button" class="yod-grid-action' +
+        cls +
+        '" data-yod-action="' +
+        gridEscape(act) +
+        '" title="' +
+        gridEscape(title) +
+        '" aria-label="' +
+        gridEscape(title) +
+        '">' +
+        inner +
+        "</button>";
+    }
+    html += "</div>";
+    return html;
+  }
+
   function gridEvalRule(rule, value) {
     var op = rule.מתי != null ? String(rule.מתי) : "שווה";
     var target = rule.ערך;
@@ -3697,6 +3747,14 @@
         case "checkbox":
         case "tick":
           html = gridTick(v);
+          break;
+        case "סימון":
+        case "checkbox_input":
+          html = gridCheckbox(v);
+          break;
+        case "פעולות":
+        case "actions":
+          html = gridActions(colOpt);
           break;
         case "קישור":
         case "link":
@@ -4074,6 +4132,45 @@
           מזהה_שורה: rid
         }
       });
+    });
+    this.table.on("cellClick", function (e, cell) {
+      var t = e && e.target;
+      if (!t || !t.closest) return;
+      var d = cell.getRow().getData();
+      var rid = d && d.__id != null ? String(d.__id) : "";
+      var actBtn = t.closest("[data-yod-action]");
+      if (actBtn) {
+        if (e.stopPropagation) e.stopPropagation();
+        post({
+          סוג: "אירוע",
+          שם: "תפריט",
+          ערכים: {
+            מזהה: self.id,
+            סוג: self.type,
+            פעולה: actBtn.getAttribute("data-yod-action"),
+            מזהה_שורה: rid
+          }
+        });
+        return;
+      }
+      var chk = t.closest(".yod-grid-check");
+      if (chk) {
+        if (e.stopPropagation) e.stopPropagation();
+        var cur = cell.getValue();
+        var on = cur === true || cur === 1 || cur === "1" || cur === "אמת" || cur === "true" || cur === "כן";
+        post({
+          סוג: "אירוע",
+          שם: "עריכה",
+          ערכים: {
+            מזהה: self.id,
+            סוג: self.type,
+            שדה: cell.getField(),
+            ערך: !on,
+            מזהה_שורה: rid
+          }
+        });
+        return;
+      }
     });
     if (this.multiSelect) {
       this.table.on("rowSelectionChanged", function (data) {
@@ -5449,6 +5546,7 @@
     this.title = i18nT(this.sourceTitle);
     this.items = normMenuItems(opts.פריטים);
     this.value = opts.ערך != null ? String(opts.ערך) : "";
+    this.brandIcon = opts.איקון != null ? String(opts.איקון) : "";
     this.brandEl = null;
     this.listEl = null;
     this.megaHost = null;
@@ -5460,13 +5558,24 @@
     nav.className = "navbar navbar-expand yod-topnav px-3 py-2";
     var brand = document.createElement("span");
     brand.className = "navbar-brand mb-0 h1 fs-5";
-    var mark = document.createElement("img");
-    mark.className = "yod-brand-mark";
-    mark.alt = "יוד";
-    mark.width = 28;
-    mark.height = 28;
-    mark.decoding = "async";
-    mark.src = global.__יוד_לוגו || "לוגו-יוד.png";
+    var mark;
+    if (this.brandIcon && ICO[this.brandIcon]) {
+      mark = document.createElement("span");
+      mark.className = "yod-brand-mark yod-brand-ico";
+      mark.innerHTML = svgIcon(this.brandIcon, "");
+    } else if (this.brandIcon) {
+      mark = document.createElement("span");
+      mark.className = "yod-brand-mark yod-brand-emoji";
+      mark.textContent = this.brandIcon;
+    } else {
+      mark = document.createElement("img");
+      mark.className = "yod-brand-mark";
+      mark.alt = "יוד";
+      mark.width = 28;
+      mark.height = 28;
+      mark.decoding = "async";
+      mark.src = global.__יוד_לוגו || "לוגו-יוד.png";
+    }
     var titleSpan = document.createElement("span");
     titleSpan.className = "yod-brand-title";
     titleSpan.textContent = this.title || "תפריט";
