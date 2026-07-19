@@ -295,6 +295,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const statesRef = useRef<Map<string, EditorState>>(new Map());
+  const scrollRef = useRef<Map<string, { top: number; left: number }>>(new Map());
   const activeKeyRef = useRef<string | null>(null);
   const fontSizeRef = useRef(BASE_FONT);
   const [contentDir, setContentDir] = useState<"rtl" | "ltr">("rtl");
@@ -310,12 +311,37 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     setContentDir(rtl ? "rtl" : "ltr");
   };
 
+  const saveScroll = (key: string | null) => {
+    const view = viewRef.current;
+    if (!view || !key) return;
+    scrollRef.current.set(key, {
+      top: view.scrollDOM.scrollTop,
+      left: view.scrollDOM.scrollLeft,
+    });
+  };
+
+  const restoreScroll = (key: string) => {
+    const view = viewRef.current;
+    if (!view) return;
+    const pos = scrollRef.current.get(key);
+    const apply = () => {
+      const v = viewRef.current;
+      if (!v) return;
+      v.scrollDOM.scrollTop = pos ? pos.top : 0;
+      v.scrollDOM.scrollLeft = pos ? pos.left : 0;
+    };
+    // מיד + אחרי מדידה מחדש, כי setState מרנדר מחדש את התוכן
+    apply();
+    view.requestMeasure({ read: () => null, write: apply });
+  };
+
   const recreateActiveWithFont = (size: number) => {
     const view = viewRef.current;
     const key = activeKeyRef.current;
     if (!view || !key) return;
     const text = view.state.doc.toString();
     const sel = view.state.selection;
+    saveScroll(key);
     const state = EditorState.create({
       doc: text,
       selection: sel,
@@ -329,6 +355,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     });
     statesRef.current.set(key, state);
     view.setState(state);
+    restoreScroll(key);
   };
 
   useEffect(() => {
@@ -389,9 +416,14 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     activate(key) {
       const view = viewRef.current;
       if (!view) return;
+      if (activeKeyRef.current === key) {
+        view.focus();
+        return;
+      }
       if (activeKeyRef.current) {
         statesRef.current.set(activeKeyRef.current, view.state);
         setLiveDocument(activeKeyRef.current, view.state.doc.toString());
+        saveScroll(activeKeyRef.current);
       }
       let state = statesRef.current.get(key);
       if (!state) {
@@ -412,9 +444,11 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       setLiveDocument(key, state.doc.toString());
       syncHostDir(key);
       view.focus();
+      restoreScroll(key);
     },
     closeDocument(key) {
       statesRef.current.delete(key);
+      scrollRef.current.delete(key);
       clearLiveDocument(key);
       if (activeKeyRef.current === key) {
         activeKeyRef.current = null;
