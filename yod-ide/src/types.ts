@@ -33,6 +33,23 @@ export type Problem = {
   severity: "error" | "warning" | "info";
 };
 
+/** פריט ברשימת "נפתחו לאחרונה". */
+export type RecentEntry = {
+  kind: "folder" | "file";
+  path: string;
+};
+
+/** מצב סשן שנשמר בין הפעלות. */
+export type SessionState = {
+  root: string | null;
+  /** נתיבי הקבצים הפתוחים (טאבים ללא-שם לא נשמרים) */
+  tabs: string[];
+  /** מפתח הטאב הפעיל */
+  activeKey: string | null;
+  /** מיקום שורת הסמן לכל קובץ */
+  lines: Record<string, number>;
+};
+
 export type CommandItem = {
   id: string;
   label: string;

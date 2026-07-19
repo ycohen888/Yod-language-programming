@@ -5,9 +5,11 @@ type Props = {
   onAction: (action: string) => void;
   /** פעולות שצריך לכבות (למשל פתח מיקום EXE בלי dist_exe). */
   disabledActions?: ReadonlySet<string>;
+  /** פריטים דינמיים שמצורפים לסוף קבוצה לפי מזהה (למשל "נפתחו לאחרונה"). */
+  dynamicItems?: Record<string, MenuEntry[]>;
 };
 
-export function MenuBar({ onAction, disabledActions }: Props) {
+export function MenuBar({ onAction, disabledActions, dynamicItems }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +55,7 @@ export function MenuBar({ onAction, disabledActions }: Props) {
           </button>
           {openId === group.id ? (
             <div className="menubar-dropdown" role="menu">
-              {group.items.map((entry, i) =>
+              {[...group.items, ...(dynamicItems?.[group.id] ?? [])].map((entry, i) =>
                 entry.type === "separator" ? (
                   <div key={`sep-${i}`} className="menubar-sep" />
                 ) : (

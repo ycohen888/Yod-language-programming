@@ -2,13 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { CodeEditor, type CodeEditorHandle } from "./components/CodeEditor";
 import { Icon } from "./components/Icon";
 import { MenuBar } from "./components/MenuBar";
+import { Breadcrumbs } from "./components/Breadcrumbs";
+import type { MenuEntry } from "./lib/menuConfig";
 import { TreeContextMenu, type TreeCtxItem } from "./components/TreeContextMenu";
 import { TreeInlineInput } from "./components/TreeInlineInput";
 import { parseProblems, pathBase, pathDir, resolveFilePath, isYodFamilyFile, joinPath } from "./lib/paths";
 import { formatYodSource } from "./lib/yodFormat";
 import { buildProjectIndex, clearProjectIndex, getMergedSymbols, getProjectIndex, getSymbolsForFile, type ProjectSymbol } from "./lib/projectIndex";
-import type { Bookmark, CommandItem, OpenTab, PanelKind, Problem } from "./types";
+import type { Bookmark, CommandItem, OpenTab, PanelKind, Problem, RecentEntry } from "./types";
 import { SymbolTree } from "./components/SymbolTree";
+import { clearRecent, getRecent, loadSession, pushRecent, saveSession } from "./lib/session";
 import "./styles/app.css";
 
 let untitledSeq = 1;
@@ -69,6 +72,7 @@ export default function App() {
   const [output, setOutput] = useState("");
   const [problems, setProblems] = useState<Problem[]>([]);
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [recent, setRecent] = useState<RecentEntry[]>(() => getRecent());
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQ, setPaletteQ] = useState("");
   const [paletteIdx, setPaletteIdx] = useState(0);
@@ -93,6 +97,9 @@ export default function App() {
   const treeSelectedRef = useRef(treeSelected);
   const cursorRef = useRef(cursor);
   const savingRef = useRef(false);
+  const tabLinesRef = useRef<Record<string, number>>({});
+  const openedFromArgRef = useRef(false);
+  const readyToSaveRef = useRef(false);
 
   tabsRef.current = tabs;
   activeKeyRef.current = activeKey;
@@ -142,6 +149,7 @@ export default function App() {
         const kids = await window.yod.readDir(dir);
         setTreeChildren((prev) => ({ ...prev, [dir]: kids }));
         setStatus(`פרויקט: ${pathBase(dir)}`);
+        setRecent(pushRecent("folder", dir));
         void reindexProject(dir);
         return kids;
       } catch (e) {
@@ -362,6 +370,7 @@ export default function App() {
           editorRef.current?.activate(key);
           editorRef.current?.focus();
         });
+        setRecent(pushRecent("file", resolved));
         setStatus(`נפתח: ${pathBase(resolved)}`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -981,7 +990,15 @@ export default function App() {
   const handleMenu = useCallback(
     async (action: string) => {
       const ed = editorRef.current;
+      if (action.startsWith("recent:open:")) {
+        const p = action.slice("recent:open:".length);
+        await openPath(p);
+        return;
+      }
       switch (action) {
+        case "file.clearRecent":
+          setRecent(clearRecent());
+          break;
         case "file.new":
           if (rootRef.current) await beginCreate("create-file");
           else newUntitled();
@@ -1275,6 +1292,8 @@ export default function App() {
       setYodExe(p.yodExe);
     });
     const offPath = window.yod.onOpenPath((p) => {
+      openedFromArgRef.current = true;
+      readyToSaveRef.current = true;
       void openPath(p);
     });
     const offMenu = window.yod.onMenu((action) => {
@@ -1285,6 +1304,75 @@ export default function App() {
       offMenu();
     };
   }, [openPath, handleMenu]);
+
+  // שחזור סשן: אם לא נפתח נתיב מ-argv, טוענים את הסשן האחרון (תיקייה + טאבים + סמן)
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        if (cancelled || openedFromArgRef.current) {
+          readyToSaveRef.current = true;
+          return;
+        }
+        const s = loadSession();
+        if (!s || !s.root) {
+          readyToSaveRef.current = true;
+          return;
+        }
+        try {
+          await loadProjectRoot(s.root);
+          for (const p of s.tabs) {
+            try {
+              await openFile(p);
+            } catch {
+              /* קובץ חסר — מדלגים בשקט */
+            }
+          }
+          tabLinesRef.current = { ...s.lines };
+          const openPaths = tabsRef.current.filter((t) => t.path).map((t) => t.path as string);
+          const active =
+            s.activeKey && openPaths.includes(s.activeKey)
+              ? s.activeKey
+              : openPaths[openPaths.length - 1] ?? null;
+          if (active) {
+            activateTab(active);
+            const line = s.lines?.[active];
+            if (line) requestAnimationFrame(() => editorRef.current?.revealLine(line));
+          }
+        } catch {
+          /* שחזור נכשל — ממשיכים ריק */
+        } finally {
+          readyToSaveRef.current = true;
+        }
+      })();
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // שמירת סשן (debounce) כשמשתנים תיקייה/טאבים/טאב פעיל/שורת סמן
+  useEffect(() => {
+    if (!readyToSaveRef.current) return;
+    const handle = setTimeout(() => {
+      const fileTabs = tabs.filter((t) => t.path).map((t) => t.path as string);
+      const activeIsFile = tabs.some((t) => t.key === activeKey && t.path);
+      if (activeKey && activeIsFile) tabLinesRef.current[activeKey] = cursor.line;
+      const lines: Record<string, number> = {};
+      for (const p of fileTabs) {
+        if (tabLinesRef.current[p] != null) lines[p] = tabLinesRef.current[p];
+      }
+      saveSession({
+        root,
+        tabs: fileTabs,
+        activeKey: activeIsFile ? activeKey : null,
+        lines,
+      });
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [root, tabs, activeKey, cursor.line]);
 
   // סימוני gutter בעורך לפי תוצאות F7 / הרצה
   useEffect(() => {
@@ -1625,6 +1713,22 @@ export default function App() {
     [distExeExists]
   );
 
+  // פריטי "נפתחו לאחרונה" בתפריט קובץ
+  const dynamicMenuItems = useMemo(() => {
+    if (recent.length === 0) return undefined;
+    const items: MenuEntry[] = [{ type: "separator" }];
+    for (const e of recent) {
+      items.push({
+        label: pathBase(e.path) || e.path,
+        action: `recent:open:${e.path}`,
+        kb: e.kind === "folder" ? "תיקייה" : "קובץ",
+      });
+    }
+    items.push({ type: "separator" });
+    items.push({ label: "נקה רשימת אחרונים", action: "file.clearRecent" });
+    return { file: items };
+  }, [recent]);
+
   const sidebarTitle =
     sidebarView === "files" ? "סייר" : sidebarView === "outline" ? "ניתוח קובץ" : "סימבולי פרויקט";
 
@@ -1660,7 +1764,11 @@ export default function App() {
         <div className="brand" title="יוד">
           <img className="brand-icon" src={`${import.meta.env.BASE_URL}icon.png`} alt="יוד" width={16} height={16} />
         </div>
-        <MenuBar onAction={(a) => void handleMenu(a)} disabledActions={disabledMenuActions} />
+        <MenuBar
+          onAction={(a) => void handleMenu(a)}
+          disabledActions={disabledMenuActions}
+          dynamicItems={dynamicMenuItems}
+        />
         <div style={{ marginInlineStart: "auto", color: "var(--fg-dim)", fontSize: 12 }}>
           {root ? pathBase(root) : "אין פרויקט"}
         </div>
@@ -1844,6 +1952,20 @@ export default function App() {
             ))}
           </div>
 
+          <div className="breadcrumbs-slot">
+            {activeTab ? (
+              <Breadcrumbs
+                root={root}
+                path={activeTab.path}
+                title={activeTab.title}
+                tabKey={activeTab.key}
+                cursorLine={cursor.line}
+                refreshKey={symbolTick}
+                onJumpSymbol={(s) => void navigateToSymbol(s)}
+              />
+            ) : null}
+          </div>
+
           <div className="editor-wrap">
             {busy ? <div className="busy-bar" /> : null}
             {tabs.length === 0 ? (
@@ -1908,7 +2030,10 @@ export default function App() {
                     return next.length === prev.length ? prev : next;
                   });
                 }}
-                onCursor={(line, col) => setCursor({ line, col })}
+                onCursor={(line, col) => {
+                  setCursor({ line, col });
+                  if (activeKeyRef.current) tabLinesRef.current[activeKeyRef.current] = line;
+                }}
               />
             </div>
           </div>
