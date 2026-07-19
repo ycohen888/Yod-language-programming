@@ -3,7 +3,6 @@ package compiler
 import (
 	"fmt"
 	"math"
-	"os"
 	"path/filepath"
 
 	"yod/internal/ast"
@@ -12,6 +11,7 @@ import (
 	"yod/internal/object"
 	"yod/internal/parser"
 	"yod/internal/stdlib"
+	"yod/internal/vfs"
 )
 
 type EmittedInstruction struct {
@@ -691,7 +691,7 @@ func (c *Compiler) compileInclude(node *ast.IncludeStatement) error {
 	if c.included[full] {
 		return nil
 	}
-	data, err := os.ReadFile(full)
+	data, err := vfs.ReadPrefer(full)
 	if err != nil {
 		return fmt.Errorf("לא הצלחתי לכלול את %q: %v", path, err)
 	}

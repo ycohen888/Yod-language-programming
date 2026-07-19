@@ -24,6 +24,7 @@ type yodTimer struct {
 	paused   atomic.Bool
 	stopped  atomic.Bool
 	canceled atomic.Bool // עצירה מפורשת (עצור) — לא סיום רגיל של טיימר חד־פעמי
+	lastFire time.Time
 }
 
 const (
@@ -43,7 +44,7 @@ func NewTimersModule() *object.Module {
 	// מילישניות — מומלץ למשחקים / Dashboards
 	m.Attrs["טיימר"] = &object.Builtin{Fn: timerMsEvery}
 	m.Attrs["אחרי"] = &object.Builtin{Fn: timerMsOnce}
-	// שניות — תאימות לאחור
+	// שניות — כינויי תאימות לאחור (אותה מערכת)
 	m.Attrs["כל_כמה"] = &object.Builtin{Fn: timerEvery}
 	m.Attrs["פעם_אחת"] = &object.Builtin{Fn: timerOnce}
 	m.Attrs["עצור"] = &object.Builtin{Fn: timerStop}
@@ -163,17 +164,56 @@ func fireTimer(t *yodTimer) {
 	// חשוב: Synchronize של Walk הוא אסינכרוני (תור + PostMessage).
 	// טיימר חד־פעמי מסמן stopped מיד אחרי enqueue — אסור לבדוק stopped כאן,
 	// אחרת הקולבק לעולם לא רץ (למשל AI נשאר על «חושב»).
+	now := time.Now()
+	dt := t.interval.Seconds()
+	if !t.lastFire.IsZero() {
+		dt = now.Sub(t.lastFire).Seconds()
+	}
+	t.lastFire = now
+	if dt < 0 {
+		dt = 0
+	}
+	args := timerCallbackArgs(t.fn, dt)
 	run := func() {
 		if t.canceled.Load() {
 			return
 		}
-		invokeYod(t.fn, nil)
+		invokeYod(t.fn, args)
 	}
 	if syncFn != nil {
 		syncFn(run)
 		return
 	}
 	run()
+}
+
+// timerCallbackArgs — אם לפונקציה יש לפחות פרמטר אחד, מועבר dt בשניות (תאימות לאחור בלי ארגומנט).
+func timerCallbackArgs(fn object.Object, dt float64) []object.Object {
+	if timerFnArity(fn) < 1 {
+		return nil
+	}
+	return []object.Object{&object.Number{Value: dt}}
+}
+
+func timerFnArity(fn object.Object) int {
+	switch f := fn.(type) {
+	case *object.Function:
+		return len(f.Parameters)
+	case *object.CompiledFunction:
+		return f.NumParameters
+	case *object.Closure:
+		if f.Fn != nil {
+			return f.Fn.NumParameters
+		}
+	case *object.BoundMethod:
+		if f.Function != nil {
+			return len(f.Function.Parameters)
+		}
+		if f.CompiledFn != nil {
+			return f.CompiledFn.NumParameters
+		}
+	}
+	return 0
 }
 
 func timerStop(args ...object.Object) object.Object {
@@ -251,6 +291,7 @@ func timerResume(args ...object.Object) object.Object {
 	t := timersByID[int64(n.Value)]
 	timerMu.Unlock()
 	if t != nil {
+		t.lastFire = time.Time{}
 		t.paused.Store(false)
 	}
 	return object.Nil

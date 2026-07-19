@@ -63,7 +63,7 @@ func Init() {
 }
 
 // HideIfOwned מסתיר את חלון ה־CMD רק אם התהליך לבד בקונסול
-// (לחיצה כפולה מסייר / קיצור דרך) — לא כשמריצים מתוך טרמינל קיים.
+// (לחיצה כפולה / Start-Process / הרצת GUI) — לא כשמריצים מתוך טרמינל קיים.
 func HideIfOwned() {
 	var buf [8]uint32
 	r1, _, _ := procGetConsoleProcessList.Call(

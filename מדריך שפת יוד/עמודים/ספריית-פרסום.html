@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מערכת פרסום | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.99.0</span><strong>פרסום</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+
+    <article class="article">
+      <h1>מערכת פרסום מובנית</h1>
+      <p class="lead">
+        רצועת פרסומת נעוצה בתחתית התוכנה, לשימוש חוזר בכל תוכנה חופשית שתשחררו.
+        הפרסומות נשלפות <strong>משרת מרוחק</strong> (JSON) בבקשת HTTP <strong>אסינכרונית</strong> (לא חוסמת את הממשק),
+        ומתחלפות אוטומטית. שתי יחידות: הפקד <code>כרזת_פרסום</code> (בספריית העיצוב) והמנהל <code>פרסום.יוד</code>.
+      </p>
+
+      <div class="callout tip">
+        מבוסס על ספריית העיצוב (<code>חלונות.דפדפן</code>) ועל HTTP האסינכרוני של ספריית הרשת.
+        חובה לכלול את <code>פרסום.יוד</code> <strong>לפני</strong> <code>עיצוב_הכל.יוד</code> (כי העיצוב מגדיר מחלקה בשם «רשת»).
+      </div>
+
+      <h2>התחלה מהירה</h2>
+      <figure class="example">
+        <span class="example-label">שילוב בתוכנה</span>
+        <pre class="code-block">כלול "רשת"
+// מנהל הפרסום — לפני ספריית העיצוב
+כלול "..\עיצוב\פרסום.יוד"
+כלול "..\עיצוב\עיצוב_הכל.יוד"
+
+// אחרי בניית הממשק, לפני חלון.הצג():
+משתנה כרזה = חדש כרזת_פרסום: ""
+אתחל_פרסום(כרזה)</pre>
+      </figure>
+
+      <h2>מנהל הפרסום — <code>פרסום.יוד</code></h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>אתחל_פרסום(באנר)</code></td><td>מקשר את הכרזה, מחבר קליק לפתיחת הקישור בדפדפן, ומתחיל שליפה ראשונה</td></tr>
+          <tr><td><code>עצור_פרסום()</code></td><td>עוצר את מחזורי השליפה (למשל בסגירת התוכנה)</td></tr>
+          <tr><td><code>כתובת_שרת_פרסום</code></td><td>קבוע — כתובת קובץ ה-JSON בשרת שלכם (מלאו לכתובת האמיתית)</td></tr>
+          <tr><td><code>מרווח_החלפה_דקות</code></td><td>קבוע — כל כמה דקות מתחלפת פרסומת (ברירת מחדל 5; ניתן לגבור מהשרת)</td></tr>
+          <tr><td><code>מרווח_ניסיון_ראשוני_שניות</code></td><td>קבוע — כל כמה שניות מנסים שוב כשאין אינטרנט (ברירת מחדל 30)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>הפקד — <code>כרזת_פרסום</code></h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>מתודה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>קבע_פרסומת(תמונה, קישור, כותרת)</code></td><td>מציג פרסומת אחת עם מעבר fade ומרחיב את הרצועה</td></tr>
+          <tr><td><code>הצג()</code> / <code>הסתר()</code></td><td>הרחבה / קיפול הרצועה (מקופל = לא תופס מקום)</td></tr>
+          <tr><td><code>בלחיצה(פונקציה)</code></td><td>קולבק קליק — מקבל את הקישור (המנהל מחבר אותו לפתיחת דפדפן)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>התנהגות לפי חיבור אינטרנט</h2>
+      <ul>
+        <li><strong>עלייה עם אינטרנט</strong> → שליפה מצליחה → הכרזה מופיעה ותופסת מקום בתחתית.</li>
+        <li><strong>עלייה בלי אינטרנט</strong> → הכרזה מקופלת (בלי מקום); ניסיון חוזר כל ~30 שנ'. ברגע שהאינטרנט חוזר — הכרזה מופיעה.</li>
+        <li><strong>אחרי שהוצגה פרסומת ואבד האינטרנט</strong> → הכרזה נשארת עם הפרסומת הנוכחית ופשוט לא מתחלפת.</li>
+        <li><strong>כשיש אינטרנט</strong> → הפרסומת מתחלפת כל 5 דקות.</li>
+      </ul>
+
+      <h2>פורמט ה-JSON בשרת</h2>
+      <figure class="example">
+        <span class="example-label">פרסומות.json (מארחים אצלכם)</span>
+        <pre class="code-block">{
+  "מרווח_דקות": 5,
+  "פרסומות": [
+    { "תמונה": "https://servxx.com/ads/monitor.png", "קישור": "https://servxx.com/monitor", "כותרת": "יוד מוניטור" },
+    { "תמונה": "https://servxx.com/ads/servxx-dev.png", "קישור": "https://servxx.com", "כותרת": "servxx — פיתוח תוכנה" }
+  ]
+}</pre>
+      </figure>
+      <p class="hint">
+        <code>מרווח_דקות</code> אופציונלי — גובר על ברירת המחדל. התמונות נטענות ישירות מ-URL מרוחק
+        (WebView2 מתיר משאבים מרוחקים). קובץ דוגמה: <code>פרוייקט דוגמה/עיצוב/פרסום_דוגמה.json</code>.
+      </p>
+
+      <div class="callout tip">
+        פעיל בתוכנות החופשיות <code>פרוייקט דוגמה/מוניטור/</code> ו-<code>פרוייקט דוגמה/גיבוי/</code>.
+        ההפעלה היא opt-in: רק תוכנות שקוראות ל-<code>אתחל_פרסום</code> מציגות כרזה.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

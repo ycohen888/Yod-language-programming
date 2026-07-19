@@ -16,7 +16,7 @@
   <div class="guide-main">
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">0.75.0</span><strong>משימה</strong></div>
+      <div class="brand"><span class="eyebrow">0.99.0</span><strong>משימה</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
@@ -37,6 +37,18 @@
 הדפס: ר[0], ר[1]</pre>
       <div class="callout warn">
         <strong>חלונות:</strong> אל תיגעו ב־UI מתוך <code>משימה</code> — רק מחוט הראשי של האירועים.
+      </div>
+      <h2>בטיחות ריצה (0.99.0)</h2>
+      <p>מנוע יוד עכשיו מריץ קוד יוד תחת <strong>מנעול ריצה גלובלי</strong> — רק goroutine אחד מריץ קוד יוד בכל רגע. לכן <code>משימה</code> בטוחה: אין יותר data race על מצב משותף, והיא עובדת גם במפרש וגם ב־<code>מכונה</code> (VM).</p>
+      <ul>
+        <li><code>המתן</code> ו־<code>במקביל</code> משחררים את המנעול בזמן ההמתנה, כדי שהמשימות עצמן יוכלו לרוץ (בלי deadlock).</li>
+        <li>פעולות חוסמות מובנות (רשת, אימייל, צריבת סרטון, לולאת חלונות) משחררות את המנעול בזמן ה־I/O — כך שכשעוטפים אותן ב־<code>משימה</code>, ה־UI ממשיך להגיב ואין "מסך שחור".</li>
+      </ul>
+      <div class="callout">
+        <strong>מתי משימה עוזרת:</strong> להסעת פעולות <em>חוסמות I/O</em> (רשת/דיסק/תהליך חיצוני) לרקע. לחישוב CPU טהור וכבד, המנעול הגלובלי עדיין מסדר ריצה אחת בכל רגע — לכן עדיף לפצל עבודה ולעדכן UI דרך <code>טיימרים.אחרי</code>.
+      </div>
+      <div class="callout">
+        <strong>דפוס לא-חוסם מומלץ ל־UI:</strong> לספריות רשת/אימייל/הקלטה יש גרסאות <em>אסינכרוניות</em> בדפוס <code>התחל</code> → <code>מצב</code> → <code>בטל</code>: מתחילים פעולה שמחזירה מזהה, ומבצעים פוללינג עם <code>טיימרים.אחרי</code>. ראו <a href="ספריית-רשת.html">רשת</a>, <a href="ספריית-אימייל.html">אימייל</a>, <a href="ספריית-הקלטה.html">הקלטה</a>.
       </div>
       <nav class="page-nav">
         <a href="טיפוסים-תוצאה.html"><span class="dir">הקודם</span><span class="title">טיפוסים</span></a>

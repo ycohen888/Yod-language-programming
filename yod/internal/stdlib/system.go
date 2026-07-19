@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"os/user"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -16,6 +17,7 @@ func NewSystemModule() *object.Module {
 	m.Attrs["סביבה"] = &object.Builtin{Fn: sysEnv}
 	m.Attrs["צא"] = &object.Builtin{Fn: sysExit}
 	m.Attrs["תיקייה"] = &object.Builtin{Fn: sysCwd}
+	m.Attrs["תיקיית_הרצה"] = &object.Builtin{Fn: sysRunDir}
 	m.Attrs["שנה_תיקייה"] = &object.Builtin{Fn: sysChdir}
 	// מידע מערכת הפעלה / חומרה / רשת
 	m.Attrs["שם_מחשב"] = &object.Builtin{Fn: sysHostname}
@@ -36,6 +38,9 @@ func NewSystemModule() *object.Module {
 	m.Attrs["שימוש_מעבד"] = &object.Builtin{Fn: sysCPUUsage}
 	m.Attrs["זמן_פעיל"] = &object.Builtin{Fn: sysUptime}
 	m.Attrs["כוננים"] = &object.Builtin{Fn: sysDrives}
+	m.Attrs["הוסף_להפעלה"] = &object.Builtin{Fn: sysAddStartup}
+	m.Attrs["הסר_מהפעלה"] = &object.Builtin{Fn: sysRemoveStartup}
+	m.Attrs["רשום_בהפעלה"] = &object.Builtin{Fn: sysIsStartup}
 	return m
 }
 
@@ -83,6 +88,27 @@ func sysCwd(args ...object.Object) object.Object {
 	dir, err := os.Getwd()
 	if err != nil {
 		return errObj("לא הצלחתי לקרוא תיקייה נוכחית: " + err.Error())
+	}
+	return &object.String{Value: dir}
+}
+
+// מערכת.תיקיית_הרצה() — תיקיית הפרויקט/ה־EXE (לא cwd), מתאים לאריזה.
+func sysRunDir(args ...object.Object) object.Object {
+	if len(args) != 0 {
+		return errObj("מערכת.תיקיית_הרצה מצפה ל־0 ארגומנטים")
+	}
+	if d := AppBaseDir(); d != "" {
+		return &object.String{Value: d}
+	}
+	if exe, err := os.Executable(); err == nil {
+		if resolved, err2 := filepath.EvalSymlinks(exe); err2 == nil {
+			exe = resolved
+		}
+		return &object.String{Value: filepath.Dir(exe)}
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		return errObj("לא הצלחתי לקרוא תיקיית הרצה: " + err.Error())
 	}
 	return &object.String{Value: dir}
 }

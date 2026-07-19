@@ -4,6 +4,7 @@ import "yod/internal/object"
 
 // NewChartsModule — גרפים מקצועיים לחלון (עמודות / קו / עוגה).
 // הרכיבים הם GuiWidget ומוסיפים עם חלונות.חלון.הוסף.
+// חלונות.גרף הוא אותו יישום (winCreateChart) — ספרייה זו היא ה-API המומלץ.
 func NewChartsModule() *object.Module {
 	m := &object.Module{Name: "גרפים", Attrs: map[string]object.Object{}}
 	m.Attrs["גרף"] = &object.Builtin{Fn: chartsCreate}

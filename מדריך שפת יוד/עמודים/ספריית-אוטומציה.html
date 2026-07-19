@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית אוטומציה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.99 · Windows</span><strong>אוטומציה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית אוטומציה</h1>
+      <p class="lead">
+        שליטה גלובלית בעכבר ובמקלדת, קיצורי מקשים, איתור חלונות וצילום מסך.
+        שונה מ־<a href="ספריית-עכבר.html">עכבר</a> / <a href="ספריית-מקלדת.html">מקלדת</a> (קריאה בלבד).
+      </p>
+
+      <div class="callout tip">
+        <strong>אזהרה:</strong> עלול להפעיל אנטי־וירוס — השתמשו באחריות.
+      </div>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead><tr><th>פונקציה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>הזז_עכבר</code> / <code>לחץ_עכבר</code></td><td>סמן ולחיצות</td></tr>
+          <tr><td><code>גרור_עכבר(x1,y1,x2,y2)</code></td><td>גרירה עם לחיצה שמאלית</td></tr>
+          <tr><td><code>גלגל_עכבר(דלתא)</code></td><td>גלילה (+ למעלה, − למטה)</td></tr>
+          <tr><td><code>הקלד</code> / <code>הקלד_מעכב(טקסט [, מ״ש])</code></td><td>Unicode; עיכוב בין תווים</td></tr>
+          <tr><td><code>לחץ_מקש</code> / <code>קיצור</code></td><td>כולל חצים, מחק, Home/End, F1–F24</td></tr>
+          <tr><td><code>החזק</code> / <code>שחרר</code></td><td>מקשי מודד</td></tr>
+          <tr><td><code>מצא_חלון</code> / <code>רשימת_חלונות</code></td><td>לפי כותרת (*)</td></tr>
+          <tr><td><code>המתן_עד_חלון(נוסחת, מ״ש)</code></td><td>מחזיר חלון או <code>ריק</code></td></tr>
+          <tr><td><code>הפעל_חלון</code> / <code>מלבן_חלון</code></td><td>מיקוד + גודל</td></tr>
+          <tr><td><code>צלם_מסך</code> / <code>צלם_מסך_לקובץ</code></td><td>מסך מלא או אזור (x,y,רוחב,גובה)</td></tr>
+          <tr><td><code>המתן(מ״ש)</code></td><td>השהייה</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה — קיצור וחלון</h2>
+      <pre class="code-block">כלול "אוטומציה"
+
+משתנה ח = אוטומציה.מצא_חלון("Notepad*")
+אם ח != ריק
+  אוטומציה.הפעל_חלון(ח)
+  אוטומציה.המתן(200)
+  אוטומציה.קיצור(["בקרה", "s"])
+סוף
+
+אוטומציה.צלם_מסך_לקובץ("מסך.jpg")</pre>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

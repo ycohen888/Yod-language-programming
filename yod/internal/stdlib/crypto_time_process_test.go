@@ -35,6 +35,22 @@ func TestCryptoModule(t *testing.T) {
 	if _, ok := hm.(*object.String); !ok {
 		t.Fatalf("HMAC: got %#v", hm)
 	}
+
+	encPass := m.Attrs["הצפן_בסיסמה"].(*object.Builtin)
+	decPass := m.Attrs["פענח_בסיסמה"].(*object.Builtin)
+	blob := encPass.Fn(&object.String{Value: "סוד"}, &object.String{Value: "סיסמה1234"})
+	bs, ok := blob.(*object.String)
+	if !ok || bs.Value == "" {
+		t.Fatalf("הצפן_בסיסמה: %#v", blob)
+	}
+	plain := decPass.Fn(bs, &object.String{Value: "סיסמה1234"})
+	if ps, ok := plain.(*object.String); !ok || ps.Value != "סוד" {
+		t.Fatalf("פענח_בסיסמה: %#v", plain)
+	}
+	bad := decPass.Fn(bs, &object.String{Value: "שגויה"})
+	if _, ok := bad.(*object.Error); !ok {
+		t.Fatalf("פענח עם סיסמה שגויה אמור להיכשל, קיבלנו %#v", bad)
+	}
 }
 
 func TestTimeParseAndParts(t *testing.T) {

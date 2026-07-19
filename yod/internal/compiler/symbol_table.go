@@ -94,6 +94,12 @@ func BuiltinIndex(name string) (int, bool) {
 		return 8, true
 	case "אקראי_בין":
 		return 9, true
+	case "משימה":
+		return 10, true
+	case "המתן":
+		return 11, true
+	case "במקביל":
+		return 12, true
 	default:
 		return 0, false
 	}

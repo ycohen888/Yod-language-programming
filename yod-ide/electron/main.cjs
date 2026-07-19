@@ -25,8 +25,9 @@ function resolveYodExe() {
   const candidates = [
     path.join(path.dirname(process.execPath), "yod.exe"),
     path.join(process.resourcesPath || "", "..", "yod.exe"),
-    path.join(__dirname, "..", "..", "yod.exe"),
+    // בפיתוח: מעדיפים את מנוע Go שבתיקיית yod/ כי הוא נבנה שם בעבודה שוטפת.
     path.join(__dirname, "..", "..", "yod", "yod.exe"),
+    path.join(__dirname, "..", "..", "yod.exe"),
     path.join(__dirname, "..", "yod.exe"),
   ];
   for (const c of candidates) {

@@ -9,7 +9,7 @@ import (
 )
 
 // App יוצר תיקיית הפצה עם המנוע, המניפסט, קובץ התוכנית ומפעילי .bat.
-// אם outDir ריק — נוצרת תיקייה הפצה/<שם> ליד קובץ המקור.
+// אם outDir ריק — נוצרת תיקייה dist_exe ליד/בתוך הפרויקט.
 func App(srcPath string, outDir string) (string, error) {
 	srcPath = filepath.Clean(srcPath)
 	data, err := os.ReadFile(srcPath)
@@ -22,7 +22,8 @@ func App(srcPath string, outDir string) (string, error) {
 		base = "תוכנית"
 	}
 	if outDir == "" {
-		outDir = filepath.Join(filepath.Dir(srcPath), "הפצה", base)
+		outDir = filepath.Join(filepath.Dir(srcPath), "dist_exe")
+		// אם המקור בתוך פרויקט עם התחל.יוד בתיקיית האב — עדיף דרך CLI (DefaultDistDir)
 	}
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return "", fmt.Errorf("לא הצלחתי ליצור תיקייה %s: %v", outDir, err)
@@ -30,7 +31,7 @@ func App(srcPath string, outDir string) (string, error) {
 
 	progName := filepath.Base(srcPath)
 	progDest := filepath.Join(outDir, progName)
-	if err := os.WriteFile(progDest, data, 0644); err != nil {
+	if err := os.WriteFile(progDest, rewriteSiblingIncludes(data), 0644); err != nil {
 		return "", err
 	}
 
@@ -69,8 +70,8 @@ func App(srcPath string, outDir string) (string, error) {
 		_ = os.WriteFile(manifestDest, []byte(DefaultManifest), 0644)
 	}
 
-	// העתקת איקון הפרויקט (יוד.ico / app.ico) להפצה — לחלון ולפס משימות
-	_ = copyProjectIcon(filepath.Dir(srcPath), outDir)
+	// העתקת איקון הפרויקט (פרטי או יוד) להפצה — לחלון ולפס משימות
+	_ = copyProjectIcon(srcPath, outDir)
 
 	readme := "תוכנית יוד — הפצה\r\n" +
 		"==================\r\n\r\n" +
@@ -119,33 +120,16 @@ func copyFile(src, dst string) error {
 	return out.Close()
 }
 
-// copyProjectIcon מעתיק יוד.ico / app.ico מתיקיית המקור ליעד (להצגה בחלון ובפס משימות).
-func copyProjectIcon(srcDir, destDir string) error {
-	for _, name := range []string{"יוד.ico", "yod.ico", "app.ico", "icon.ico"} {
-		src := filepath.Join(srcDir, name)
-		if st, err := os.Stat(src); err != nil || st.IsDir() {
-			continue
-		}
-		// גם עותק כ־יוד.ico — כך חלונות ופס המשימות מוצאים אותו
-		_ = copyFile(src, filepath.Join(destDir, "יוד.ico"))
-		return copyFile(src, filepath.Join(destDir, name))
+// copyProjectIcon מעתיק איקון פרטי (או של יוד) לתיקיית ההפצה — לחלון ולפס משימות.
+func copyProjectIcon(srcPath, destDir string) error {
+	icoPath, icoTemp, err := resolvePackIcon(srcPath)
+	if err != nil || icoPath == "" {
+		return err
 	}
-	// ברירת מחדל: איקון העורך ליד yod.exe
-	if exe, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exe)
-		for _, name := range []string{"יוד.ico", "yod.ico"} {
-			src := filepath.Join(dir, name)
-			if st, err := os.Stat(src); err != nil || st.IsDir() {
-				continue
-			}
-			_ = copyFile(src, filepath.Join(destDir, "יוד.ico"))
-			return copyFile(src, filepath.Join(destDir, "yod.ico"))
-		}
-		assets := filepath.Join(dir, "yod", "assets", "yod.ico")
-		if st, err := os.Stat(assets); err == nil && !st.IsDir() {
-			_ = copyFile(assets, filepath.Join(destDir, "יוד.ico"))
-			return copyFile(assets, filepath.Join(destDir, "yod.ico"))
-		}
+	if icoTemp {
+		defer os.Remove(icoPath)
 	}
-	return nil
+	_ = copyFile(icoPath, filepath.Join(destDir, "app.ico"))
+	_ = copyFile(icoPath, filepath.Join(destDir, "יוד.ico"))
+	return copyFile(icoPath, filepath.Join(destDir, "yod.ico"))
 }

@@ -3,15 +3,19 @@
 package stdlib
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 	xdraw "golang.org/x/image/draw"
 
+	"yod/internal/draw2d"
 	"yod/internal/object"
 )
 
@@ -154,20 +158,48 @@ func winCreateCanvas(args ...object.Object) object.Object {
 	if ww < 40 || hh < 40 || ww > 4000 || hh > 4000 {
 		return errObj("גודל משטח לא תקין (40–4000)")
 	}
-	img := image.NewRGBA(image.Rect(0, 0, ww, hh))
-	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
-	board := &drawBoard{
-		img:    img,
-		stroke: color.RGBA{0, 0, 0, 255},
-		fill:   color.RGBA{200, 200, 200, 255},
-		width:  2,
-		fontSz: 16,
+	dpi := screenDPI()
+	pw, ph := dipToPixels(ww, dpi), dipToPixels(hh, dpi)
+	if pw < 40 {
+		pw = 40
 	}
+	if ph < 40 {
+		ph = 40
+	}
+	if pw > 8000 {
+		pw = 8000
+	}
+	if ph > 8000 {
+		ph = 8000
+	}
+	img := image.NewRGBA(image.Rect(0, 0, pw, ph))
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
+	dpr := float64(dpi) / 96.0
+	if dpr < 1 {
+		dpr = 1
+	}
+	backend := draw2d.NewBackend(pw, ph, dpi)
+	board := &drawBoard{
+		img:     backend.Buffer(),
+		backend: backend,
+		stroke:  color.RGBA{0, 0, 0, 255},
+		fill:    color.RGBA{200, 200, 200, 255},
+		width:   2,
+		fontSz:  16,
+		dpr:     dpr,
+	}
+	if board.img == nil {
+		board.img = img
+	}
+	// אימות חד־פעמי בקונסול — כדי לדעת שהבינארי החדש רץ
+	fmt.Fprintf(os.Stderr, "יוד: משטח באקאנד=%s (%dx%d @%d)\n", backend.Name(), pw, ph, dpi)
 	st := &controlState{
 		kind:          "משטח",
 		board:         board,
 		canvasW:       ww,
 		canvasH:       hh,
+		canvasDipW:    ww,
+		canvasDipH:    hh,
 		dragging:      false,
 		undoStack:     nil,
 		canvasLockH:   true,
@@ -288,9 +320,21 @@ func winCreateCanvas(args ...object.Object) object.Object {
 	w.Attrs["קבע_יישור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setBoardTextAlign(board, a...)
 	}}
+	w.Attrs["קרא_יישור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return boardReadTextAlign(board)
+	}}
 
 	w.Attrs["צלם"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
-		st.undoStack = append(st.undoStack, cloneRGBA(board.img))
+		var snap *image.RGBA
+		if board.backend != nil {
+			if s, err := board.backend.SnapshotRGBA(); err == nil {
+				snap = s
+			}
+		}
+		if snap == nil {
+			snap = cloneRGBA(board.img)
+		}
+		st.undoStack = append(st.undoStack, snap)
 		if len(st.undoStack) > canvasUndoMax {
 			st.undoStack = st.undoStack[len(st.undoStack)-canvasUndoMax:]
 		}
@@ -302,11 +346,22 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		}
 		last := st.undoStack[len(st.undoStack)-1]
 		st.undoStack = st.undoStack[:len(st.undoStack)-1]
-		draw.Draw(board.img, board.img.Bounds(), last, last.Bounds().Min, draw.Src)
+		if board.backend != nil {
+			_ = board.backend.ReplacePixels(last)
+			board.syncImgFromBackend()
+		} else {
+			draw.Draw(board.img, board.img.Bounds(), last, last.Bounds().Min, draw.Src)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
 	w.Attrs["גיבוי"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if board.backend != nil {
+			if s, err := board.backend.SnapshotRGBA(); err == nil {
+				st.backup = s
+				return object.Nil
+			}
+		}
 		st.backup = cloneRGBA(board.img)
 		return object.Nil
 	}}
@@ -314,7 +369,12 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if st.backup == nil {
 			return object.Nil
 		}
-		draw.Draw(board.img, board.img.Bounds(), st.backup, st.backup.Bounds().Min, draw.Src)
+		if board.backend != nil {
+			_ = board.backend.ReplacePixels(st.backup)
+			board.syncImgFromBackend()
+		} else {
+			draw.Draw(board.img, board.img.Bounds(), st.backup, st.backup.Bounds().Min, draw.Src)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -328,7 +388,7 @@ func winCreateCanvas(args ...object.Object) object.Object {
 			}
 			c = parsed
 		}
-		draw.Draw(board.img, board.img.Bounds(), &image.Uniform{C: c}, image.Point{}, draw.Src)
+		board.clearBackend(c)
 		// אצווה: ציורים עד רענן() בלי Invalidate חוזר ונשנה
 		st.canvasBatch = true
 		st.canvasDirty = true
@@ -339,9 +399,19 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		drawDisk(board.img, x, y, board.width/2, board.stroke)
-		if board.width < 2 {
-			board.img.Set(x, y, board.stroke)
+		x, y = board.sp(x), board.sp(y)
+		r := board.strokePx() / 2
+		if board.backend != nil {
+			board.backend.FillCircle(x, y, r, board.stroke)
+			if board.strokePx() < 2 {
+				board.backend.FillRect(x, y, 1, 1, board.stroke)
+			}
+			board.syncImgFromBackend()
+		} else {
+			drawDisk(board.img, x, y, r, board.stroke)
+			if board.strokePx() < 2 {
+				board.img.Set(x, y, board.stroke)
+			}
 		}
 		invalidateCanvas(st)
 		return object.Nil
@@ -354,7 +424,13 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		drawThickLine(board.img, vals[0], vals[1], vals[2], vals[3], board.width, board.stroke)
+		vals = board.scaleVals(vals)
+		if board.backend != nil {
+			board.backend.StrokeLine(vals[0], vals[1], vals[2], vals[3], board.strokePx(), board.stroke)
+			board.syncImgFromBackend()
+		} else {
+			drawThickLine(board.img, vals[0], vals[1], vals[2], vals[3], board.strokePx(), board.stroke)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -363,7 +439,13 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		drawRectOutline(board.img, vals[0], vals[1], vals[2], vals[3], board.width, board.stroke)
+		vals = board.scaleVals(vals)
+		if board.backend != nil {
+			board.backend.StrokeRect(vals[0], vals[1], vals[2], vals[3], board.strokePx(), board.stroke)
+			board.syncImgFromBackend()
+		} else {
+			drawRectOutline(board.img, vals[0], vals[1], vals[2], vals[3], board.strokePx(), board.stroke)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -372,7 +454,13 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		drawRectFill(board.img, vals[0], vals[1], vals[2], vals[3], board.fill)
+		vals = board.scaleVals(vals)
+		if board.backend != nil {
+			board.backend.FillRect(vals[0], vals[1], vals[2], vals[3], board.fill)
+			board.syncImgFromBackend()
+		} else {
+			drawRectFill(board.img, vals[0], vals[1], vals[2], vals[3], board.fill)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -381,7 +469,13 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		drawRoundedRectFill(board.img, vals[0], vals[1], vals[2], vals[3], vals[4], board.fill)
+		vals = board.scaleVals(vals)
+		if board.backend != nil {
+			board.backend.FillRoundedRect(vals[0], vals[1], vals[2], vals[3], vals[4], board.fill)
+			board.syncImgFromBackend()
+		} else {
+			drawRoundedRectFill(board.img, vals[0], vals[1], vals[2], vals[3], vals[4], board.fill)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -390,7 +484,13 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		drawCircleOutline(board.img, vals[0], vals[1], vals[2], board.width, board.stroke)
+		vals = board.scaleVals(vals)
+		if board.backend != nil {
+			board.backend.StrokeCircle(vals[0], vals[1], vals[2], board.strokePx(), board.stroke)
+			board.syncImgFromBackend()
+		} else {
+			drawCircleOutline(board.img, vals[0], vals[1], vals[2], board.strokePx(), board.stroke)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -399,7 +499,13 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		drawDisk(board.img, vals[0], vals[1], vals[2], board.fill)
+		vals = board.scaleVals(vals)
+		if board.backend != nil {
+			board.backend.FillCircle(vals[0], vals[1], vals[2], board.fill)
+			board.syncImgFromBackend()
+		} else {
+			drawDisk(board.img, vals[0], vals[1], vals[2], board.fill)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -408,7 +514,13 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		drawEllipseOutline(board.img, vals[0], vals[1], vals[2], vals[3], board.width, board.stroke)
+		vals = board.scaleVals(vals)
+		if board.backend != nil {
+			board.backend.StrokeEllipse(vals[0], vals[1], vals[2], vals[3], board.strokePx(), board.stroke)
+			board.syncImgFromBackend()
+		} else {
+			drawEllipseOutline(board.img, vals[0], vals[1], vals[2], vals[3], board.strokePx(), board.stroke)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -417,7 +529,12 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
-		floodFill(board.img, x, y, board.stroke)
+		if board.backend != nil {
+			board.backend.FloodFill(board.sp(x), board.sp(y), board.stroke)
+			board.syncImgFromBackend()
+		} else {
+			floodFill(board.img, board.sp(x), board.sp(y), board.stroke)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -436,6 +553,13 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err := drawTextOnBoard(board, s, vals[0], vals[1]); err != nil {
 			return errObj(err.Error())
 		}
+		if board.backend != nil {
+			fs := board.fontSz
+			if board.dpr > 1.001 {
+				fs *= board.dpr
+			}
+			board.backend.DrawText(s, board.sp(vals[0]), board.sp(vals[1]), fs, board.stroke, board.align)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -444,11 +568,15 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if res != nil && res.Type() == object.ErrorObj {
 			return res
 		}
+		board.syncImgFromBackend()
 		invalidateCanvas(st)
 		return object.Nil
 	}}
 	w.Attrs["רוחב_טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return boardTextWidth(board, a...)
+	}}
+	w.Attrs["מיקום_סמן"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return boardTextCaretInset(board, a...)
 	}}
 	drawImg := &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		res := boardDrawImage(board, a...)
@@ -465,6 +593,8 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if err != nil {
 			return err
 		}
+		x, y = board.sp(x), board.sp(y)
+		board.syncImgFromBackend()
 		b := board.img.Bounds()
 		if x < b.Min.X || y < b.Min.Y || x >= b.Max.X || y >= b.Max.Y {
 			return errObj("קרא_צבע: נקודה מחוץ למשטח")
@@ -491,6 +621,9 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		}
 		dst := board.img.Bounds()
 		xdraw.CatmullRom.Scale(board.img, dst, src, src.Bounds(), draw.Src, nil)
+		if board.backend != nil {
+			_ = board.backend.ReplacePixels(board.img)
+		}
 		invalidateCanvas(st)
 		return object.Nil
 	}}
@@ -502,7 +635,14 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		if !ok {
 			return errObj("שמור מצפה לנתיב מחרוזת")
 		}
-		if err := saveImageFile(board.img, path); err != nil {
+		board.syncImgFromBackend()
+		src := board.img
+		if board.backend != nil {
+			if snap, err := board.backend.SnapshotRGBA(); err == nil {
+				src = snap
+			}
+		}
+		if err := saveImageFile(src, path); err != nil {
 			return errObj(err.Error())
 		}
 		return object.Nil
@@ -519,10 +659,10 @@ func winCreateCanvas(args ...object.Object) object.Object {
 		return object.Nil
 	}}
 	w.Attrs["רוחב"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
-		return &object.Number{Value: float64(board.img.Bounds().Dx())}
+		return &object.Number{Value: float64(st.canvasW)}
 	}}
 	w.Attrs["גובה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
-		return &object.Number{Value: float64(board.img.Bounds().Dy())}
+		return &object.Number{Value: float64(st.canvasH)}
 	}}
 	return w
 }
@@ -573,20 +713,32 @@ func mapSurfaceMouse(ch *controlState, x, y int) (int, int) {
 	if iw < 1 || ih < 1 {
 		return x, y
 	}
-	// עכבר בפיקסלים טבעיים; הציור נמתח לביטמאפ הלוגי
+	// עכבר בפיקסלים טבעיים → קואורדינטות בלוח הפיזי
 	nx := x * iw / b.Width
 	ny := y * ih / b.Height
+	// ואז חזרה ל־DIP ללוגיקת יוד
+	if ch.board.dpr > 1.001 {
+		nx = int(float64(nx)/ch.board.dpr + 0.5)
+		ny = int(float64(ny)/ch.board.dpr + 0.5)
+	}
 	if nx < 0 {
 		nx = 0
 	}
 	if ny < 0 {
 		ny = 0
 	}
-	if nx >= iw {
-		nx = iw - 1
+	maxX, maxY := ch.canvasW, ch.canvasH
+	if maxX < 1 {
+		maxX = iw
 	}
-	if ny >= ih {
-		ny = ih - 1
+	if maxY < 1 {
+		maxY = ih
+	}
+	if nx >= maxX {
+		nx = maxX - 1
+	}
+	if ny >= maxY {
+		ny = maxY - 1
 	}
 	return nx, ny
 }
@@ -641,33 +793,72 @@ func winFileOpen(args ...object.Object) object.Object {
 	return winFileDialog(false, args...)
 }
 
+func winBrowseFolder(args ...object.Object) object.Object {
+	title := "בחירת תיקייה"
+	if len(args) > 1 {
+		return errObj("חלונות.בחר_תיקייה מצפה ל־0 או 1 ארגומנטים")
+	}
+	if len(args) == 1 {
+		if s, ok := asString(args[0]); ok && s != "" {
+			title = s
+		} else if args[0] != nil && args[0].Type() != object.NullObj {
+			return errObj("חלונות.בחר_תיקייה: כותרת חייבת להיות מחרוזת")
+		}
+	}
+	path, ok, err := pickFolderPath(title)
+	if err != nil {
+		owner := walk.App().ActiveForm()
+		walk.MsgBox(owner, "בחירת תיקייה", "לא ניתן לפתוח דיאלוג תיקייה:\n"+err.Error(), walk.MsgBoxIconError)
+		return object.Nil
+	}
+	if !ok || path == "" {
+		return object.Nil
+	}
+	return &object.String{Value: path}
+}
+
 func winFileDialog(save bool, args ...object.Object) object.Object {
 	title := "בחירת קובץ"
 	filter := "תמונות (*.png;*.jpg;*.jpeg;*.gif;*.bmp)|*.png;*.jpg;*.jpeg;*.gif;*.bmp|כל הקבצים (*.*)|*.*"
+	defaultName := ""
+	imageDefaults := false
 	if save {
-		title = "שמירת תמונה"
+		title = "שמירת קובץ"
 		filter = "PNG (*.png)|*.png|JPEG (*.jpg)|*.jpg|כל הקבצים (*.*)|*.*"
+		defaultName = "ציור.png"
+		imageDefaults = true
 	}
 	if len(args) >= 1 {
 		if s, ok := asString(args[0]); ok && s != "" {
 			title = s
-		} else if len(args) >= 1 && args[0] != nil && args[0].Type() != object.NullObj {
+		} else if args[0] != nil && args[0].Type() != object.NullObj {
 			return errObj("כותרת הדיאלוג חייבת להיות מחרוזת")
 		}
 	}
 	if len(args) >= 2 {
 		if s, ok := asString(args[1]); ok && s != "" {
 			filter = s
+			if imageDefaults {
+				defaultName = ""
+				imageDefaults = false
+			}
 		}
 	}
-	if len(args) > 2 {
-		return errObj("דיאלוג קובץ מצפה ל־0–2 ארגומנטים")
+	if len(args) >= 3 {
+		if s, ok := asString(args[2]); ok {
+			defaultName = s
+		} else if args[2] != nil && args[2].Type() != object.NullObj {
+			return errObj("שם קובץ ברירת מחדל חייב להיות מחרוזת")
+		}
+	}
+	if len(args) > 3 {
+		return errObj("דיאלוג קובץ מצפה ל־0–3 ארגומנטים (כותרת, סינון, שם)")
 	}
 	dlg := new(walk.FileDialog)
 	dlg.Title = title
 	dlg.Filter = filter
-	if save {
-		dlg.FilePath = "ציור.png"
+	if save && defaultName != "" {
+		dlg.FilePath = defaultName
 	}
 	var ok bool
 	var err error
@@ -684,9 +875,31 @@ func winFileDialog(save bool, args ...object.Object) object.Object {
 	}
 	path := dlg.FilePath
 	if save && filepath.Ext(path) == "" {
-		path += ".png"
+		ext := extensionFromFileFilter(filter)
+		if ext == "" && imageDefaults {
+			ext = ".png"
+		}
+		if ext != "" {
+			path += ext
+		}
 	}
 	return &object.String{Value: path}
+}
+
+// extensionFromFileFilter מחזיר סיומת ראשונה מסינון Windows (למשל *.json → .json).
+func extensionFromFileFilter(filter string) string {
+	for _, part := range strings.Split(filter, "|") {
+		part = strings.TrimSpace(part)
+		if !strings.HasPrefix(part, "*.") || part == "*.*" {
+			continue
+		}
+		first := strings.Split(part, ";")[0]
+		ext := strings.TrimPrefix(strings.TrimSpace(first), "*")
+		if ext != "" && ext != ".*" && !strings.ContainsAny(ext, "*?") {
+			return ext
+		}
+	}
+	return ""
 }
 
 func buildControlWidget(ch *controlState) Widget {
@@ -731,6 +944,7 @@ func buildControlWidget(ch *controlState) Widget {
 			AssignTo:           &ch.edit,
 			Text:               ch.text,
 			Enabled:            !ch.ctrlDisabled,
+			PasswordMode:       ch.passwordMode,
 			TextAlignment:      AlignFar,
 			RightToLeftReading: true,
 		}
@@ -776,10 +990,14 @@ func buildControlWidget(ch *controlState) Widget {
 	case "דפדפן", "וידאו":
 		return Composite{
 			AssignTo:      &ch.host,
-			StretchFactor: 1,
-			MinSize:       Size{Width: 120, Height: 180},
-			Layout:        VBox{MarginsZero: true},
+			StretchFactor: stretchOr(ch.stretchFactor, 2),
+			MinSize:       Size{Width: 200, Height: 120},
+			Layout:        VBox{MarginsZero: true, Spacing: 0},
+			// רקע כהה עד ש־WebView2 מצייר — מונע הבזק לבן ב־Composite המארח
+			Background: SolidColorBrush{Color: walk.RGB(14, 17, 22)},
 		}
+	case "משטח_GPU":
+		return buildGPUSurfaceWidget(ch)
 	case "שורה":
 		kids := make([]Widget, 0, len(ch.children)+1)
 		for _, child := range ch.children {
@@ -853,24 +1071,48 @@ func buildControlWidget(ch *controlState) Widget {
 		if hasBg {
 			bg = SolidColorBrush{Color: ch.bgColor}
 		}
-		margins := Margins{Left: 8, Top: 6, Right: 8, Bottom: 6}
 		sf := stretchOr(ch.stretchFactor, 1)
 		if ch.frameDir == "אופקי" {
+			margins := Margins{Left: 2, Top: 0, Right: 2, Bottom: 0}
+			arranged := kids
+			if sf == 0 {
+				// סרגל דק: כותרת בצד אחד, פעולות בצד השני
+				margins = Margins{Left: 2, Top: 0, Right: 2, Bottom: 0}
+				if len(kids) == 0 {
+					arranged = kids
+				} else if len(kids) == 1 {
+					arranged = append([]Widget{HSpacer{}}, kids...)
+				} else {
+					arranged = make([]Widget, 0, len(kids)+1)
+					arranged = append(arranged, kids[0], HSpacer{})
+					arranged = append(arranged, kids[1:]...)
+				}
+			}
 			comp := Composite{
 				AssignTo:      &ch.panel,
-				Layout:        HBox{Margins: margins, Spacing: 8},
+				Layout:        HBox{Margins: margins, Spacing: 4},
 				StretchFactor: sf,
 				Visible:       !ch.hidden,
-				Children:      kids,
+				Children:      arranged,
+			}
+			if sf == 0 {
+				comp.MaxSize = Size{Height: 36}
 			}
 			if hasBg {
 				comp.Background = bg
 			}
 			return comp
 		}
+		// מסגרת אנכית שממלאת מקום — בלי שולים כפולים סביב דפדפן/תוכן
+		vMargins := Margins{Left: 4, Top: 4, Right: 4, Bottom: 4}
+		vSpacing := 4
+		if sf > 0 {
+			vMargins = Margins{}
+			vSpacing = 0
+		}
 		comp := Composite{
 			AssignTo:      &ch.panel,
-			Layout:        VBox{Margins: margins, Spacing: 6},
+			Layout:        VBox{Margins: vMargins, Spacing: vSpacing},
 			StretchFactor: sf,
 			Visible:       !ch.hidden,
 			Children:      kids,
@@ -894,7 +1136,7 @@ func buildControlWidget(ch *controlState) Widget {
 			MinSize:             Size{Width: ww, Height: hh},
 			StretchFactor:       sf,
 			InvalidatesOnResize: true,
-			PaintMode:           PaintBuffered,
+			PaintMode:           PaintNormal, // Direct2D Present ל־HWND — בלי באפר GDI שדורס
 			Style:               0x00010000, // WS_TABSTOP — מיקוד מקלדת
 			Paint: func(canvas *walk.Canvas, bounds walk.Rectangle) error {
 				return paintSurface(ch, canvas, bounds)
@@ -959,6 +1201,17 @@ func paintSurface(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) 
 	if st.board == nil || st.canvas == nil {
 		return nil
 	}
+	st.board.syncImgFromBackend()
+	// Direct2D — Present ל־HWND (בלי מתיחת GDI)
+	if st.board.backend != nil && st.board.backend.Name() == "direct2d" {
+		hwnd := uintptr(st.canvas.Handle())
+		if hwnd != 0 {
+			_ = st.board.backend.BindHWND(hwnd)
+			if err := st.board.backend.Present(); err == nil {
+				return nil
+			}
+		}
+	}
 	// מילוי כל השטח — מונע רקע שחור כשהווידג'ט רחב/גבוה מהביטמאפ
 	bgCol := walk.RGB(22, 27, 34)
 	if st.board.img != nil && st.board.img.Bounds().Dx() > 0 && st.board.img.Bounds().Dy() > 0 {
@@ -969,12 +1222,38 @@ func paintSurface(st *controlState, canvas *walk.Canvas, bounds walk.Rectangle) 
 		_ = canvas.FillRectanglePixels(br, bounds)
 		br.Dispose()
 	}
-	bmp, err := walk.NewBitmapFromImageForDPI(st.board.img, st.canvas.DPI())
+	src := st.board.img
+	iw, ih := src.Bounds().Dx(), src.Bounds().Dy()
+	if iw < 1 || ih < 1 {
+		return nil
+	}
+	// ציור 1:1 — בלי מתיחה שמטשטשת ב־HiDPI
+	dest := walk.Rectangle{X: bounds.X, Y: bounds.Y, Width: iw, Height: ih}
+	if dest.Width > bounds.Width {
+		dest.Width = bounds.Width
+	}
+	if dest.Height > bounds.Height {
+		dest.Height = bounds.Height
+	}
+	// אם עדיין יש פער (למשל לפני resize) — הגדלה איכותית במקום stretch גס
+	if (iw != bounds.Width || ih != bounds.Height) && bounds.Width > 0 && bounds.Height > 0 &&
+		(iw*ih < bounds.Width*bounds.Height) {
+		scaled := image.NewRGBA(image.Rect(0, 0, bounds.Width, bounds.Height))
+		xdraw.CatmullRom.Scale(scaled, scaled.Bounds(), src, src.Bounds(), draw.Src, nil)
+		src = scaled
+		dest.Width = bounds.Width
+		dest.Height = bounds.Height
+	}
+	dpi := st.canvas.DPI()
+	if dpi < 96 {
+		dpi = 96
+	}
+	bmp, err := walk.NewBitmapFromImageForDPI(src, dpi)
 	if err != nil {
 		return err
 	}
 	defer bmp.Dispose()
-	return canvas.DrawImageStretchedPixels(bmp, bounds)
+	return canvas.DrawImageStretchedPixels(bmp, dest)
 }
 
 func setStretchFactor(st *controlState, name string, a ...object.Object) object.Object {
@@ -1000,9 +1279,38 @@ func stretchOr(v, def int) int {
 	return v
 }
 
-func resizeSurfaceBoard(st *controlState, w, h int) {
+func resizeSurfaceBoard(st *controlState, physW, physH int) {
 	if st == nil || st.board == nil || st.sizeBusy {
 		return
+	}
+	dpi := 96
+	if st.canvas != nil {
+		dpi = st.canvas.DPI()
+	}
+	if dpi < 96 {
+		dpi = 96
+	}
+	dpr := float64(dpi) / 96.0
+	if dpr < 1 {
+		dpr = 1
+	}
+
+	w, h := physW, physH
+	if st.canvasDipW < 40 {
+		st.canvasDipW = st.canvasW
+	}
+	if st.canvasDipH < 40 {
+		st.canvasDipH = st.canvasH
+	}
+	if st.canvasLockW {
+		w = dipToPixels(st.canvasDipW, dpi)
+	} else {
+		st.canvasDipW = pixelsToDIP(physW, dpi)
+	}
+	if st.canvasLockH {
+		h = dipToPixels(st.canvasDipH, dpi)
+	} else {
+		st.canvasDipH = pixelsToDIP(physH, dpi)
 	}
 	if w < 40 {
 		w = 40
@@ -1010,57 +1318,43 @@ func resizeSurfaceBoard(st *controlState, w, h int) {
 	if h < 40 {
 		h = 40
 	}
-	if w > 4000 {
-		w = 4000
+	if w > 8000 {
+		w = 8000
 	}
-	if h > 4000 {
-		h = 4000
+	if h > 8000 {
+		h = 8000
 	}
-	if st.canvasLockH {
-		h = st.canvasH
-		if h < 40 {
-			h = 40
-		}
-	}
-	if st.canvasLockW {
-		w = st.canvasW
-		if w < 40 {
-			w = 40
-		}
-	}
+
 	ow, oh := st.board.img.Bounds().Dx(), st.board.img.Bounds().Dy()
+	st.board.dpr = dpr
+	st.board.face = nil // גופן מותאם ל־dpr
+	st.canvasW = st.canvasDipW
+	st.canvasH = st.canvasDipH
 	if ow == w && oh == h {
-		st.canvasW, st.canvasH = w, h
 		return
 	}
 	st.sizeBusy = true
 	defer func() { st.sizeBusy = false }()
 
-	bg := color.RGBA{22, 27, 34, 255}
-	if ow > 0 && oh > 0 {
-		bg = st.board.img.RGBAAt(0, 0)
-	}
-	neu := image.NewRGBA(image.Rect(0, 0, w, h))
-	draw.Draw(neu, neu.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
-	cw := ow
-	if cw > w {
-		cw = w
-	}
-	ch := oh
-	if ch > h {
-		ch = h
-	}
-	if cw > 0 && ch > 0 {
-		draw.Draw(neu, image.Rect(0, 0, cw, ch), st.board.img, image.Point{}, draw.Src)
-	}
-	st.board.img = neu
-	st.board.face = nil
-	st.canvasW, st.canvasH = w, h
-	if !st.canvasLockH {
-		st.canvasH = h
-	}
-	if !st.canvasLockW {
-		st.canvasW = w
+	if st.board.backend != nil {
+		_ = st.board.backend.Resize(w, h, dpi)
+		st.board.syncImgFromBackend()
+		st.board.face = nil
+		if st.canvas != nil {
+			_ = st.board.backend.BindHWND(uintptr(st.canvas.Handle()))
+		}
+	} else {
+		bg := color.RGBA{22, 27, 34, 255}
+		if ow > 0 && oh > 0 {
+			bg = st.board.img.RGBAAt(0, 0)
+		}
+		neu := image.NewRGBA(image.Rect(0, 0, w, h))
+		draw.Draw(neu, neu.Bounds(), &image.Uniform{C: bg}, image.Point{}, draw.Src)
+		if ow > 0 && oh > 0 {
+			xdraw.CatmullRom.Scale(neu, neu.Bounds(), st.board.img, st.board.img.Bounds(), draw.Src, nil)
+		}
+		st.board.img = neu
+		st.board.face = nil
 	}
 
 	if st.onSizeChange != nil {
@@ -1070,6 +1364,13 @@ func resizeSurfaceBoard(st *controlState, w, h int) {
 		})
 	}
 	invalidateCanvas(st)
+}
+
+func dipToPixels(dip, dpi int) int {
+	if dpi <= 0 {
+		dpi = 96
+	}
+	return int(float64(dip)*float64(dpi)/96.0 + 0.5)
 }
 
 func wireSurfaceResize(ch *controlState) {

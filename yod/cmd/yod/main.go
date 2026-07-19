@@ -38,14 +38,17 @@ func main() {
 		if resolved, err := filepath.EvalSymlinks(exePath); err == nil {
 			exePath = resolved
 		}
-		if src, ok, err := pack.ReadEmbedded(exePath); err == nil && ok {
+		if src, virtual, ok, err := pack.LoadEmbedded(exePath); err == nil && ok {
 			if len(os.Args) > 1 {
 				object.ProgramArgs = append([]string{}, os.Args[1:]...)
 			} else {
 				object.ProgramArgs = nil
 			}
-			base := strings.TrimSuffix(filepath.Base(exePath), filepath.Ext(exePath))
-			virtual := filepath.Join(filepath.Dir(exePath), base+".יוד")
+			exeDir := filepath.Dir(exePath)
+			_ = os.Chdir(exeDir)
+			if virtual == "" {
+				virtual = filepath.Join(exeDir, project.MainFileName)
+			}
 			if err := runSource(src, virtual); err != nil {
 				console.Fprintln(os.Stderr, err.Error())
 				os.Exit(1)
@@ -114,7 +117,9 @@ func main() {
 		if len(os.Args) < 3 {
 			console.Fprintln(os.Stderr, "שגיאה: חסר נתיב לקובץ .יוד")
 			console.Fprintln(os.Stderr, "שימוש: יוד ארוז תוכנית.יוד [יעד.exe]")
+			console.Fprintln(os.Stderr, "       יוד ארוז תיקיית_פרויקט         (אורז התחל.יוד → dist_exe)")
 			console.Fprintln(os.Stderr, "       יוד ארוז תוכנית.יוד --קונסול   (עם חלון CMD)")
+			console.Fprintln(os.Stderr, "       יוד ארוז תוכנית.יוד --רשימה    (מה בחבילה)")
 			console.Fprintln(os.Stderr, "       יוד ארוז תוכנית.יוד --תיקייה [תיקייה]")
 			os.Exit(1)
 		}
@@ -290,9 +295,11 @@ func printHelp() {
 	console.Println("  yod הרץ --מכונה תוכנית.יוד")
 	console.Println("  yod מכונה תוכנית.יוד   (bytecode VM)")
 	console.Println("  yod תוכנית.יוד         (מכונה → נפילה למפרש)")
-	console.Println("  yod ארוז תוכנית.יוד [יעד.exe]     → EXE בלי חלון CMD")
+	console.Println("  yod ארוז תוכנית.יוד [יעד.exe]     → EXE עצמאי ב־dist_exe (בלי מקורות)")
 	console.Println("  yod ארוז תוכנית.יוד --קונסול      → EXE עם חלון CMD")
-	console.Println("  yod ארוז תוכנית.יוד --תיקייה [יעד] → תיקיית הפצה")
+	console.Println("  yod ארוז תוכנית.יוד --רשימה       → רשימת קבצים בחבילה")
+	console.Println("  yod ארוז תוכנית.יוד --תיקייה [יעד] → תיקיית הפצה עם מקורות")
+	console.Println("  yod ארוז תיקיית_פרויקט            → אורז את התחל.יוד → dist_exe/")
 	console.Println("  yod בדוק תוכנית.יוד   (סגנון ותחביר)")
 	console.Println("  yod סדר תוכנית.יוד    (מסדר קוד ל־stdout; -w כותב לקובץ)")
 	console.Println("  yod הרץ --בדוק_טיפוסים תוכנית.יוד")
@@ -375,7 +382,11 @@ func runSource(source, pathForBase string) error {
 	evaluator.PushSourceFile(pathForBase)
 	defer evaluator.PopSourceFile()
 	env := evaluator.NewGlobalEnv(base)
+	// מנעול ריצה גלובלי — הרצת התוכנית הראשית מחזיקה בו; משוחרר בפעולות חוסמות
+	// (mw.Run/המתן) כדי שמשימות רקע/callbacks יוכלו לרוץ בלי data race.
+	object.LockYod()
 	result := evaluator.Eval(program, env)
+	object.UnlockYod()
 	if result != nil && result.Type() == object.ErrorObj {
 		return fmt.Errorf("%s", result.Inspect())
 	}
@@ -422,8 +433,13 @@ func runVM(path string) error {
 			return &object.Error{Message: "בלחיצה מצפה לפונקציה"}
 		}
 	}
-	if err := machine.Run(); err != nil {
-		return fmt.Errorf("שגיאת מכונה: %v", err)
+	// מנעול ריצה גלובלי — הרצת התוכנית הראשית מחזיקה בו; משוחרר בפעולות חוסמות
+	// (mw.Run/המתן) כדי שמשימות רקע/callbacks יוכלו לרוץ בלי data race.
+	object.LockYod()
+	runErr := machine.Run()
+	object.UnlockYod()
+	if runErr != nil {
+		return fmt.Errorf("שגיאת מכונה: %v", runErr)
 	}
 	return nil
 }

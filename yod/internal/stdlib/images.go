@@ -8,6 +8,7 @@ import (
 
 func NewImagesModule() *object.Module {
 	m := &object.Module{Name: "תמונות", Attrs: map[string]object.Object{}}
+	// מעטפת דקה מעל ציור — אותו יישום (loadImageFile / wrapImage / saveImageFile)
 	m.Attrs["טען"] = &object.Builtin{Fn: imagesLoad}
 	m.Attrs["שמור"] = &object.Builtin{Fn: imagesSave}
 	return m
@@ -21,34 +22,18 @@ func imagesLoad(args ...object.Object) object.Object {
 	if !ok {
 		return errObj("תמונות.טען מצפה למחרוזת")
 	}
-	img, err := loadImageFile(path)
-	if err != nil {
-		return errObj(err.Error())
-	}
-	return wrapImage(img)
+	return imageLoadFromPath(path)
 }
 
 func imagesSave(args ...object.Object) object.Object {
 	if len(args) != 2 {
 		return errObj("תמונות.שמור מצפה לתמונה ונתיב")
 	}
-	gw, ok := args[0].(*object.GuiWidget)
-	if !ok {
-		return errObj("תמונות.שמור מצפה לרכיב תמונה")
-	}
-	di, ok := gw.Data.(*drawImage)
-	if !ok || di.img == nil {
-		return errObj("תמונות.שמור מצפה לרכיב תמונה")
-	}
 	path, ok := asString(args[1])
 	if !ok {
 		return errObj("תמונות.שמור מצפה לנתיב מחרוזת")
 	}
-	out := resolveAppPath(path)
-	if err := saveImageFile(di.img, out); err != nil {
-		return errObj(err.Error())
-	}
-	return object.Nil
+	return imageSaveWidget(args[0], path, "תמונות.שמור")
 }
 
 // imagesFromWidget — עזר פנימי לציור למשטח.

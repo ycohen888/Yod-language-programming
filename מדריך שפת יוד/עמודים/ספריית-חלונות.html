@@ -17,7 +17,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.58.4</span><strong>חלונות</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.98</span><strong>חלונות</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
@@ -42,26 +42,44 @@
           <tr><td><code>חלונות.שורה()</code></td><td>מקבץ אופקי (סרגל צבעים / עובי)</td></tr>
           <tr><td><code>חלונות.עמודה()</code></td><td>מקבץ אנכי (סרגל כלים בצד)</td></tr>
           <tr><td><code>חלונות.מסגרת("אופקי"|"אנכי")</code></td><td>מיכל גמיש; <code>קבע_מתיחה(n)</code> לחלוקת גובה/רוחב</td></tr>
-          <tr><td><code>חלונות.משטח(רוחב, גובה)</code></td><td>לוח ציור עם עכבר — הלוגיקה ביוד</td></tr>
+          <tr><td><code>חלונות.משטח(רוחב, גובה)</code></td><td>לוח ציור 2D מואץ (Direct2D) עם עכבר — שונה מ־<code>ציור.לוח</code> ומ־<code>משטח_GPU</code></td></tr>
+          <tr><td><code>חלונות.משטח_GPU(רוחב, גובה)</code></td><td>סצנה תלת־ממדית OpenGL — ראו <a href="ספריית-GPU.html">ספריית GPU</a></td></tr>
           <tr><td><code>חלונות.סמל(סוג)</code></td><td>כפתור כלי עם אייקון (עיפרון/מחק/קו/…)</td></tr>
           <tr><td><code>חלונות.דגם(צבע…)</code></td><td>ריבוע צבע לחיץ ללוח צבעים</td></tr>
           <tr><td><code>חלונות.רשימה()</code></td><td>רשימת בחירה: <code>קבע_פריטים</code>, <code>קרא_אינדקס</code>, <code>קרא_פריט</code>, <code>בבחירה</code></td></tr>
           <tr><td><code>חלונות.טבלה()</code></td><td>טבלת מידע: <code>קבע_שדות</code>, <code>קבע_שורות</code>, <code>מיין</code>, <code>קרא_שורה</code></td></tr>
-          <tr><td><code>חלונות.גרף(סוג?)</code></td><td>גרף: עמודות / קו / עוגה — ראו גם <a href="ספריית-גרפים.html">ספריית גרפים</a></td></tr>
-          <tr><td><code>חלונות.שאל(כותרת, טקסט)</code></td><td>כן/לא — מחזיר <code>אמת</code>/<code>שקר</code></td></tr>
-          <tr><td><code>חלונות.בחר_שמירה([כותרת])</code></td><td>דיאלוג שמירה → נתיב או <code>ריק</code></td></tr>
-          <tr><td><code>חלונות.בחר_פתיחה([כותרת])</code></td><td>דיאלוג פתיחה → נתיב או <code>ריק</code></td></tr>
-          <tr><td><code>דפדפן.נווט(כתובת)</code></td><td>מעבר לכתובת (מוסיף https:// אם חסר)</td></tr>
+          <tr><td><code>חלונות.גרף(סוג?)</code></td><td>קיצור תאימות — מומלץ <a href="ספריית-גרפים.html">ספריית גרפים</a></td></tr>
+          <tr><td><code>חלונות.שאל(כותרת, טקסט)</code></td><td>כן/לא — מחזיר <code>אמת</code>/<code>שקר</code>; הכיוון (RTL/LTR) לפי שפת הממשק הפעילה</td></tr>
+          <tr><td><code>חלונות.בחר_שמירה([כותרת [,סינון [,שם]]])</code></td><td>דיאלוג שמירה → נתיב או <code>ריק</code>; סינון כמו <code>JSON (*.json)|*.json</code>; שם קובץ ברירת מחדל אופציונלי</td></tr>
+          <tr><td><code>חלונות.בחר_פתיחה([כותרת [,סינון]])</code></td><td>דיאלוג פתיחה → נתיב או <code>ריק</code></td></tr>
+          <tr><td><code>חלונות.בחר_תיקייה([כותרת])</code></td><td>דיאלוג בחירת תיקייה → נתיב או <code>ריק</code></td></tr>
+          <tr><td><code>דפדפן.נווט(כתובת)</code></td><td>מעבר לכתובת (מוסיף https:// אם חסר); נתיב מקומי/.html → file://</td></tr>
           <tr><td><code>דפדפן.קבע_html(מחרוזת)</code></td><td>מציג HTML מקומי בתוך הדפדפן</td></tr>
           <tr><td><code>דפדפן.רענן()</code> / <code>קרא_כתובת()</code></td><td>רענון וקריאת הכתובת הנוכחית</td></tr>
+          <tr><td><code>דפדפן.הרץ_js(קוד)</code></td><td>מריץ JavaScript בדף (ExecuteScript)</td></tr>
+          <tr><td><code>דפדפן.שלח(מחרוזת|JSON)</code></td><td>שולח הודעה לדף → <code>__יוד_קבל</code> / אירוע <code>yod-message</code></td></tr>
+          <tr><td><code>דפדפן.בהודעה(פונקציה)</code></td><td>קבלת הודעה מ־JS (<code>chrome.webview.postMessage</code>)</td></tr>
+          <tr><td><code>דפדפן.מוכן(פונקציה)</code></td><td>אחרי NavigationCompleted (הדף נטען)</td></tr>
           <tr><td><code>תווית.קבע_צבע</code></td><td>שם צבע (ירוק/אדום…) או RGB</td></tr>
-          <tr><td><code>חלונות.הודעה(כותרת, טקסט)</code></td><td>תיבת הודעה מהירה</td></tr>
+          <tr><td><code>חלונות.הודעה(כותרת, טקסט)</code></td><td>תיבת הודעה מהירה; הכיוון (RTL/LTR) לפי שפת הממשק הפעילה (<code>תרגום.קבע_שפה</code>)</td></tr>
+          <tr><td><code>חלונות.גודל_מסך()</code></td><td>מילון <code>{רוחב, גובה}</code> — אזור העבודה (בלי שורת המשימות)</td></tr>
           <tr><td><code>חלון.הוסף</code> / <code>קבע_גודל</code> / <code>הצג</code></td><td>סידור והצגה</td></tr>
+          <tr><td><code>חלון.מרכז()</code></td><td>ממקם את החלון במרכז המסך (לפי הגודל הנוכחי)</td></tr>
+          <tr><td><code>חלון.קבע_מיקום(x, y)</code></td><td>מיקום בפיקסלים על המסך</td></tr>
           <tr><td><code>חלון.קבע_איקון(נתיב)</code></td><td>איקון לחלון ולפס המשימות (אוטומטי אם קיים <code>יוד.ico</code>)</td></tr>
+          <tr><td><code>חלון.הסתר()</code> / <code>הצג_שוב()</code></td><td>הסתרה לרקע (טיימרים ממשיכים) ושחזור + פוקוס</td></tr>
+          <tr><td><code>חלון.בסגירה(fn)</code></td><td>אם מחזיר <code>אמת</code> — מבטל סגירה (למשל הסתרה למגש)</td></tr>
+          <tr><td><code>חלון.סגור()</code></td><td>סגירה אמיתית (מתעלם מביטול בסגירה)</td></tr>
+          <tr><td><code>חלון.מגש({איקון, רמז, פריטים})</code></td><td>איקון במגש המערכת + תפריט; לחיצה כפולה = <code>הצג_שוב</code></td></tr>
+          <tr><td><code>חלון.במגש(fn)</code></td><td>לחיצה על פריט תפריט המגש — מקבלת את <code>ערך</code></td></tr>
+          <tr><td><code>חלון.מגש_התראה(כותרת, טקסט)</code></td><td>בלון התראה מהמגש (גם כשהחלון מוסתר)</td></tr>
+          <tr><td><code>חלון.הסר_מגש()</code></td><td>מסיר את איקון המגש</td></tr>
           <tr><td><code>חלון.קבע_רקע</code> / <code>מסגרת.קבע_רקע</code></td><td>צבע רקע (שם או RGB)</td></tr>
           <tr><td><code>חלון.קבע_כהה(אמת)</code></td><td>ערכת dark לחלון — כותרת, תפריטים, סקרולים, כפתורים, שדות, טבלאות וגרפים</td></tr>
           <tr><td><code>חלון.קבע_תפריט(רשימה)</code></td><td>תפריט עליון: <code>{"שם","פריטים"|"פעולה"}</code></td></tr>
           <tr><td><code>כפתור/שדה.קבע_מושבת</code> / <code>קבע_רמז</code></td><td>השבתה ו־tooltip</td></tr>
+          <tr><td><code>שדה.קבע_סיסמה(אמת)</code></td><td>מציג • במקום אותיות (מצב סיסמה של Windows)</td></tr>
+          <tr><td><code>משטח.תמונה(נתיב|תמונה, x, y [,רחב,גבה [,זווית [,הפוך]]])</code></td><td>בלית ספרייט; מטמון נתיב; סיבוב במעלות והיפוך אופקי</td></tr>
           <tr><td><code>כפתור/שדה/רשימה/טבלה/גרף.קבע_כהה</code></td><td>כהה לרכיב בודד</td></tr>
           <tr><td><code>גרף.קבע_תת_כותרת(טקסט)</code></td><td>שורה שנייה מתחת לכותרת (למדדים חיים)</td></tr>
           <tr><td><code>גרף.קבע_טווח_Y(מינ, מקס)</code></td><td>טווח קבוע לציר Y</td></tr>
@@ -74,7 +92,14 @@
 
       <h2>משטח ציור (צייר ביוד)</h2>
       <p>
-        <code>חלונות.משטח</code> מציג לוח לבן ומעביר אירועי עכבר לקוד יוד שלכם.
+        <code>חלונות.משטח</code> הוא משטח <strong>דו־ממדי</strong> (UI, מפות, רכיבים):
+        ב־Windows הציור רץ על Direct2D + DirectWrite (עם גיבוי CPU),
+        יחידות DIP, אצווה עם <code>השהה_הצגה</code>/<code>רענן</code>, ואותו API עברי כמו קודם.
+        לעומתו <code>חלונות.משטח_GPU</code> מיועד ל<strong>תלת־ממד</strong> (OpenGL) — API אחר לגמרי;
+        אל תעבירו לשם את <code>לוח_רכיבים</code> או יוצר מפות.
+      </p>
+      <p>
+        המשטח מציג לוח ומעביר אירועי עכבר לקוד יוד שלכם.
         יש בטל, גיבוי לתצוגה מקדימה, טפטפת וטעינת תמונה — בלי עורך Go.
       </p>
       <table class="method-table">
@@ -210,6 +235,49 @@
           <pre>(חלון שמציג HTML שבניתם בקוד)</pre>
         </div>
       </figure>
+
+      <h2>גשר יוד ↔ JavaScript (0.88)</h2>
+      <p>
+        אחרי שהדפדפן מוצג, אפשר לשלוט בדף מיוד ולקבל הודעות חזרה.
+        פרוטוקול מומלץ — מחרוזת JSON:
+        <code>{"סוג":"פקודה","שם":"…","ערכים":{…}}</code> מיוּד לדף,
+        ו־<code>{"סוג":"אירוע","שם":"…","ערכים":{…}}</code> מהדף ליוד.
+      </p>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "חלונות"
+כלול "JSON"
+
+משתנה ח = חלונות.חלון: "גשר"
+ח.קבע_גודל: 800, 500
+משתנה ד = חלונות.דפדפן()
+ד.קבע_html: "&lt;html&gt;&lt;body&gt;&lt;script&gt;
+window.__יוד_קבל=function(d){document.body.textContent=JSON.stringify(d)};
+chrome.webview.addEventListener('message',e=>{});
+function שלח(){chrome.webview.postMessage(JSON.stringify({סוג:'אירוע',שם:'לחיצה',ערכים:{x:1}}));}
+&lt;/script&gt;&lt;button onclick='שלח()'&gt;שלח&lt;/button&gt;&lt;/body&gt;&lt;/html&gt;"
+
+ד.בהודעה: פונקציה (ט)
+  הדפס(ט)
+סוף
+
+משתנה כ = חלונות.כפתור: "פקודה"
+כ.בלחיצה: פונקציה ()
+  ד.שלח(JSON.מחרוזת({ "סוג": "פקודה", "שם": "שלום", "ערכים": {} }))
+סוף
+
+ח.הוסף: ד
+ח.הוסף: כ
+ח.הצג:</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>(חלון עם דפדפן; כפתור שולח JSON לדף; לחיצה בדף מדפיסה ליוד)</pre>
+        </div>
+      </figure>
+      <div class="callout tip">
+        דמו WebGL עם גשר: <code>פרוייקט דוגמה/תלת-ממד/</code>.
+        חבילת תלת בעברית: <a href="ספריית-תלת.html">ספריית תלת</a>.
+      </div>
 
       <h2>חלון עם כפתור</h2>
       <figure class="example">

@@ -12,7 +12,7 @@ export type MaterialIconName =
   | "search"
   | "terminal"
   | "play_arrow"
-  | "build"
+  | "spellcheck"
   | "memory"
   | "save"
   | "error_outline"

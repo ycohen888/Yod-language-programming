@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"yod/internal/vfs"
 )
 
 func resolveUserFile(base, path string) string {
@@ -22,6 +24,9 @@ func resolveUserFile(base, path string) string {
 	for _, c := range candidates {
 		c = filepath.Clean(c)
 		if st, err := os.Stat(c); err == nil && !st.IsDir() {
+			return c
+		}
+		if fs := vfs.Active(); fs != nil && fs.Exists(c) && !fs.IsDir(c) {
 			return c
 		}
 	}

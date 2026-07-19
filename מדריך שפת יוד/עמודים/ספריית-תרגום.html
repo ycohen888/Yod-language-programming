@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית תרגום | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.98.23</span><strong>תרגום</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+
+    <article class="article">
+      <h1>ספריית תרגום</h1>
+      <p class="lead">
+        תרגום ממשק משתמש בסגנון gettext (כמו וורדפרס): קבצי <code>.po</code> / <code>.mo</code>,
+        יחיד/רבים, מגדר/הקשר (<code>msgctxt</code>), ו־RTL. טוענים עם <code>כלול "תרגום"</code>.
+        שפת התכנות יוד נשארת בעברית — מתורגם רק טקסט הממשק.
+      </p>
+
+      <h2>קבצים</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>סוג</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>.po</code></td><td>עריכה (Poedit) — <code>msgid</code> בעברית → <code>msgstr</code></td></tr>
+          <tr><td><code>.mo</code></td><td>בינארי מהיר; אם קיים ליד <code>.po</code> — מועדף</td></tr>
+          <tr><td>תיקיית <code>תרגומים/</code></td><td>נאריזה ל־EXE יחד עם הפרויקט</td></tr>
+        </tbody>
+      </table>
+
+      <h2>API</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>פונקציה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>תרגום.טען(שפה, נתיב)</code></td><td>טוען <code>.po</code> או <code>.mo</code></td></tr>
+          <tr><td><code>תרגום.טען_תיקייה(נתיב)</code></td><td>טוען את כל קבצי השפה בתיקייה</td></tr>
+          <tr><td><code>תרגום.רשום(שפה, מילון)</code></td><td>קטלוג בזיכרון בלי קובץ</td></tr>
+          <tr><td><code>תרגום.קבע_שפה(קוד)</code> / <code>שפה()</code></td><td>שפת ממשק נוכחית</td></tr>
+          <tr><td><code>תרגום.ט(מפתח [, משתנים])</code></td><td>תרגום + אינטרפולציה <code>{שם}</code></td></tr>
+          <tr><td><code>תרגום.ט_רבים(יחיד, רבים, כמות [, משתנים])</code></td><td>יחיד/רבים לפי <code>Plural-Forms</code></td></tr>
+          <tr><td><code>תרגום.ט_הקשר(הקשר, מפתח [, משתנים])</code></td><td><code>msgctxt</code> (מגדר / כפתור / …)</td></tr>
+          <tr><td><code>תרגום.קבע_מגדר</code> / <code>מגדר</code> / <code>ט_מגדרי</code></td><td>מגדר ברירת מחדל ליישום</td></tr>
+          <tr><td><code>תרגום.ט_רבים_הקשר(…)</code></td><td>רבים + הקשר יחד</td></tr>
+          <tr><td><code>תרגום.כיוון()</code></td><td><code>rtl</code> או <code>ltr</code> לשפה הנוכחית</td></tr>
+          <tr><td><code>תרגום.הוא_rtl(קוד)</code></td><td><code>אמת</code> אם הקוד הוא שפת RTL (למשל <code>he</code>, <code>ar</code>); אחרת <code>שקר</code></td></tr>
+          <tr><td><code>תרגום.בעת_שינוי(פונקציה)</code></td><td>נקרא אחרי החלפת שפה (אפשר לרשום כמה)</td></tr>
+          <tr><td><code>תרגום.רענן_ממשק()</code></td><td>שולח קטלוג לממשק עכשיו</td></tr>
+        </tbody>
+      </table>
+
+      <h2>חיבור לעיצוב</h2>
+      <p>
+        אחרי שהממשק מוכן: <code>עיצוב_חבר_תרגום()</code> — מעביר את הקטלוג ל־JS
+        (<code>t()</code> / <code>tn()</code>) ומעדכן כיוון. פקדי עיצוב שומרים את ה־msgid העברי
+        ומרעננים תצוגה בהחלפת שפה.
+      </p>
+
+      <h2>כיסוי ממשק (100%)</h2>
+      <ul>
+        <li>עיצוב: כפתורים, תוויות, תפריטים, טבלאות, מודל, placeholder, aria, splash, tippy</li>
+        <li>רכיבים (משטח): ציור טקסט דרך <code>תרגום.ט</code> + רענון לוחות</li>
+        <li><code>חלונות.הודעה</code> / <code>חלונות.שאל</code> — כותרת וגוף מתורגמים</li>
+      </ul>
+
+      <h2>מה לא מתורגם (במכוון)</h2>
+      <ul>
+        <li>מילות מפתח של יוד (<code>אם</code>, <code>פונקציה</code>…)</li>
+        <li>הודעות שגיאה פנימיות של המפרש (למפתח)</li>
+        <li>שמות קבצים / נתיבים / תוכן DB</li>
+        <li>דיאלוגי מערכת Windows (סייר קבצים וכו')</li>
+        <li>עורך Electron (yod-ide) — מוצר נפרד</li>
+      </ul>
+
+      <h2>דוגמה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "תרגום"
+
+תרגום.טען("en", "תרגומים/en.po")
+תרגום.קבע_שפה("en")
+תרגום.קבע_מגדר("זכר")
+
+הדפס(תרגום.ט("שמור"))
+הדפס(תרגום.ט_רבים("נמצא קובץ אחד", "נמצאו %d קבצים", 5))
+הדפס(תרגום.ט_מגדרי("ברוך הבא, {שם}", { "שם": "דן" }))
+הדפס(תרגום.הוא_rtl("he"))  // אמת
+הדפס(תרגום.הוא_rtl("en"))  // שקר</pre>
+        <div class="output">
+          <span class="output-label">פלט (באנגלית)</span>
+          <pre>Save
+Found 5 files
+Welcome, Mr דן
+אמת
+שקר</pre>
+        </div>
+      </figure>
+
+      <div class="callout">
+        <strong>דמו מלא:</strong> <code>פרוייקט דוגמה/תרגום-דמו/</code> — החלפת שפה בממשק עיצוב.
+        באפליקציית הגיבוי: תפריט «תרגום» עם עברית / אנגלית / צרפתית
+        (<code>פרוייקט דוגמה/גיבוי/תרגומים/</code>).
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

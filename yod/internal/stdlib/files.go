@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"yod/internal/object"
+	"yod/internal/vfs"
 )
 
 func NewFilesModule() *object.Module {
@@ -15,18 +16,22 @@ func NewFilesModule() *object.Module {
 	m.Attrs["כתוב"] = &object.Builtin{Fn: filesWrite}
 	m.Attrs["קיים"] = &object.Builtin{Fn: filesExists}
 	m.Attrs["מחק"] = &object.Builtin{Fn: filesDelete}
+	m.Attrs["מחק_רקורסיבי"] = &object.Builtin{Fn: filesDeleteRecursive}
 	m.Attrs["צרף"] = &object.Builtin{Fn: filesJoin}
 	m.Attrs["צור_תיקייה"] = &object.Builtin{Fn: filesMkdir}
 	m.Attrs["רשימת_קבצים"] = &object.Builtin{Fn: filesList}
 	m.Attrs["האם_תיקייה"] = &object.Builtin{Fn: filesIsDir}
 	m.Attrs["הוסף_לקובץ"] = &object.Builtin{Fn: filesAppend}
 	m.Attrs["גודל"] = &object.Builtin{Fn: filesSize}
+	m.Attrs["זמן_שינוי"] = &object.Builtin{Fn: filesModTime}
+	m.Attrs["תיקיית_אב"] = &object.Builtin{Fn: filesParentDir}
 	m.Attrs["העתק"] = &object.Builtin{Fn: filesCopy}
 	m.Attrs["העבר"] = &object.Builtin{Fn: filesMove}
 	m.Attrs["שנה_שם"] = &object.Builtin{Fn: filesRename}
 	m.Attrs["ארוז"] = &object.Builtin{Fn: filesArchive}
 	m.Attrs["חלץ"] = &object.Builtin{Fn: filesExtract}
 	m.Attrs["תוכן_ארכיון"] = &object.Builtin{Fn: filesArchiveContents}
+	registerCopyFns(m)
 	return m
 }
 
@@ -38,7 +43,7 @@ func filesRead(args ...object.Object) object.Object {
 	if !ok {
 		return errObj("קבצים.קרא מצפה לנתיב מחרוזת")
 	}
-	data, e := os.ReadFile(path)
+	data, e := vfs.ReadPrefer(path)
 	if e != nil {
 		return errObj("לא הצלחתי לקרוא קובץ: " + e.Error())
 	}
@@ -53,7 +58,7 @@ func filesReadResult(args ...object.Object) object.Object {
 	if !ok {
 		return object.ResultErr("קבצים.קרא_תוצאה מצפה לנתיב מחרוזת", 1)
 	}
-	data, e := os.ReadFile(path)
+	data, e := vfs.ReadPrefer(path)
 	if e != nil {
 		return object.ResultErr("לא הצלחתי לקרוא קובץ: "+e.Error(), 1)
 	}
@@ -86,14 +91,11 @@ func filesExists(args ...object.Object) object.Object {
 	if !ok {
 		return errObj("קבצים.קיים מצפה לנתיב מחרוזת")
 	}
-	_, e := os.Stat(path)
-	if e == nil {
-		return &object.Boolean{Value: true}
+	okExists, e := vfs.ExistsPrefer(path)
+	if e != nil {
+		return errObj("בדיקת קיום נכשלה: " + e.Error())
 	}
-	if os.IsNotExist(e) {
-		return &object.Boolean{Value: false}
-	}
-	return errObj("בדיקת קיום נכשלה: " + e.Error())
+	return &object.Boolean{Value: okExists}
 }
 
 func filesDelete(args ...object.Object) object.Object {
@@ -106,6 +108,20 @@ func filesDelete(args ...object.Object) object.Object {
 	}
 	if e := os.Remove(path); e != nil {
 		return errObj("לא הצלחתי למחוק קובץ: " + e.Error())
+	}
+	return &object.Null{}
+}
+
+func filesDeleteRecursive(args ...object.Object) object.Object {
+	if err := expectArgs("קבצים.מחק_רקורסיבי", 1, args); err != nil {
+		return err
+	}
+	path, ok := asString(args[0])
+	if !ok {
+		return errObj("קבצים.מחק_רקורסיבי מצפה לנתיב מחרוזת")
+	}
+	if e := os.RemoveAll(path); e != nil {
+		return errObj("לא הצלחתי למחוק: " + e.Error())
 	}
 	return &object.Null{}
 }
@@ -147,6 +163,15 @@ func filesList(args ...object.Object) object.Object {
 	if !ok {
 		return errObj("קבצים.רשימת_קבצים מצפה לנתיב מחרוזת")
 	}
+	if fs := vfs.Active(); fs != nil {
+		if names, ok := fs.List(path); ok {
+			arr := &object.Array{Elements: make([]object.Object, 0, len(names))}
+			for _, name := range names {
+				arr.Elements = append(arr.Elements, &object.String{Value: name})
+			}
+			return arr
+		}
+	}
 	entries, e := os.ReadDir(path)
 	if e != nil {
 		return errObj("לא הצלחתי לקרוא תיקייה: " + e.Error())
@@ -166,14 +191,11 @@ func filesIsDir(args ...object.Object) object.Object {
 	if !ok {
 		return errObj("קבצים.האם_תיקייה מצפה לנתיב מחרוזת")
 	}
-	info, e := os.Stat(path)
+	isDir, e := vfs.IsDirPrefer(path)
 	if e != nil {
-		if os.IsNotExist(e) {
-			return &object.Boolean{Value: false}
-		}
 		return errObj("בדיקת תיקייה נכשלה: " + e.Error())
 	}
-	return &object.Boolean{Value: info.IsDir()}
+	return &object.Boolean{Value: isDir}
 }
 
 func filesAppend(args ...object.Object) object.Object {
@@ -214,6 +236,36 @@ func filesSize(args ...object.Object) object.Object {
 	return &object.Number{Value: float64(info.Size())}
 }
 
+func filesModTime(args ...object.Object) object.Object {
+	if err := expectArgs("קבצים.זמן_שינוי", 1, args); err != nil {
+		return err
+	}
+	path, ok := asString(args[0])
+	if !ok {
+		return errObj("קבצים.זמן_שינוי מצפה לנתיב מחרוזת")
+	}
+	info, e := os.Stat(path)
+	if e != nil {
+		return errObj("לא הצלחתי לקרוא זמן שינוי: " + e.Error())
+	}
+	return &object.Number{Value: float64(info.ModTime().Unix())}
+}
+
+func filesParentDir(args ...object.Object) object.Object {
+	if err := expectArgs("קבצים.תיקיית_אב", 1, args); err != nil {
+		return err
+	}
+	path, ok := asString(args[0])
+	if !ok {
+		return errObj("קבצים.תיקיית_אב מצפה לנתיב מחרוזת")
+	}
+	parent := filepath.Dir(path)
+	if parent == "." || parent == path {
+		return &object.String{Value: ""}
+	}
+	return &object.String{Value: parent}
+}
+
 func filesCopy(args ...object.Object) object.Object {
 	if err := expectArgs("קבצים.העתק", 2, args); err != nil {
 		return err
@@ -222,6 +274,11 @@ func filesCopy(args ...object.Object) object.Object {
 	dst, ok2 := asString(args[1])
 	if !ok1 || !ok2 {
 		return errObj("קבצים.העתק מצפה לנתיבי מחרוזת")
+	}
+	if dir := filepath.Dir(dst); dir != "" && dir != "." {
+		if e := os.MkdirAll(dir, 0755); e != nil {
+			return errObj("קבצים.העתק: לא הצלחתי ליצור תיקיית יעד: " + e.Error())
+		}
 	}
 	in, e := os.Open(src)
 	if e != nil {

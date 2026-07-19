@@ -17,34 +17,44 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">CLI · 0.47.2</span><strong>ארוז</strong></div>
+      <div class="brand"><span class="eyebrow">CLI · אריזה</span><strong>ארוז</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
       <h1>ארוז — קובץ EXE להפצה</h1>
       <p class="lead">
-        יוצר קובץ <code>.exe</code> בודד שאפשר להעתיק למחשב אחר ולהריץ בלחיצה כפולה —
-        בלי Go ובלי תיקיית עזר.
+        יוצר קובץ <code>.exe</code> עצמאי בתיקיית <code>dist_exe</code> —
+        בלי קבצי מקור <code>.יוד</code> גלויים, אפשר להעתיק ולהריץ בלחיצה כפולה בלי Go.
       </p>
 
       <h2>מה זה</h2>
       <p>
-        <code>yod ארוז תוכנית.יוד</code> בונה EXE שמכיל את מנוע יוד ואת קוד המקור בפנים.
-        לחיצה כפולה מריצה את התוכנית. זה לא קומפילציה ל־native —
-        אבל למשתמש הסופי זה מרגיש כמו תוכנית רגילה.
+        מ־0.98.14 <code>yod ארוז</code> בונה EXE אחד עם מנוע יוד וחבילת קבצים מוטמעת
+        (<code>YODBUND1</code>): מודולי <code>כלול</code>, ספריית עיצוב, מדריך ונכסים.
+        בזמן ריצה נקראים הקבצים ממערכת קבצים וירטואלית — בתיקיית ההפצה נשארים בעיקר
+        ה־EXE, המניפסט והאיקון. <code>נתונים/</code> נוצר בהרצה על הדיסק.
       </p>
 
-      <h2>אריזה ל־EXE</h2>
+      <h2>אריזת פרויקט</h2>
       <figure class="example">
         <span class="example-label">דוגמה</span>
-        <pre class="code-block">// תוכן examples\shalom.יוד (מקוצר):
-הדפס "שלום מיוד!"
+        <pre class="code-block">// מתיקיית הפרויקט (או מהעורך עם תיקייה פתוחה):
+// yod.exe ארוז .
+// yod.exe ארוז "פרוייקט דוגמה\גיבוי"
 
-// אריזה:
-// yod.exe ארוז examples\shalom.יוד</pre>
+// נוצר (בלי מקורות גלויים):
+// גיבוי\dist_exe\גיבוי.exe
+// גיבוי\dist_exe\גיבוי.exe.manifest
+// (איקון מוטמע ב־EXE + עותק app.ico ליד הקובץ)</pre>
+      </figure>
+
+      <h2>אריזה לקובץ בודד</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">// yod.exe ארוז examples\shalom.יוד</pre>
         <div class="output">
           <span class="output-label">פלט</span>
-          <pre>נוצר קובץ EXE: examples\shalom.exe
+          <pre>נוצר EXE עצמאי (בלי מקורות): examples\dist_exe\shalom.exe
 לחיצה כפולה מריצה את התוכנית.</pre>
         </div>
       </figure>
@@ -55,13 +65,18 @@
         <pre class="code-block">// yod.exe ארוז תוכנית.יוד משחק.exe</pre>
         <div class="output">
           <span class="output-label">פלט</span>
-          <pre>נוצר קובץ EXE: משחק.exe</pre>
+          <pre>נוצר EXE עצמאי (בלי מקורות): משחק.exe</pre>
         </div>
       </figure>
 
-      <h2>תיקיית הפצה (ישן)</h2>
+      <h2>רשימת קבצים בחבילה</h2>
+      <p>לבדיקה בלי לכתוב EXE:</p>
+      <pre class="code-block">yod.exe ארוז תוכנית.יוד --רשימה</pre>
+
+      <h2>תיקיית הפצה מלאה (עם מקורות על הדיסק)</h2>
       <p>
-        אם צריך עדיין תיקייה עם <code>yod.exe</code> + <code>הרץ.bat</code>:
+        אם צריך תיקייה עם <code>yod.exe</code> + <code>הרץ.bat</code> + קבצי מקור
+        (מצב ישן / פיתוח):
       </p>
       <pre class="code-block">yod.exe ארוז תוכנית.יוד --תיקייה</pre>
 
@@ -70,22 +85,50 @@
           <tr><th>פקודה</th><th>תפקיד</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>yod ארוז קובץ.יוד</code></td><td>יוצר <code>שם.exe</code> בלי חלון CMD</td></tr>
+          <tr><td><code>yod ארוז קובץ.יוד</code></td><td>מוחק <code>dist_exe/</code> ישן ואז בונה EXE עצמאי (חבילה מוטמעת)</td></tr>
+          <tr><td><code>yod ארוז תיקייה</code></td><td>אורז את <code>התחל.יוד</code> → <code>dist_exe/</code></td></tr>
           <tr><td><code>yod ארוז קובץ.יוד יעד.exe</code></td><td>שם/נתיב מותאם ל־EXE</td></tr>
           <tr><td><code>yod ארוז קובץ.יוד --קונסול</code></td><td>EXE עם חלון CMD (להדפסות)</td></tr>
-          <tr><td><code>yod ארוז קובץ.יוד --תיקייה</code></td><td>תיקיית הפצה (במקום EXE בודד)</td></tr>
+          <tr><td><code>yod ארוז קובץ.יוד --רשימה</code></td><td>מדפיס מה ייכנס לחבילה (בלי EXE)</td></tr>
+          <tr><td><code>yod ארוז קובץ.יוד --תיקייה</code></td><td>תיקיית הפצה עם מקורות על הדיסק</td></tr>
         </tbody>
       </table>
 
       <div class="callout tip">
-        <strong>בלי CMD:</strong> ברירת המחדל היא EXE בלי חלון קונסול.
-        אם התוכנית רק מדפיסה לטרמינל — ארוז עם <code>--קונסול</code>.
-        האיקון של יוד (אות י׳) מועבר אוטומטית לקובץ ה־EXE.
+        <strong>בלי מקורות גלויים:</strong> ברירת המחדל (0.98.14+) לא מעתיקה
+        <code>.יוד</code> / <code>עיצוב/</code> / <code>מדריך/</code> לתיקיית ההפצה —
+        הם בתוך ה־EXE. אפליקציות ישנות בפורמט <code>YODPACK1</code> עדיין רצות
+        אם יש קבצים ליד ה־EXE.
       </div>
 
       <div class="callout tip">
-        <strong>מהעורך:</strong> כפתור «ארוז», תפריט הרצה, או <code>Ctrl+Shift+P</code> —
-        יוצרים EXE בלי טרמינל.
+        <strong>הפצה נקיה:</strong> באריזה נמחקים/לא מועתקים קבצי
+        <code>נתונים</code> / <code>data</code> ותיקיות בדיקה —
+        המשתמש מקבל תוכנה ריקה שיוצרת נתונים בהרצה הראשונה.
+      </div>
+
+      <div class="callout tip">
+        <strong>שם ה־EXE:</strong> לפרויקט עם <code>התחל.יוד</code> — שם תיקיית הפרויקט
+        (למשל <code>גיבוי.exe</code>, <code>סנייק.exe</code>). לקובץ בודד — שם הקובץ.
+        אפשר תמיד לציין יעד: <code>yod ארוז . משחק.exe</code>.
+      </div>
+
+      <div class="callout tip">
+        <strong>בלי CMD:</strong> ברירת המחדל היא EXE בלי חלון קונסול.
+        אם התוכנית רק מדפיסה לטרמינל — ארוז עם <code>--קונסול</code>.
+      </div>
+
+      <div class="callout tip">
+        <strong>איקון:</strong> אם יש <code>app.ico</code> / <code>icon.ico</code> /
+        <code>נכסים/לוגו.png</code> / <code>נכסים/לוגו.b64</code> — מוטמע בתוך ה־EXE
+        (גם בסייר הקבצים). אחרת משתמשים באיקון של יוד.
+      </div>
+
+      <div class="callout tip">
+        <strong>מהעורך:</strong> כפתור «ארוז» / תפריט הרצה / <code>Ctrl+Shift+P</code> —
+        עם תיקיית פרויקט פתוחה נוצר <code>dist_exe/</code> בתוכה.
+        לפני האריזה נמחקת תיקיית <code>dist_exe</code> הישנה (אם קיימת).
+        «פתח מיקום EXE» (מתחתיו) פותח את התיקייה בסייר — כבוי עד שאורזים לפחות פעם אחת.
       </div>
 
       <div class="callout tip">
@@ -94,7 +137,7 @@
       </div>
 
       <div class="callout warn">
-        <strong>שימו לב:</strong> גודל ה־EXE ≈ גודל מנוע יוד + הקוד.
+        <strong>שימו לב:</strong> גודל ה־EXE ≈ מנוע יוד + כל הקבצים בחבילה.
         אחרי שדרוג יוד — ארוז מחדש כדי שהמשתמשים יקבלו את העדכון.
       </div>
 

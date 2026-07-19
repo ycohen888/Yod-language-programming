@@ -28,6 +28,12 @@ func enableSurfaceArrowKeys(st *controlState, cw *walk.CustomWidget) {
 		if msg == win.WM_GETDLGCODE {
 			return uintptr(win.DLGC_WANTARROWS | win.DLGC_WANTCHARS | win.DLGC_WANTALLKEYS)
 		}
+		// WM_CHAR — תו אמיתי אחרי TranslateMessage (עברית/Unicode). Walk מפרסם
+		// KeyPress מ־WM_KEYDOWN עם VK בלבד, בלי התו הממופה לפריסת מקלדת.
+		if msg == win.WM_CHAR {
+			handleSurfaceChar(st, rune(wParam))
+			return 0
+		}
 		// bit 30 = המקש כבר היה לחוץ → חזרה אוטומטית של Windows
 		if msg == win.WM_KEYDOWN && (lParam&(1<<30)) != 0 {
 			if handleSurfaceKeyRepeat(st, walk.Key(wParam)) {

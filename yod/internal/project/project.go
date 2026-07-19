@@ -10,6 +10,9 @@ import (
 // MainFileName — שם קובץ הכניסה הקבוע של כל פרויקט יוד.
 const MainFileName = "התחל.יוד"
 
+// DistDirName — תיקיית פלט לאריזה (בתוך שורש הפרויקט).
+const DistDirName = "dist_exe"
+
 // MainTemplate — תוכן ברירת מחדל לקובץ הראשי החדש.
 const MainTemplate = `// התחל.יוד — נקודת הכניסה של הפרויקט
 // כללו כאן קבצים אחרים מהפרויקט, למשל:
@@ -112,7 +115,7 @@ func ListYodFiles(projectRoot string) ([]string, error) {
 			if name == "." || name == ".." {
 				return nil
 			}
-			if strings.HasPrefix(name, ".") || name == "dist" || name == "node_modules" || name == "vendor" {
+			if strings.HasPrefix(name, ".") || name == "dist" || name == DistDirName || name == "node_modules" || name == "vendor" || name == "הפצה" {
 				if path != projectRoot {
 					return filepath.SkipDir
 				}
@@ -134,4 +137,64 @@ func ListYodFiles(projectRoot string) ([]string, error) {
 		return nil
 	})
 	return out, err
+}
+
+// DefaultDistDir מחזיר <שורש_פרויקט>/dist_exe, או ליד הקובץ אם אין פרויקט.
+func DefaultDistDir(srcPath string) string {
+	srcPath = filepath.Clean(srcPath)
+	root := FindProjectRoot(srcPath)
+	if root == "" {
+		root = filepath.Dir(srcPath)
+	}
+	return filepath.Join(root, DistDirName)
+}
+
+// DefaultAppName — שם התוכנה לאריזה: תיקיית הפרויקט (גיבוי, סנייק…) כשהכניסה היא התחל.יוד;
+// אחרת שם קובץ המקור בלי סיומת.
+func DefaultAppName(srcPath string) string {
+	srcPath = filepath.Clean(srcPath)
+	base := strings.TrimSuffix(filepath.Base(srcPath), filepath.Ext(srcPath))
+	if IsMain(srcPath) {
+		root := FindProjectRoot(srcPath)
+		if root == "" {
+			root = filepath.Dir(srcPath)
+		}
+		folder := filepath.Base(root)
+		if folder != "" && folder != "." && folder != string(filepath.Separator) {
+			base = folder
+		}
+	}
+	return SanitizeAppName(base)
+}
+
+// SanitizeAppName מסיר תווים אסורים בשם קובץ Windows.
+func SanitizeAppName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "תוכנית"
+	}
+	var b strings.Builder
+	for _, r := range name {
+		switch r {
+		case '<', '>', ':', '"', '/', '\\', '|', '?', '*':
+			b.WriteRune('_')
+		default:
+			if r < 32 {
+				b.WriteRune('_')
+			} else {
+				b.WriteRune(r)
+			}
+		}
+	}
+	out := strings.Trim(b.String(), " .")
+	if out == "" {
+		return "תוכנית"
+	}
+	return out
+}
+
+// DefaultEXEPath — נתיב ברירת מחדל ל־EXE בתוך dist_exe (לפי שם התוכנה).
+func DefaultEXEPath(srcPath string) string {
+	srcPath = filepath.Clean(srcPath)
+	return filepath.Join(DefaultDistDir(srcPath), DefaultAppName(srcPath)+".exe")
 }

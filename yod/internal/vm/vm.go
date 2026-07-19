@@ -903,11 +903,12 @@ func (vm *VM) executeIndex(left, index object.Object) error {
 		if !ok {
 			return fmt.Errorf("מפתח מילון חייב להיות מחרוזת")
 		}
-		if m := object.LookupMethod(left, key.Value); m != nil {
-			return vm.push(m)
-		}
+		// מפתח בנתונים קודם למתודה מובנית (למשל מפתח JSON "ערכים")
 		if val, ok := left.Pairs[key.Value]; ok {
 			return vm.push(val)
+		}
+		if m := object.LookupMethod(left, key.Value); m != nil {
+			return vm.push(m)
 		}
 		return vm.push(Null)
 	case *object.Array:
@@ -1178,6 +1179,21 @@ func callBuiltin(idx int, args []object.Object) object.Object {
 		return object.Random01()
 	case 9:
 		return object.RandomBetween(args...)
+	case 10:
+		if len(args) != 1 {
+			return &object.Error{Message: "משימה מצפה לפונקציה אחת"}
+		}
+		return object.SpawnTask(args[0])
+	case 11:
+		if len(args) != 1 {
+			return &object.Error{Message: "המתן מצפה למשימה אחת"}
+		}
+		return object.AwaitTask(args[0])
+	case 12:
+		if len(args) != 1 {
+			return &object.Error{Message: "במקביל מצפה לרשימת משימות"}
+		}
+		return object.ParallelTasks(args[0])
 	default:
 		return &object.Error{Message: "פונקציה מובנית לא ידועה"}
 	}

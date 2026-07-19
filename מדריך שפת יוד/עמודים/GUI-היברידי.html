@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GUI היברידי | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ארכיטקטורה · 0.98</span><strong>GUI היברידי</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>שלב J — היבריד ואז החלפת walk</h1>
+      <p class="lead">
+        טפסי Win32 נשארים ב־walk. משטחי ציור, דפדפן ו־GPU רצים על HWND נפרד תחת אותה API עברית
+        <code>חלונות.*</code>. אין זריקה מיידית של walk.
+      </p>
+
+      <h2>טבלת תאימות (מימוש)</h2>
+      <table class="method-table">
+        <thead><tr><th>רכיב יוד</th><th>מימוש נוכחי</th><th>הערות</th></tr></thead>
+        <tbody>
+          <tr><td>חלון / כפתור / תווית / שדה / רשימה / טבלה</td><td>walk (Win32)</td><td>יציב — לא מוחלף ב־0.98</td></tr>
+          <tr><td>מסגרת / שורה / עמודה</td><td>walk.Composite</td><td>פריסה</td></tr>
+          <tr><td>משטח</td><td>CustomWidget + Direct2D / CPU 2D</td><td>ציור דו־ממדי מואץ (UI/מפות)</td></tr>
+          <tr><td>דפדפן / וידאו</td><td>Composite HWND + WebView2</td><td>היבריד</td></tr>
+          <tr><td>משטח_GPU</td><td>Composite HWND + OpenGL/WGL</td><td>תלת־ממד — לא תחליף ל־משטח</td></tr>
+          <tr><td>גרף</td><td>CustomWidget</td><td>כמו משטח</td></tr>
+        </tbody>
+      </table>
+
+      <h2>J.1 היבריד (הושלם כדפוס)</h2>
+      <ul>
+        <li>טופס walk מארח</li>
+        <li>ילד Composite מקבל Handle אחרי <code>Create</code></li>
+        <li>חיבור: WebView2 / OpenGL / (עתיד UI־GPU)</li>
+      </ul>
+
+      <h2>J.2 החלפה מבוקרת (אחרי 1.0)</h2>
+      <p>
+        יעד: החלפת וידג׳טים בהדרגה תחת אותן מתודות עבריות
+        (<code>כפתור</code>/<code>תווית</code>/…) — משתמש הקצה לא מחליף «שפה».
+        חובה סוויטת רגרסיה על דמואים: משימות, צייר, Yod Safe, תלת, GPU.
+      </p>
+    </article>
+  </div>
+  </div>
+  <script src="../js/sidebar.js"></script>
+</body>
+</html>

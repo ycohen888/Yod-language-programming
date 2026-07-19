@@ -9,10 +9,13 @@ import (
 	. "github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
 
+	"yod/internal/console"
 	"yod/internal/object"
 )
 
 func showDrawing(img image.Image, title string) object.Object {
+	console.HideIfOwned()
+
 	rgba := imageToRGBA(img)
 	pw, ph := rgba.Bounds().Dx(), rgba.Bounds().Dy()
 	if pw < 1 || ph < 1 {

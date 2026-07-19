@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית גיליון | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.79.0</span><strong>גיליון</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית גיליון</h1>
+      <p class="lead">
+        קריאה וכתיבה של קבצי Excel (<code>.xlsx</code>) בלי להתקין Excel.
+        טוענים עם <code>כלול "גיליון"</code>. קבצי CSV נשארים ב־<a href="ספריית-קבצים.html">קבצים</a>.
+      </p>
+
+      <h2>פונקציות מודול</h2>
+      <table class="method-table">
+        <thead><tr><th>פונקציה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>גיליון.חדש()</code></td><td>יוצר חוברת חדשה בזיכרון</td></tr>
+          <tr><td><code>גיליון.פתח(נתיב)</code></td><td>פותח קובץ <code>.xlsx</code> קיים</td></tr>
+        </tbody>
+      </table>
+
+      <h2>מתודות על קובץ</h2>
+      <table class="method-table">
+        <thead><tr><th>מתודה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>בחר(שם_או_אינדקס)</code></td><td>בוחר גיליון פעיל</td></tr>
+          <tr><td><code>שמות_גיליונות()</code></td><td>רשימת שמות הגיליונות</td></tr>
+          <tr><td><code>קרא_תא("A1")</code></td><td>ערך תא (מספר או מחרוזת)</td></tr>
+          <tr><td><code>קבע_תא("B2", ערך)</code></td><td>כותב תא</td></tr>
+          <tr><td><code>קבע_סגנון("A1", מילון)</code></td><td>מודגש, גודל, צבע, רקע, יישור</td></tr>
+          <tr><td><code>גרף(מילון)</code></td><td>עמודות/קו/עוגה לפי טווח נתונים</td></tr>
+          <tr><td><code>שמור()</code></td><td>שומר לנתיב שכבר נפתח</td></tr>
+          <tr><td><code>שמור_כ(נתיב)</code></td><td>שומר לנתיב חדש</td></tr>
+          <tr><td><code>סגור()</code></td><td>סוגר את הקובץ</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "גיליון"
+
+משתנה ד = גיליון.חדש()
+ד.קבע_תא("A1", "סיכום")
+ד.קבע_תא("B1", 1500)
+ד.שמור_כ("דוח.xlsx")
+ד.סגור()
+
+משתנה ק = גיליון.פתח("דוח.xlsx")
+הדפס(ק.קרא_תא("A1"))
+הדפס(ק.קרא_תא("B1"))
+ק.סגור()</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>סיכום
+1500</pre>
+        </div>
+      </figure>
+
+      <h2>סגנון וגרף</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "גיליון"
+
+משתנה ד = גיליון.חדש()
+ד.קבע_תא("A1", "חודש")
+ד.קבע_תא("B1", "מכירות")
+ד.קבע_תא("A2", "ינואר")
+ד.קבע_תא("B2", 100)
+ד.קבע_סגנון("A1", { מודגש: אמת, רקע: "#1F4E79", צבע: "#FFFFFF" })
+ד.גרף({ סוג: "עמודות", נתונים: "A1:B2", מיקום: "E2", כותרת: "מכירות" })
+ד.שמור_כ("דוח.xlsx")
+ד.סגור()</pre>
+      </figure>
+
+      <div class="callout tip">
+        <strong>טיפ:</strong> אפשר לשלוח את הקובץ באימייל — ראו <a href="ספריית-אימייל.html">אימייל</a> עם מפתח <code>קבצים</code>.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,10 +22,10 @@ type httpServerState struct {
 	running  bool
 }
 
-// רשת.שרת(פורט) — יוצר שרת HTTP מקומי
+// רשת.שרת(פורט [, כתובת_האזנה]) — יוצר שרת HTTP (ברירת מחדל 127.0.0.1)
 func netNewServer(args ...object.Object) object.Object {
-	if err := expectArgs("רשת.שרת", 1, args); err != nil {
-		return err
+	if len(args) < 1 || len(args) > 2 {
+		return errObj("רשת.שרת מצפה לפורט [, כתובת_האזנה]")
 	}
 	port := 0
 	switch v := args[0].(type) {
@@ -42,12 +43,32 @@ func netNewServer(args ...object.Object) object.Object {
 	if port <= 0 || port > 65535 {
 		return errObj("רשת.שרת: פורט מחוץ לטווח")
 	}
+	host := "127.0.0.1"
+	if len(args) == 2 {
+		h, ok := asString(args[1])
+		if !ok {
+			return errObj("רשת.שרת: כתובת האזנה חייבת להיות מחרוזת (127.0.0.1 / 0.0.0.0)")
+		}
+		h = strings.TrimSpace(h)
+		if h == "" || h == "localhost" {
+			host = "127.0.0.1"
+		} else if h == "0.0.0.0" || h == "*" || h == "כל" {
+			host = "0.0.0.0"
+		} else {
+			host = h
+		}
+	}
 	st := &httpServerState{
 		mux:  http.NewServeMux(),
-		addr: fmt.Sprintf(":%d", port),
+		addr: fmt.Sprintf("%s:%d", host, port),
+	}
+	displayHost := host
+	if host == "0.0.0.0" {
+		displayHost = "127.0.0.1"
 	}
 	m := &object.Module{Name: "שרת_HTTP", Attrs: map[string]object.Object{}}
-	m.Attrs["כתובת"] = &object.String{Value: "http://127.0.0.1" + st.addr}
+	m.Attrs["כתובת"] = &object.String{Value: "http://" + displayHost + fmt.Sprintf(":%d", port)}
+	m.Attrs["כתובת_האזנה"] = &object.String{Value: st.addr}
 	m.Attrs["מסלול"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return netServerRoute(st, a...)
 	}}
@@ -88,10 +109,28 @@ func netServerRoute(st *httpServerState, args ...object.Object) object.Object {
 	st.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 8<<20))
 		_ = r.Body.Close()
+		headerHash := &object.Hash{Pairs: map[string]object.Object{}}
+		for k, vals := range r.Header {
+			headerHash.Pairs[k] = &object.String{Value: strings.Join(vals, ", ")}
+		}
+		queryHash := &object.Hash{Pairs: map[string]object.Object{}}
+		for k, vals := range r.URL.Query() {
+			if len(vals) == 1 {
+				queryHash.Pairs[k] = &object.String{Value: vals[0]}
+			} else {
+				arr := &object.Array{Elements: make([]object.Object, len(vals))}
+				for i, v := range vals {
+					arr.Elements[i] = &object.String{Value: v}
+				}
+				queryHash.Pairs[k] = arr
+			}
+		}
 		req := &object.Hash{Pairs: map[string]object.Object{
-			"שיטה": &object.String{Value: r.Method},
-			"נתיב": &object.String{Value: r.URL.Path},
-			"גוף":  &object.String{Value: string(body)},
+			"שיטה":    &object.String{Value: r.Method},
+			"נתיב":    &object.String{Value: r.URL.Path},
+			"גוף":     &object.String{Value: string(body)},
+			"כותרות":  headerHash,
+			"שאילתה":  queryHash,
 		}}
 		var res object.Object
 		if object.InvokeCallable != nil {

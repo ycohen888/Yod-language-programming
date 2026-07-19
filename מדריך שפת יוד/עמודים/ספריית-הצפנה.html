@@ -17,14 +17,14 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.49.0</span><strong>הצפנה</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.83</span><strong>הצפנה</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
 
     <article class="article">
       <h1>ספריית הצפנה</h1>
       <p class="lead">
-        קידוד Base64 וגיבוב (hash) נפוץ: MD5, SHA-256 ו־HMAC.
+        קידוד Base64, גיבוב (MD5/SHA-256/HMAC) והצפנה סימטרית AES-GCM עם PBKDF2.
         טוענים עם <code>כלול "הצפנה"</code>.
       </p>
 
@@ -39,6 +39,11 @@
           <tr><td><code>הצפנה.MD5(טקסט)</code></td><td>גיבוב MD5 כמחרוזת hex</td></tr>
           <tr><td><code>הצפנה.SHA256(טקסט)</code></td><td>גיבוב SHA-256 כמחרוזת hex</td></tr>
           <tr><td><code>הצפנה.HMAC_SHA256(מפתח, טקסט)</code></td><td>HMAC-SHA256 כמחרוזת hex</td></tr>
+          <tr><td><code>הצפנה.נגזר_מפתח(סיסמה [, מלח [, סבבים]])</code></td><td>PBKDF2 → מילון <code>מפתח</code>/<code>מלח</code>/<code>סבבים</code></td></tr>
+          <tr><td><code>הצפנה.הצפן(טקסט, מפתח_hex)</code></td><td>AES-GCM → base64</td></tr>
+          <tr><td><code>הצפנה.פענח(מוצפן, מפתח_hex)</code></td><td>פענוח AES-GCM</td></tr>
+          <tr><td><code>הצפנה.הצפן_בסיסמה(טקסט, סיסמה)</code></td><td>הצפנה עצמית עם PBKDF2 (פורמט <code>יוד1:</code>)</td></tr>
+          <tr><td><code>הצפנה.פענח_בסיסמה(מוצפן, סיסמה)</code></td><td>פענוח עם סיסמה</td></tr>
         </tbody>
       </table>
 
@@ -49,18 +54,22 @@
 
 הדפס(הצפנה.בסיס64("שלום"))
 הדפס(הצפנה.SHA256("abc"))
-הדפס(הצפנה.HMAC_SHA256("מפתח", "הודעה"))</pre>
+הדפס(הצפנה.HMAC_SHA256("מפתח", "הודעה"))
+
+משתנה מ = הצפנה.הצפן_בסיסמה("סוד", "סיסמה1234")
+הדפס(הצפנה.פענח_בסיסמה(מ, "סיסמה1234"))</pre>
         <div class="output">
           <span class="output-label">פלט</span>
           <pre>16nXnNeV150=
 ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
-…hex…</pre>
+…hex…
+סוד</pre>
         </div>
       </figure>
 
       <div class="callout warn">
         <strong>שים לב:</strong> MD5 אינו מומלץ לאבטחה מודרנית — שימושי לבדיקות תקימות פשוטות.
-        אין כאן הצפנה סימטרית (AES וכו').
+        להצפנת נתונים במנוחה השתמשו ב־<code>הצפן_בסיסמה</code> / AES-GCM.
       </div>
     </article>
   </div>

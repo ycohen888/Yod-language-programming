@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מוניטור — מדריך בניית תוכנה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מדריך בניית תוכנה</span><strong>מוניטור</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1 id="top">בניית מוניטור אתרים — מרשימת URL עד חלון חי</h1>
+      <p class="lead">
+        מדריך לבניית אפליקציית ניטור HTTP בשפת יוד — על בסיס
+        <code>פרוייקט דוגמה/מוניטור/</code>.
+        הרבה כתובות, לכל אחת מרווח והגדרות משלה, ממשק ימין/שמאל, ותמיכה ב־he/en/fr.
+      </p>
+
+      <div class="callout tip">
+        <strong>איך להשתמש:</strong>
+        בנו לפי הסדר (מודל → בדיקה מדורגת → UI → תרגום). השוו לקוד בפרויקט אחרי כל שלב.
+      </div>
+
+      <h2 id="overview">1. מה בונים</h2>
+      <ul>
+        <li>רשימת אתרים עם שם, URL, מרווח בדיקה, זמן־קצוב וסף כשלונות.</li>
+        <li>ניטור אוטומטי לפי <em>מרווח פר־אתר</em> (לא מרווח גלובלי אחד).</li>
+        <li>תור בדיקה מדורג — כדי ש־<code>רשת.גש</code> החוסם לא יקפיא את החלון.</li>
+        <li>פריסה לפי שפה: עברית RTL (רשימה מימין); אנגלית/צרפתית LTR.</li>
+        <li>תפריט עליון + תרגום ממשק (עברית / English / Français).</li>
+        <li>מדריך משתמש מתוך עזרה → מדריך (נארז עם ה־EXE); אודות כולל <a href="https://servxx.com">servxx.com</a>.</li>
+        <li>מגש מערכת (X מסתיר לרקע) + הפעלה עם Windows.</li>
+        <li>מייל תקלה והחלמה, סף איטיות ms, היסטוריה 24ש׳, ייצוא JSON וייבוא ממזג (בלי דריסה).</li>
+      </ul>
+
+      <h2 id="architecture">2. מפת קבצים</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>קובץ</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>התחל.יוד</code></td><td>נקודת כניסה — <code>יבא { הפעל_מוניטור }</code></td></tr>
+          <tr><td><code>הפעלה.יוד</code></td><td>כלול ספריות ומודולים, טיימר, חלון</td></tr>
+          <tr><td><code>הגדרות.יוד</code></td><td>ברירות מחדל לאתר חדש</td></tr>
+          <tr><td><code>מצב.יוד</code></td><td>משתנים גלובליים (אתרים, תור, UI)</td></tr>
+          <tr><td><code>אחסון.יוד</code></td><td><code>אתר_ריק</code>, נרמול URL, JSON</td></tr>
+          <tr><td><code>בדיקה.יוד</code></td><td>תור מדורג + תזמון פר־אתר</td></tr>
+          <tr><td><code>ממשק.יוד</code></td><td>סרגל עליון, רשימה, פאנלים</td></tr>
+          <tr><td><code>שפה_ממשק.יוד</code></td><td>תרגום, תפריט שפה, RTL/LTR</td></tr>
+          <tr><td><code>העדפות.יוד</code></td><td>שפה, נושא, הגדרות מייל — JSON</td></tr>
+          <tr><td><code>דיווח_מייל.יוד</code></td><td>שליחת דיווח HTML על תקלה</td></tr>
+          <tr><td><code>היסטוריה.יוד</code></td><td>רשומות בדיקה 24ש׳ + סיכום %/ממוצע; יומן פעילות נשמר ב־<code>נתונים/יומן.json</code></td></tr>
+          <tr><td><code>מדריך.יוד</code> + <code>מדריך/מדריך.html</code></td><td>מדריך משתמש בתוך התוכנה (עזרה → מדריך), כמו בגיבוי</td></tr>
+          <tr><td><code>תרגומים/*.po</code></td><td>קטלוגים en ו־fr</td></tr>
+        </tbody>
+      </table>
+
+      <figure class="example">
+        <span class="example-label">זרימת הפעלה</span>
+        <pre class="code-block">התחל.יוד
+  → יבא הפעל_מוניטור מתוך הפעלה.יוד
+  → טען_אתרים() + טען_היסטוריה() + טען_יומן()
+  → הפעל_טיימר_רקע() + בנה_חלון_מוניטור()</pre>
+      </figure>
+
+      <h2 id="skeleton">3. נקודת כניסה וסגנון יבא</h2>
+      <p>
+        בפרויקט חדש עדיף ש־<code>התחל.יוד</code> יישאר נקי מ־<code>כלול</code> על קבצי פרויקט
+        (<code>יוד בדוק התחל.יוד</code>). הטעינה המשותפת נעשית ב־<code>הפעלה.יוד</code>:
+      </p>
+      <figure class="example">
+        <span class="example-label">התחל.יוד</span>
+        <pre class="code-block">יבא { הפעל_מוניטור } מתוך "הפעלה.יוד"
+הפעל_מוניטור()</pre>
+      </figure>
+      <div class="callout warn">
+        <strong>מודול_רשת:</strong>
+        לפני <code>כלול "..\עיצוב\…"</code> שמרו <code>משתנה מודול_רשת = רשת</code> —
+        אחרת השם <code>רשת</code> יוחלף במחלקת עיצוב.
+      </div>
+      <p>הרצה מתיקיית הפרויקט (או F5 בעורך):</p>
+      <figure class="example">
+        <span class="example-label">הרצה</span>
+        <pre class="code-block">יוד הרץ "פרוייקט דוגמה\מוניטור\התחל.יוד"</pre>
+      </figure>
+
+      <h2 id="data-model">4. מודל אתר_ריק</h2>
+      <p>כל פריט ברשימה הוא מילון עצמאי:</p>
+      <table class="method-table">
+        <thead>
+          <tr><th>שדה</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>מזהה</code></td><td>למשל <code>s1</code></td></tr>
+          <tr><td><code>שם</code></td><td>תצוגה ברשימה (לא מתורגם)</td></tr>
+          <tr><td><code>כתובת</code></td><td>URL — נרמול <code>https://</code> אם חסר</td></tr>
+          <tr><td><code>מרווח_שניות</code></td><td>מרווח בדיקה <em>לכתובת הזו</em></td></tr>
+          <tr><td><code>מופעל</code></td><td>האם הניטור האוטומטי פעיל</td></tr>
+          <tr><td><code>זמן_קצוב_שניות</code> / <code>סף_כשלונות</code></td><td>timeout והתראה</td></tr>
+          <tr><td><code>סטטוס</code>, <code>קוד</code>, <code>זמן_תגובה_ms</code></td><td>תוצאה אחרונה</td></tr>
+        </tbody>
+      </table>
+      <p>שמירה: <code>נתונים/אתרים.json</code>. שפת ממשק: <code>נתונים/העדפות.json</code>.</p>
+
+      <h2 id="check-engine">5. מנוע בדיקה מדורג</h2>
+      <p>
+        <code>רשת.גש</code> חוסם — לכן יש תור מזהים: טיק רקע (~1 שנ׳) בודק מי «הגיע זמנו»,
+        מכניס לתור, ובכל צעד בודקים אתר אחד בלבד.
+      </p>
+      <figure class="example">
+        <span class="example-label">תזמון פר־אתר</span>
+        <pre class="code-block">פונקציה תזמן_בדיקות_אוטומטיות() {
+    משתנה עכשיו = זמן.מילי()
+    עבור א בתוך אתרים {
+        אם (לא א.מופעל) { המשך }
+        משתנה מרווח_מס = א.מרווח_שניות * 1000
+        אם (א.נבדק_מילי == 0 או עכשיו - א.נבדק_מילי >= מרווח_מס) {
+            הוסף_לתור_בדיקה(א.מזהה)
+        }
+    }
+    צעד_תור_בדיקה()
+}</pre>
+      </figure>
+      <p>
+        הצלחה = קוד HTTP בטווח 2xx/3xx בלבד (<code>200–399</code>).
+        4xx/5xx נחשבים שגיאה ומעלים את מונה הכשלונות הרצופים.
+      </p>
+      <p>
+        אחרי סף כשלונות רצופים — טוסט התראה, ומייל HTML פעם אחת
+        (רק אם השליחה הצליחה; אם המייל כבוי — לוג ביומן והדגל לא ננעל).
+        כשהאתר חוזר לתקין מתאפסים הכשלונות ו־<code>מייל_נשלח</code>.
+      </p>
+
+      <h2 id="ui">6. ממשק — ימין / שמאל</h2>
+      <ul>
+        <li><strong>דשבורד</strong> (פריט ראשון בתפריט): סיכום כל הבדיקות, תגי סטטוס, רשימת אתרים ויומן</li>
+        <li><strong>סרגל עליון:</strong> דשבורד · קובץ · בדיקה · תצוגה · שפה · עזרה (מדריך + אודות עם <a href="https://servxx.com">servxx.com</a>)</li>
+        <li><strong>מימין (צד):</strong> <code>תצוגת_עץ</code> של כתובות + הוסף</li>
+        <li><strong>משמאל (ראשי):</strong> דשבורד / לשוניות הגדרות־אתר / בדיקה / יומן / הגדרות תוכנה</li>
+      </ul>
+      <p>
+        ב־עברית (RTL) העמודה הראשונה בשורת המכל מופיעה מימין — זו הרשימה.
+        באנגלית/צרפתית הכיוון מתהפך ל־LTR דרך <code>עיצוב_קבע_כיוון</code>
+        (כולל אזור הגלילה הראשי).
+      </p>
+
+      <h2 id="i18n">7. תרגום he / en / fr</h2>
+      <ul>
+        <li><code>כלול "תרגום"</code> + קבצים ב־<code>תרגומים/</code> (לא <code>תרגום/</code> — התנגשות בשם)</li>
+        <li>עטיפה <code>ט(מפתח)</code> → <code>תרגום.ט</code></li>
+        <li>אחרי החלפת שפה: רענון תפריט ותוויות; שמות/כתובות של המשתמש לא מתורגמים</li>
+      </ul>
+
+      <h2 id="app-settings">8. הגדרות תוכנה ודיווח מייל</h2>
+      <p>
+        מתפריט <strong>קובץ → הגדרות תוכנה</strong> (או תצוגה) נפתח עמוד כללי:
+      </p>
+      <ul>
+        <li>שפת ממשק וערכת נושא (כהה / בהיר)</li>
+        <li>הגדרות מייל: Gmail (סיסמת אפליקציה או OAuth) או SMTP חיצוני</li>
+        <li>רשימת נמענים לדיווח תקלות</li>
+      </ul>
+      <p>
+        כשאתר מגיע לסף הכשלונות הרצופים, נשלח מייל HTML מעוצב
+        <strong>פעם אחת</strong> עד שהאתר חוזר לתקין (2xx/3xx).
+        כשהאתר מתאושש אחרי דיווח תקלה — נשלח מייל החלמה (אם מופעל).
+        סף <code>סף_latency_ms</code> מעל 0 מסמן סטטוס «איטי» ונספר ככשל להתראה.
+        תוכן המייל בשפת הממשק (עברית RTL / en·fr LTR).
+        ההעדפות נשמרות ב־<code>נתונים/העדפות.json</code>; היסטוריית בדיקות ב־<code>נתונים/היסטוריה.json</code>;
+        יומן הפעילות (24 שעות) ב־<code>נתונים/יומן.json</code> ונשאר אחרי סגירה/פתיחה.
+      </p>
+      <p>
+        X בחלון מסתיר למגש המערכת; יציאה אמיתית מ־«יציאה» בתפריט/מגש.
+        Checkbox «הפעלה עם Windows» רושם את האפליקציה ב־Run של המשתמש.
+        קובץ → ייצא שומר JSON של האתרים; ייבא ממזג לפי כתובת — מוסיף רק אתרים שלא קיימים (בלי לדרוס).
+      </p>
+
+      <h2 id="checklist">9. רשימת בדיקה</h2>
+      <ol>
+        <li>הוסיפו 3+ כתובות עם מרווחים שונים — כל אחת נבדקת לפי שלה</li>
+        <li>בחירה מימין מרעננת את הפאנל משמאל</li>
+        <li>אתר שמחזיר 403/404 מסומן כשגיאה; אחרי סף כשלונות — מייל אחד (אם מופעל)</li>
+        <li>אתר שנשאר שבור — אין מייל נוסף; אחרי התאוששות ל־200 וכשל שוב — מייל חדש</li>
+        <li>מייל כבוי + כשל — לוג «מייל כבוי» ביומן; אחרי הפעלה נשלח דיווח</li>
+        <li>שמירה חוזרת אחרי הפעלה מחדש (אתרים + יומן 24ש׳)</li>
+        <li>«בדוק הכל» רץ מדורג בלי להקפיא</li>
+        <li>החלפת שפה ל־en/fr וחזרה ל־he (RTL)</li>
+        <li><code>יוד בדוק התחל.יוד</code> — נקי</li>
+      </ol>
+
+      <div class="callout ok">
+        <strong>המשך למידה:</strong>
+        <a href="בניית-גיבוי.html">גיבוי</a> ·
+        <a href="ספריית-עיצוב.html">עיצוב</a> ·
+        <a href="ספריית-רשת.html">רשת</a> ·
+        <a href="ספריית-תרגום.html">תרגום</a> ·
+        <a href="ספריית-טיימרים.html">טיימרים</a>
+      </div>
+
+      <nav class="page-nav">
+        <a href="בניית-גיבוי.html">
+          <span class="dir">הקודם</span>
+          <span class="title">גיבוי</span>
+        </a>
+        <a href="../מדריך שפת יוד.html#build-apps">
+          <span class="dir">הבא</span>
+          <span class="title">מדריך בניית תוכנה</span>
+        </a>
+      </nav>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

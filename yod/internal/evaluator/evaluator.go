@@ -3,7 +3,6 @@ package evaluator
 import (
 	"fmt"
 	"math"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"yod/internal/object"
 	"yod/internal/parser"
 	"yod/internal/stdlib"
+	"yod/internal/vfs"
 )
 
 var (
@@ -821,14 +821,14 @@ func evalMember(node *ast.MemberExpression, env *object.Environment) object.Obje
 		}
 		return val
 	case *object.Hash:
+		// מפתח בנתונים קודם למתודה מובנית — אחרת מ.ערכים (מפתח JSON) נדרס ע״י מתודת ערכים()
+		if val, ok := obj.Get(name); ok {
+			return val
+		}
 		if m := object.LookupMethod(obj, name); m != nil {
 			return m
 		}
-		val, ok := obj.Get(name)
-		if !ok {
-			return newError(node.Line(), fmt.Sprintf("במילון אין מפתח %q", name))
-		}
-		return val
+		return newError(node.Line(), fmt.Sprintf("במילון אין מפתח %q", name))
 	case *object.Array:
 		if m := object.LookupMethod(obj, name); m != nil {
 			return m
@@ -1224,7 +1224,7 @@ func evalImport(node *ast.ImportStatement, env *object.Environment) object.Objec
 		return bindImported(node, env, m)
 	}
 
-	data, err := os.ReadFile(full)
+	data, err := vfs.ReadPrefer(full)
 	if err != nil {
 		return newError(node.Line(), fmt.Sprintf("לא הצלחתי לייבא את %q: %v", path, err))
 	}
@@ -1314,7 +1314,7 @@ func evalInclude(node *ast.IncludeStatement, env *object.Environment) object.Obj
 		return NULL // כבר נכלל
 	}
 
-	data, err := os.ReadFile(full)
+	data, err := vfs.ReadPrefer(full)
 	if err != nil {
 		return newError(node.Line(), fmt.Sprintf("לא הצלחתי לכלול את %q: %v", path, err))
 	}

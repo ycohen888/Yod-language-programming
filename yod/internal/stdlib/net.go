@@ -9,15 +9,67 @@ import (
 	"yod/internal/object"
 )
 
-var httpClient = &http.Client{Timeout: 30 * time.Second}
+var (
+	httpClient     = &http.Client{Timeout: 30 * time.Second}
+	httpTimeoutSec = 30.0
+)
 
 func NewNetModule() *object.Module {
 	m := &object.Module{Name: "רשת", Attrs: map[string]object.Object{}}
 	m.Attrs["גש"] = &object.Builtin{Fn: netGet}
 	m.Attrs["פרסם"] = &object.Builtin{Fn: netPost}
+	m.Attrs["פרסם_json"] = &object.Builtin{Fn: netPostJSON}
 	m.Attrs["בקשה"] = &object.Builtin{Fn: netRequest}
+	registerHTTPAsync(m)
+	m.Attrs["קבע_זמן_קצוב"] = &object.Builtin{Fn: netSetTimeout}
 	m.Attrs["שרת"] = &object.Builtin{Fn: netNewServer}
+	m.Attrs["שקע_שרת"] = &object.Builtin{Fn: netWSServer}
+	m.Attrs["שקע_התחבר"] = &object.Builtin{Fn: netWSConnect}
+	m.Attrs["FTP_התחבר"] = &object.Builtin{Fn: netFTPConnect}
+	registerFTPConnectAsync(m)
+	m.Attrs["SFTP_התחבר"] = &object.Builtin{Fn: netSFTPConnect}
+	m.Attrs["חשב_מהירות"] = &object.Builtin{Fn: netCalcSpeed}
 	return m
+}
+
+// רשת.קבע_זמן_קצוב(שניות) — ברירת מחדל 30
+func netSetTimeout(args ...object.Object) object.Object {
+	if err := expectArgs("רשת.קבע_זמן_קצוב", 1, args); err != nil {
+		return err
+	}
+	n, ok := args[0].(*object.Number)
+	if !ok {
+		return errObj("קבע_זמן_קצוב מצפה למספר שניות")
+	}
+	sec := n.Value
+	if sec < 0 {
+		sec = 0
+	}
+	if sec > 600 {
+		sec = 600
+	}
+	httpTimeoutSec = sec
+	if sec <= 0 {
+		httpClient.Timeout = 0
+	} else {
+		httpClient.Timeout = time.Duration(sec * float64(time.Second))
+	}
+	return object.Nil
+}
+
+// רשת.פרסם_json(כתובת, גוף) — POST עם Content-Type: application/json
+func netPostJSON(args ...object.Object) object.Object {
+	if err := expectArgs("רשת.פרסם_json", 2, args); err != nil {
+		return err
+	}
+	url, ok := asString(args[0])
+	if !ok {
+		return errObj("רשת.פרסם_json: כתובת חייבת להיות מחרוזת")
+	}
+	body := bodyString(args[1])
+	return doHTTP("POST", url, body, map[string]string{
+		"Content-Type": "application/json; charset=utf-8",
+	})
 }
 
 // רשת.גש(כתובת) — GET
@@ -117,14 +169,22 @@ func doHTTP(method, url, body string, headers map[string]string) object.Object {
 		req.Header.Set("Content-Type", "text/plain; charset=utf-8")
 	}
 
-	resp, err := httpClient.Do(req)
+	// שחרור מנעול הריצה בזמן ה-I/O החוסם — כך אם הקריאה עטופה ב־`משימה`, ה־UI ממשיך
+	// להגיב. הקטע הזה הוא Go טהור ואינו נוגע במצב יוד, לכן בטוח לשחרר.
+	var resp *http.Response
+	var data []byte
+	object.WithoutYodLock(func() {
+		resp, err = httpClient.Do(req)
+		if err != nil {
+			return
+		}
+		defer resp.Body.Close()
+		data, err = io.ReadAll(io.LimitReader(resp.Body, 8<<20)) // עד 8MB
+	})
 	if err != nil {
-		return errObj("בקשת רשת נכשלה: " + err.Error())
-	}
-	defer resp.Body.Close()
-
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20)) // עד 8MB
-	if err != nil {
+		if resp == nil {
+			return errObj("בקשת רשת נכשלה: " + err.Error())
+		}
 		return errObj("קריאת תשובה נכשלה: " + err.Error())
 	}
 

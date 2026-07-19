@@ -17,13 +17,13 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="brand"><span class="eyebrow">ספרייה · 0.36.0</span><strong>רשת</strong></div>
+      <div class="brand"><span class="eyebrow">ספרייה · 0.99</span><strong>רשת</strong></div>
       <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
     </div>
     <article class="article">
       <h1>ספריית רשת</h1>
       <p class="lead">
-        בקשות HTTP בשמות עבריים. התשובה היא מילון עם קוד, גוף וכותרות.
+        בקשות HTTP, WebSocket, FTP/FTPS ו־SFTP (SSH) בשמות עבריים.
         טוענים עם <code>כלול "רשת"</code>.
       </p>
 
@@ -35,11 +35,169 @@
         <tbody>
           <tr><td><code>רשת.גש(כתובת)</code></td><td>בקשת GET</td></tr>
           <tr><td><code>רשת.פרסם(כתובת, גוף)</code></td><td>בקשת POST</td></tr>
+          <tr><td><code>רשת.פרסם_json(כתובת, גוף)</code></td><td>POST עם <code>application/json</code></td></tr>
           <tr><td><code>רשת.בקשה(שיטה, כתובת [, גוף [, כותרות]])</code></td><td>בקשה כללית</td></tr>
-          <tr><td><code>רשת.שרת(פורט)</code></td><td>שרת HTTP מקומי</td></tr>
-          <tr><td><code>שרת.מסלול / הפעל / הפעל_ברקע / עצור / פועל</code></td><td>ניהול שרת (ברקע = לא חוסם את החלון)</td></tr>
+          <tr><td><code>רשת.גש_התחל(כתובת)</code></td><td>GET ברקע → <code>{מזהה}</code> (בלי לחסום UI · 0.99.0)</td></tr>
+          <tr><td><code>רשת.פרסם_התחל(כתובת, גוף)</code></td><td>POST ברקע → <code>{מזהה}</code></td></tr>
+          <tr><td><code>רשת.פרסם_json_התחל(כתובת, גוף)</code></td><td>POST JSON ברקע → <code>{מזהה}</code></td></tr>
+          <tr><td><code>רשת.בקשה_התחל(שיטה, כתובת [, גוף [, כותרות]])</code></td><td>בקשה כללית ברקע → <code>{מזהה}</code></td></tr>
+          <tr><td><code>רשת.מצב_בקשה(מזהה)</code></td><td><code>{הסתיים, הצליח, קוד, גוף, כותרות, שגיאה, זמן_ms}</code></td></tr>
+          <tr><td><code>רשת.בטל_בקשה(מזהה)</code></td><td>ביטול מעקב אחרי בקשה ממתינה</td></tr>
+          <tr><td><code>רשת.קבע_זמן_קצוב(שניות)</code></td><td>זמן קצוב ללקוח (ברירת מחדל 30)</td></tr>
+          <tr><td><code>רשת.שרת(פורט [, כתובת])</code></td><td>שרת HTTP — <code>127.0.0.1</code> או <code>0.0.0.0</code></td></tr>
+          <tr><td><code>שרת.מסלול / הפעל / הפעל_ברקע / עצור / פועל</code></td><td>ניהול שרת HTTP</td></tr>
+          <tr><td>בקשה למטפל</td><td><code>שיטה</code>, <code>נתיב</code>, <code>גוף</code>, <code>כותרות</code>, <code>שאילתה</code></td></tr>
+          <tr><td><code>רשת.שקע_שרת(פורט [, נתיב])</code></td><td>שרת WebSocket (ברירת נתיב <code>/</code>)</td></tr>
+          <tr><td><code>רשת.שקע_התחבר(כתובת)</code></td><td>לקוח WebSocket (<code>ws://…</code>)</td></tr>
+          <tr><td><code>רשת.FTP_התחבר(אפשרויות)</code></td><td>חיבור FTP/FTPS (חוסם) — לממשק עדיף אסינכרוני</td></tr>
+          <tr><td><code>רשת.FTP_התחל_התחברות(אפ)</code></td><td>התחברות ברקע → <code>{מזהה}</code> (בלי לחסום UI)</td></tr>
+          <tr><td><code>רשת.FTP_מצב_התחברות(מזהה)</code></td><td><code>{הסתיים, שגיאה, חיבור}</code></td></tr>
+          <tr><td><code>רשת.FTP_בטל_התחברות(מזהה)</code></td><td>ביטול מעקב אחרי התחברות ממתינה</td></tr>
+          <tr><td><code>רשת.SFTP_התחבר(אפשרויות)</code></td><td>חיבור SFTP מעל SSH</td></tr>
+          <tr><td><code>רשת.חשב_מהירות(בתים, שניות)</code></td><td>קצב בבתים/שנייה; או <code>(בתים_קודם, בתים_עכשיו, שניות)</code></td></tr>
         </tbody>
       </table>
+
+      <h2>WebSocket — שקע</h2>
+      <table class="method-table">
+        <thead><tr><th>מתודה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>שקע_שרת.בהתחברות(פונקציה(שקע))</code></td><td>לקוח חדש</td></tr>
+          <tr><td><code>שקע_שרת.בהודעה(פונקציה(שקע, טקסט))</code></td><td>כל הודעה מכל לקוח</td></tr>
+          <tr><td><code>שקע_שרת.שדר(טקסט)</code></td><td>שידור לכל המחוברים</td></tr>
+          <tr><td><code>שקע_שרת.הפעל_ברקע()</code> / <code>עצור()</code></td><td>הפעלה</td></tr>
+          <tr><td><code>שקע.שלח(טקסט)</code> / <code>סגור()</code></td><td>לקוח או שקע משרת</td></tr>
+          <tr><td><code>שקע.בהודעה(פונקציה(טקסט))</code> / <code>בסגירה</code></td><td>אירועים (מסונכרנים ל־UI)</td></tr>
+        </tbody>
+      </table>
+      <figure class="example">
+        <span class="example-label">שרת שידור + לקוח</span>
+        <pre class="code-block">כלול "רשת"
+
+משתנה שרת = רשת.שקע_שרת: 9090
+שרת.בהודעה: פונקציה (שק, ט)
+  שרת.שדר(ט)
+סוף
+שרת.הפעל_ברקע()
+
+משתנה שקע = רשת.שקע_התחבר: "ws://127.0.0.1:9090/"
+שקע.בהודעה: פונקציה (ט)
+  הדפס ט
+סוף
+שקע.שלח: "שלום מהרשת"</pre>
+      </figure>
+      <div class="callout tip">
+        דוגמאות: <code>yod/examples/רשת_http.יוד</code>,
+        <code>פרוייקט דוגמה/רשת-משחק/</code> (צ׳אט),
+        <code>פרוייקט דוגמה/נקודה-רשת/</code> (משחק מולטי).
+      </div>
+
+      <h2>FTP / FTPS</h2>
+      <p>
+        <code>רשת.FTP_התחבר</code> מקבל מילון:
+        <code>כתובת</code>, <code>פורט</code> (21), <code>משתמש</code>, <code>סיסמה</code>,
+        <code>מאובטח</code> (אמת = FTPS מפורש), <code>זמן_קצוב</code>.
+      </p>
+      <table class="method-table">
+        <thead><tr><th>מתודה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>רשימה([נתיב])</code></td><td>רשימת קבצים/תיקיות (שם, סוג, גודל, זמן)</td></tr>
+          <tr><td><code>העלה(מקומי, מרוחק)</code></td><td>העלאת קובץ (חוסמת עד סיום)</td></tr>
+          <tr><td><code>התחל_העלאה(מקומי, מרוחק)</code></td><td>העלאה ברקע; מחזיר <code>{מזהה, סהכ…}</code></td></tr>
+          <tr><td><code>מצב_העלאה(מזהה)</code></td><td>סטטוס: <code>אחוז</code>, <code>מהירות</code> (בתים/שנ׳ ברגע), <code>מהירות_ממוצעת</code>, <code>הסתיים</code>, <code>שגיאה</code></td></tr>
+          <tr><td><code>בטל_העלאה(מזהה)</code></td><td>מבטל העלאה פעילה</td></tr>
+          <tr><td><code>הורד(מרוחק, מקומי)</code></td><td>הורדת קובץ</td></tr>
+          <tr><td><code>צור_תיקייה(נתיב)</code></td><td>יצירה רקורסיבית</td></tr>
+          <tr><td><code>מחק</code> / <code>מחק_תיקייה</code></td><td>מחיקת קובץ / תיקייה ריקה</td></tr>
+          <tr><td><code>מחק_רקורסיבי(נתיב)</code></td><td>מחיקת קובץ או תיקייה כולל כל התוכן (0.98.21)</td></tr>
+          <tr><td><code>שנה_שם(ישן, חדש)</code></td><td>שינוי שם / העברת נתיב בשרת (גם תיקיות)</td></tr>
+          <tr><td><code>קיים(נתיב)</code> / <code>בדוק()</code> / <code>נתק()</code></td><td>בדיקה וניתוק</td></tr>
+        </tbody>
+      </table>
+      <figure class="example">
+        <span class="example-label">העלאה ל־FTPS</span>
+        <pre class="code-block">כלול "רשת"
+
+משתנה ח = רשת.FTP_התחבר({
+  "כתובת": "ftp.example.com",
+  "פורט": 21,
+  "משתמש": "u",
+  "סיסמה": "p",
+  "מאובטח": אמת
+})
+ח.בדוק()
+ח.העלה("C:\\מסמכים\\a.txt", "/גיבוי/a.txt")
+ח.נתק()</pre>
+      </figure>
+      <div class="callout tip">
+        בממשק גרפי השתמשו ב־<code>FTP_התחל_התחברות</code> + <code>FTP_מצב_התחברות</code>
+        (ו־<code>התחל_העלאה</code>) כדי לא לחסום את המסך. אם אין תשובה — אחרי
+        <code>זמן_קצוב</code> תוחזר שגיאת timeout (0.98.6). FTPS רגיל לרוב בפורט 21 (Explicit);
+        פורט 990 = Implicit.
+        בזמן העלאה: <code>מצב_העלאה</code> כולל <code>מהירות</code> (בתים/שנ׳) —
+        עיצוב נעים עם <code>מספרים.בתים(מהירות) + "/שנ׳"</code> (0.98.7).
+        מ־0.98.11: תיקיות שנוצרו בחיבור נשמרות במטמון (בלי MKD חוזר לכל קובץ),
+        והעלאה לא מוחקת מראש את הקובץ המרוחק (רק בניסיון חוזר אחרי כשל).
+        מ־0.98.21: <code>מחק_רקורסיבי</code> מוחק תיקייה מרוחקת על כל תוכנה (FTP ו־SFTP).
+      </div>
+      <figure class="example">
+        <span class="example-label">מהירות העלאה + עיצוב</span>
+        <pre class="code-block">כלול "רשת"
+כלול "מספרים"
+
+// בטיימר / לולאת UI:
+משתנה מ = ח.מצב_העלאה(מזהה)
+אם (מ.מהירות > 0) {
+  הדפס: מספרים.בתים(מ.מהירות) + "/שנ׳"
+}
+// או חישוב ידני בין שתי דגימות:
+משתנה קצב = רשת.חשב_מהירות(הועתק_קודם, הועתק_עכשיו, שניות)</pre>
+      </figure>
+      <figure class="example">
+        <span class="example-label">התחברות ברקע (בלי מסך שחור)</span>
+        <pre class="code-block">כלול "רשת"
+כלול "טיימרים"
+
+משתנה התחלה = רשת.FTP_התחל_התחברות({
+  "כתובת": "ftp.example.com",
+  "פורט": 21,
+  "משתמש": "u",
+  "סיסמה": "p",
+  "מאובטח": אמת
+})
+טיימרים.אחרי(200, פונקציה()
+  משתנה מ = רשת.FTP_מצב_התחברות(התחלה.מזהה)
+  אם (לא מ.הסתיים) {
+    הדפס "עדיין מתחבר…"
+  } אחרת_אם (מ.שגיאה != "") {
+    הדפס מ.שגיאה
+  } אחרת {
+    משתנה ח = מ.חיבור
+    ח.נתק()
+  }
+סוף)</pre>
+      </figure>
+
+      <h2>SFTP (SSH)</h2>
+      <p>
+        <code>רשת.SFTP_התחבר</code>: <code>כתובת</code>, <code>פורט</code> (22), <code>משתמש</code>,
+        <code>סיסמה</code> ו/או <code>מפתח</code> (נתיב למפתח פרטי) + <code>סיסמת_מפתח</code>.
+        ברירת מחדל: <code>אמת_מארח: שקר</code> (בלי known_hosts מובנה עדיין).
+        אותן מתודות כמו ב־FTP.
+      </p>
+      <figure class="example">
+        <span class="example-label">SFTP עם סיסמה</span>
+        <pre class="code-block">כלול "רשת"
+
+משתנה ח = רשת.SFTP_התחבר({
+  "כתובת": "ssh.example.com",
+  "משתמש": "ubuntu",
+  "סיסמה": "סוד",
+  "אמת_מארח": שקר
+})
+ח.העלה("C:\\a.txt", "/home/ubuntu/a.txt")
+ח.נתק()</pre>
+      </figure>
 
       <h2>GET עם נסה/תפוס</h2>
       <figure class="example">
@@ -61,6 +219,38 @@
 התקבל גוף באורך: … (תלוי בתשובת השרת)</pre>
         </div>
       </figure>
+
+      <h2>בקשות HTTP ברקע (בלי מסך שחור · 0.99.0)</h2>
+      <p>
+        בממשק גרפי, קריאה חוסמת כמו <code>רשת.גש</code> מתוך לחיצה/טיימר תוקעת את חוט ה־UI
+        עד שהתשובה חוזרת (מסך שחור). הדפוס הלא-חוסם: <code>גש_התחל</code> מתחיל את הבקשה ברקע
+        ומחזיר <code>{מזהה}</code>, ואז מבצעים פוללינג עם <code>טיימרים.אחרי</code> על
+        <code>מצב_בקשה</code> עד <code>הסתיים</code>.
+      </p>
+      <figure class="example">
+        <span class="example-label">GET לא-חוסם עם פוללינג</span>
+        <pre class="code-block">כלול "רשת"
+כלול "טיימרים"
+
+משתנה בקשה = רשת.גש_התחל("https://example.com")
+פונקציה בדוק()
+  משתנה מצב = רשת.מצב_בקשה(בקשה.מזהה)
+  אם (לא מצב.הסתיים) {
+    טיימרים.אחרי(120, בדוק)
+    החזר ריק
+  }
+  אם (מצב.הצליח) {
+    הדפס "קוד: " + מצב.קוד
+  } אחרת {
+    הדפס "שגיאה: " + מצב.שגיאה
+  }
+סוף
+בדוק()</pre>
+      </figure>
+      <div class="callout ok">
+        דוגמה חיה: <code>פרוייקט דוגמה/מוניטור/</code> בודק אתרים בדפוס הזה — הבדיקות רצות
+        ברקע וה־UI ממשיך להגיב.
+      </div>
 
       <h2>שרת HTTP מקומי</h2>
       <figure class="example">

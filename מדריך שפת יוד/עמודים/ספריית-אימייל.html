@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית אימייל | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.99.0</span><strong>אימייל</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית אימייל</h1>
+      <p class="lead">
+        שליחת SMTP (כולל Gmail), גוף HTML, קריאת IMAP, ו־OAuth ל־Gmail.
+        טוענים עם <code>כלול "אימייל"</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead><tr><th>פונקציה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>אימייל.שלח(מילון)</code></td><td>SMTP; <code>ספק: "גימייל"</code>; <code>תוכן_HTML</code>; <code>oauth_טוקן</code></td></tr>
+          <tr><td><code>אימייל.גימייל(מילון)</code></td><td>קיצור ל־smtp.gmail.com</td></tr>
+          <tr><td><code>אימייל.שלח_התחל(מילון)</code></td><td>שליחה ברקע → <code>{מזהה}</code> (בלי לחסום UI · 0.99.0)</td></tr>
+          <tr><td><code>אימייל.גימייל_התחל(מילון)</code></td><td>שליחת Gmail ברקע → <code>{מזהה}</code></td></tr>
+          <tr><td><code>אימייל.מצב_שליחה(מזהה)</code></td><td><code>{הסתיים, הצליח, שגיאה}</code></td></tr>
+          <tr><td><code>אימייל.פתח_תיבה(מילון)</code></td><td>IMAP — מחזיר ידית</td></tr>
+          <tr><td><code>אימייל.תיבת_גימייל(מילון)</code></td><td>IMAP ל־imap.gmail.com</td></tr>
+          <tr><td><code>אימייל.גימייל_oauth_התחבר(מילון)</code></td><td>פותח דפדפן ושומר קובץ טוקן</td></tr>
+        </tbody>
+      </table>
+
+      <h2>שליחה עם HTML</h2>
+      <pre class="code-block">אימייל.גימייל({
+  משתמש: מערכת.סביבה("GMAIL_USER"),
+  סיסמה: מערכת.סביבה("GMAIL_APP_PASS"),
+  אל: "a@b.com",
+  נושא: "דוח",
+  תוכן: "גרסה טקסט",
+  תוכן_HTML: "<b>גרסה HTML</b>",
+  קבצים: ["דוח.xlsx"]
+})</pre>
+
+      <h2>IMAP — קריאה</h2>
+      <pre class="code-block">משתנה ת = אימייל.תיבת_גימייל({
+  משתמש: מערכת.סביבה("GMAIL_USER"),
+  סיסמה: מערכת.סביבה("GMAIL_APP_PASS")
+})
+הדפס(ת.רשימה(5))
+משתנה מ = ת.קרא(1)   // מזהה מרשימה
+הדפס(מ.נושא)
+הדפס(מ.תוכן)
+ת.סגור()</pre>
+
+      <h2>Gmail OAuth</h2>
+      <p>
+        ב־Google Cloud Console צרו OAuth Client (Desktop/Web) עם redirect
+        <code>http://127.0.0.1:8765/oauth2callback</code>.
+        שמרו <code>GMAIL_CLIENT_ID</code> ו־<code>GMAIL_CLIENT_SECRET</code> בסביבה.
+      </p>
+      <pre class="code-block">אימייל.גימייל_oauth_התחבר({
+  מזהה_לקוח: מערכת.סביבה("GMAIL_CLIENT_ID"),
+  סוד: מערכת.סביבה("GMAIL_CLIENT_SECRET"),
+  קובץ_טוקן: "gmail-token.json"
+})
+
+אימייל.גימייל({
+  משתמש: מערכת.סביבה("GMAIL_USER"),
+  oauth_טוקן: "gmail-token.json",
+  אל: "a@b.com",
+  נושא: "שלום",
+  תוכן_HTML: "<p>ללא סיסמת אפליקציה</p>"
+})</pre>
+
+      <h2>שליחה ברקע (בלי מסך שחור · 0.99.0)</h2>
+      <p>
+        שליחת SMTP חוסמת עד שהשרת מגיב (שניות). מתוך לחיצה/טיימר בממשק זה תוקע את המסך.
+        הדפוס הלא-חוסם: <code>שלח_התחל</code>/<code>גימייל_התחל</code> מתחיל את השליחה ברקע ומחזיר
+        <code>{מזהה}</code>, ואז מבצעים פוללינג עם <code>טיימרים.אחרי</code> על <code>מצב_שליחה</code>.
+      </p>
+      <pre class="code-block">כלול "אימייל"
+כלול "טיימרים"
+
+משתנה שליחה = אימייל.גימייל_התחל({
+  משתמש: מערכת.סביבה("GMAIL_USER"),
+  סיסמה: מערכת.סביבה("GMAIL_APP_PASS"),
+  אל: "a@b.com",
+  נושא: "התראה",
+  תוכן_HTML: "<b>שלום</b>"
+})
+פונקציה בדוק()
+  משתנה מצב = אימייל.מצב_שליחה(שליחה.מזהה)
+  אם (לא מצב.הסתיים) {
+    טיימרים.אחרי(200, בדוק)
+    החזר ריק
+  }
+  אם (מצב.הצליח) { הדפס "נשלח" } אחרת { הדפס "נכשל: " + מצב.שגיאה }
+סוף
+בדוק()</pre>
+      <div class="callout ok">
+        דוגמה חיה: <code>פרוייקט דוגמה/מוניטור/</code> שולח דיווחי תקלה/החלמה בדפוס הזה
+        (fire-and-forget עם דיווח ליומן).
+      </div>
+
+      <div class="callout tip">
+        <strong>אבטחה:</strong> אל תשמרו סיסמאות/סודות בקוד — רק ב־<code>מערכת.סביבה</code>.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

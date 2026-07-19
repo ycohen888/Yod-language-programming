@@ -12,16 +12,25 @@ func isCallable(o object.Object) bool {
 }
 
 func invokeYod(fn object.Object, args []object.Object) {
+	_ = invokeYodResult(fn, args)
+}
+
+func invokeYodResult(fn object.Object, args []object.Object) object.Object {
 	if fn == nil {
-		return
+		return object.Nil
 	}
-	var res object.Object
+	// כל callback של UI/טיימר הוא כניסה חיצונית להרצת קוד יוד — נועלים את מנעול הריצה
+	// (re-entrant) כדי לא לרוץ במקביל למשימת רקע. עלות זניחה כשאין משימות.
+	object.LockYod()
+	defer object.UnlockYod()
 	if object.InvokeCallable != nil {
-		res = object.InvokeCallable(fn, args)
-	} else if f, ok := fn.(*object.Function); ok && object.InvokeFunction != nil {
-		res = object.InvokeFunction(f, args)
-	} else if b, ok := fn.(*object.Builtin); ok && b.Fn != nil {
-		res = b.Fn(args...)
+		return object.InvokeCallable(fn, args)
 	}
-	_ = res
+	if f, ok := fn.(*object.Function); ok && object.InvokeFunction != nil {
+		return object.InvokeFunction(f, args)
+	}
+	if b, ok := fn.(*object.Builtin); ok && b.Fn != nil {
+		return b.Fn(args...)
+	}
+	return object.Nil
 }

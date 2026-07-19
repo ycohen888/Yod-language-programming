@@ -11,12 +11,15 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/jchv/go-webview2/pkg/edge"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 	"github.com/lxn/win"
 
+	"yod/internal/console"
+	"yod/internal/gpu"
 	"yod/internal/object"
 )
 
@@ -27,14 +30,40 @@ type windowState struct {
 	children  []*controlState
 	timers    []windowTimer
 	onStart   object.Object
+	onClosing object.Object
 	mw        *walk.MainWindow
 	closed    bool
+	forceClose bool
 	iconPath  string
 	icon      *walk.Icon
 	bgColor   walk.Color
 	hasBg     bool
 	dark      bool
 	menuItems []MenuItem
+	// deferShow — חלון מוסתר עד שמסך הטעינה של עיצוב מוכן (בלי הבזק כהה/לבן)
+	deferShow bool
+	revealed  bool
+	// מיקום: מרכז או קואורדינטות מפורשות (מסך)
+	center bool
+	posX   int
+	posY   int
+	hasPos bool
+	// מגש מערכת
+	tray            *walk.NotifyIcon
+	trayHost        *walk.MainWindow // חלון נסתר — NotifyIcon של walk דורס USERDATA
+	trayIcon        *walk.Icon
+	trayTip         string
+	trayIconPath    string
+	trayItems       []trayMenuItem
+	trayConfigured  bool
+	onTrayMenu      object.Object
+	trayLastLeftClick time.Time
+}
+
+type trayMenuItem struct {
+	text      string
+	value     string
+	separator bool
 }
 
 type windowTimer struct {
@@ -51,14 +80,21 @@ type controlState struct {
 	edit      *walk.LineEdit
 	ledWidget *walk.CustomWidget
 	// דפדפן (WebView2)
-	url     string
-	html    string
-	host    *walk.Composite
-	browser *edge.Chromium
+	url            string
+	html           string
+	host           *walk.Composite
+	browser        *edge.Chromium
+	onBrowserMsg   object.Object // בהודעה(טקסט) — מ־JS דרך postMessage
+	onBrowserReady object.Object // מוכן() — אחרי NavigationCompleted
+	browserReady   bool
+	parentWin      *windowState // לחשיפת חלון מושהית אחרי splash
 	// וידאו (WebView2 + HTML5)
-	videoPath string
-	videoLoop bool
-	videoVol  int
+	videoPath         string
+	videoLoop         bool
+	videoVol          int
+	videoOverlays     []textOverlay
+	videoShowOverlays bool
+	videoSelected     int // אינדקס שכבת טקסט נבחרת (-1 = אין)
 	// שורה / עמודה / מסגרת
 	children  []*controlState
 	frameDir  string // אופקי | אנכי (למסגרת)
@@ -67,8 +103,10 @@ type controlState struct {
 	// משטח ציור
 	board       *drawBoard
 	canvas      *walk.CustomWidget
-	canvasW     int
+	canvasW     int // גודל לוגי (DIP) שנחשף ליוד
 	canvasH     int
+	canvasDipW  int // גודל מקורי/נעול ב־DIP (ל־MinSize/MaxSize)
+	canvasDipH  int
 	dragging    bool
 	dragButton  string
 	onMouseDown  object.Object
@@ -111,6 +149,7 @@ type controlState struct {
 	ctrlDark     bool
 	ctrlDisabled bool
 	ctrlHint     string
+	passwordMode bool // שדה: הצגת • במקום אותיות
 	button       *walk.PushButton
 	// גרף
 	chartWidget     *walk.CustomWidget
@@ -133,11 +172,14 @@ type controlState struct {
 	// רקע אופציונלי למסגרת
 	bgColor walk.Color
 	hasBg   bool
+	// משטח_GPU (OpenGL מקומי)
+	gpuSurface *gpu.Surface
 }
 
 func NewWindowsModule() *object.Module {
 	m := &object.Module{Name: "חלונות", Attrs: map[string]object.Object{}}
 	m.Attrs["חלון"] = &object.Builtin{Fn: winCreateWindow}
+	m.Attrs["גודל_מסך"] = &object.Builtin{Fn: winScreenSize}
 	m.Attrs["כפתור"] = &object.Builtin{Fn: winCreateButton}
 	m.Attrs["תווית"] = &object.Builtin{Fn: winCreateLabel}
 	m.Attrs["שדה"] = &object.Builtin{Fn: winCreateEdit}
@@ -147,13 +189,16 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["עמודה"] = &object.Builtin{Fn: winCreateColumn}
 	m.Attrs["מסגרת"] = &object.Builtin{Fn: winCreateFrame}
 	m.Attrs["משטח"] = &object.Builtin{Fn: winCreateCanvas}
+	m.Attrs["משטח_GPU"] = &object.Builtin{Fn: winCreateGPUSurface}
 	m.Attrs["דגם"] = &object.Builtin{Fn: winCreateSwatch}
 	m.Attrs["סמל"] = &object.Builtin{Fn: winCreateIcon}
 	m.Attrs["הודעה"] = &object.Builtin{Fn: winMessage}
 	m.Attrs["בחר_שמירה"] = &object.Builtin{Fn: winFileSave}
 	m.Attrs["בחר_פתיחה"] = &object.Builtin{Fn: winFileOpen}
+	m.Attrs["בחר_תיקייה"] = &object.Builtin{Fn: winBrowseFolder}
 	m.Attrs["רשימה"] = &object.Builtin{Fn: winCreateList}
 	m.Attrs["טבלה"] = &object.Builtin{Fn: winCreateTable}
+	// קיצור תאימות — אותו רכיב כמו גרפים.גרף (מומלץ: כלול "גרפים")
 	m.Attrs["גרף"] = &object.Builtin{Fn: winCreateChart}
 	m.Attrs["שאל"] = &object.Builtin{Fn: winAsk}
 	return m
@@ -175,6 +220,12 @@ func winCreateWindow(args ...object.Object) object.Object {
 	}}
 	w.Attrs["קבע_גודל"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winSetSize(st, a...)
+	}}
+	w.Attrs["קבע_מיקום"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetPosition(st, a...)
+	}}
+	w.Attrs["מרכז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winCenter(st, a...)
 	}}
 	w.Attrs["כל_כמה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winEvery(st, a...)
@@ -200,6 +251,30 @@ func winCreateWindow(args ...object.Object) object.Object {
 	}}
 	w.Attrs["הצג"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winShow(st)
+	}}
+	w.Attrs["הסתר"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winHide(st, a...)
+	}}
+	w.Attrs["הצג_שוב"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winShowAgain(st, a...)
+	}}
+	w.Attrs["בסגירה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winOnClosing(st, a...)
+	}}
+	w.Attrs["סגור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winForceClose(st, a...)
+	}}
+	w.Attrs["מגש"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winTray(st, a...)
+	}}
+	w.Attrs["במגש"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winOnTrayMenu(st, a...)
+	}}
+	w.Attrs["מגש_התראה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winTrayNotify(st, a...)
+	}}
+	w.Attrs["הסר_מגש"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winRemoveTray(st, a...)
 	}}
 	return w
 }
@@ -563,7 +638,7 @@ func parseWalkColor(args ...object.Object) (walk.Color, error) {
 
 // חלונות.דפדפן(כתובת?) — תצוגת אתר/HTML עם WebView2 בתוך החלון
 func winCreateBrowser(args ...object.Object) object.Object {
-	st := &controlState{kind: "דפדפן", url: "about:blank"}
+	st := &controlState{kind: "דפדפן", url: "about:blank", stretchFactor: -1}
 	if len(args) >= 1 {
 		if s, ok := asString(args[0]); ok {
 			st.url = normalizeNavURL(s)
@@ -610,6 +685,52 @@ func winCreateBrowser(args ...object.Object) object.Object {
 		}
 		return &object.String{Value: st.url}
 	}}
+	w.Attrs["הרץ_js"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("דפדפן.הרץ_js מצפה למחרוזת JavaScript אחת")
+		}
+		s, ok := asString(a[0])
+		if !ok {
+			return errObj("דפדפן.הרץ_js מצפה למחרוזת")
+		}
+		return browserEval(st, s)
+	}}
+	w.Attrs["שלח"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("דפדפן.שלח מצפה למחרוזת אחת (טקסט או JSON)")
+		}
+		s, ok := asString(a[0])
+		if !ok {
+			return errObj("דפדפן.שלח מצפה למחרוזת")
+		}
+		return browserSend(st, s)
+	}}
+	w.Attrs["בהודעה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("דפדפן.בהודעה מצפה לפונקציה אחת")
+		}
+		if !isCallable(a[0]) {
+			return errObj("דפדפן.בהודעה מצפה לפונקציה")
+		}
+		st.onBrowserMsg = a[0]
+		return object.Nil
+	}}
+	w.Attrs["מוכן"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		if len(a) != 1 {
+			return errObj("דפדפן.מוכן מצפה לפונקציה אחת")
+		}
+		if !isCallable(a[0]) {
+			return errObj("דפדפן.מוכן מצפה לפונקציה")
+		}
+		st.onBrowserReady = a[0]
+		if st.browserReady {
+			runOnUI(func() { invokeYod(st.onBrowserReady, nil) })
+		}
+		return object.Nil
+	}}
+	w.Attrs["קבע_מתיחה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return setStretchFactor(st, "דפדפן.קבע_מתיחה", a...)
+	}}
 	return w
 }
 
@@ -647,6 +768,17 @@ func winCreateEdit(args ...object.Object) object.Object {
 	}}
 	w.Attrs["קבע_רמז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setControlHint(st, "שדה.קבע_רמז", a...)
+	}}
+	w.Attrs["קבע_סיסמה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		on, errV := parseDarkBool("שדה.קבע_סיסמה", a...)
+		if errV != nil {
+			return errV
+		}
+		st.passwordMode = on
+		if st.edit != nil {
+			st.edit.SetPasswordMode(on)
+		}
+		return object.Nil
 	}}
 	attachVisible(w, st, "שדה")
 	return w
@@ -834,7 +966,70 @@ func winAdd(st *windowState, args ...object.Object) object.Object {
 		return errObj("לא ניתן להוסיף חלון לתוך חלון")
 	}
 	st.children = append(st.children, cs)
+	linkParentWindow(cs, st)
 	return &object.Null{}
+}
+
+func linkParentWindow(ch *controlState, win *windowState) {
+	if ch == nil {
+		return
+	}
+	ch.parentWin = win
+	for _, c := range ch.children {
+		linkParentWindow(c, win)
+	}
+}
+
+func shouldDeferWindowShow(st *windowState) bool {
+	if st == nil {
+		return false
+	}
+	var walkKids func([]*controlState) bool
+	walkKids = func(kids []*controlState) bool {
+		for _, ch := range kids {
+			if ch == nil {
+				continue
+			}
+			if (ch.kind == "דפדפן" || ch.kind == "וידאו") && htmlLooksLikeDesignSplash(ch.html) {
+				return true
+			}
+			if walkKids(ch.children) {
+				return true
+			}
+		}
+		return false
+	}
+	return walkKids(st.children)
+}
+
+func revealDeferredMainWindow(st *windowState) {
+	revealSplashWindow(st)
+}
+
+func releaseDeferredDesignReady(st *windowState) {
+	if st == nil {
+		return
+	}
+	var walkKids func([]*controlState)
+	walkKids = func(kids []*controlState) {
+		for _, ch := range kids {
+			if ch == nil {
+				continue
+			}
+			if ch.browser != nil {
+				ch.browser.Eval(`(function(){
+  window.__יוד_המתן_לחשיפה=false;
+  if(typeof window.__יוד_שחרר_מוכן==="function"){
+    var f=window.__יוד_שחרר_מוכן;
+    window.__יוד_שחרר_מוכן=null;
+    try{f();}catch(e){}
+  }
+})();`)
+			}
+			walkKids(ch.children)
+		}
+	}
+	walkKids(st.children)
 }
 
 func winSetSize(st *windowState, args ...object.Object) object.Object {
@@ -848,7 +1043,96 @@ func winSetSize(st *windowState, args ...object.Object) object.Object {
 	}
 	st.width = int(w.Value)
 	st.height = int(h.Value)
+	if st.width < 1 {
+		st.width = 1
+	}
+	if st.height < 1 {
+		st.height = 1
+	}
+	if st.mw != nil {
+		applyWindowPlacement(st)
+	}
 	return &object.Null{}
+}
+
+func winSetPosition(st *windowState, args ...object.Object) object.Object {
+	if len(args) != 2 {
+		return errObj("חלון.קבע_מיקום מצפה ל־x ו־y")
+	}
+	x, ok1 := args[0].(*object.Number)
+	y, ok2 := args[1].(*object.Number)
+	if !ok1 || !ok2 {
+		return errObj("קבע_מיקום מצפה למספרים")
+	}
+	st.posX = int(x.Value)
+	st.posY = int(y.Value)
+	st.hasPos = true
+	st.center = false
+	if st.mw != nil {
+		applyWindowPlacement(st)
+	}
+	return object.Nil
+}
+
+func winCenter(st *windowState, args ...object.Object) object.Object {
+	if len(args) != 0 {
+		return errObj("חלון.מרכז לא מצפה לארגומנטים")
+	}
+	st.center = true
+	st.hasPos = false
+	if st.mw != nil {
+		applyWindowPlacement(st)
+	}
+	return object.Nil
+}
+
+func winScreenSize(args ...object.Object) object.Object {
+	if len(args) != 0 {
+		return errObj("חלונות.גודל_מסך לא מצפה לארגומנטים")
+	}
+	_, _, w, h := screenWorkArea()
+	out := object.NewHash()
+	out.Set("רוחב", &object.Number{Value: float64(w)})
+	out.Set("גובה", &object.Number{Value: float64(h)})
+	return out
+}
+
+const spiGetWorkArea = 0x0030
+
+func screenWorkArea() (x, y, w, h int) {
+	var r win.RECT
+	if win.SystemParametersInfo(spiGetWorkArea, 0, unsafe.Pointer(&r), 0) {
+		return int(r.Left), int(r.Top), int(r.Right - r.Left), int(r.Bottom - r.Top)
+	}
+	// נפילה: מסך ראשי מלא
+	cw, _, _ := procGetSystemMetricsScreen.Call(0) // SM_CXSCREEN
+	ch, _, _ := procGetSystemMetricsScreen.Call(1) // SM_CYSCREEN
+	return 0, 0, int(cw), int(ch)
+}
+
+var procGetSystemMetricsScreen = syscall.NewLazyDLL("user32.dll").NewProc("GetSystemMetrics")
+
+func applyWindowPlacement(st *windowState) {
+	if st == nil || st.mw == nil {
+		return
+	}
+	w, h := st.width, st.height
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
+	if st.center {
+		ax, ay, aw, ah := screenWorkArea()
+		x := ax + (aw-w)/2
+		y := ay + (ah-h)/2
+		_ = st.mw.SetBounds(walk.Rectangle{X: x, Y: y, Width: w, Height: h})
+		return
+	}
+	if st.hasPos {
+		_ = st.mw.SetBounds(walk.Rectangle{X: st.posX, Y: st.posY, Width: w, Height: h})
+	}
 }
 
 func winEvery(st *windowState, args ...object.Object) object.Object {
@@ -982,11 +1266,14 @@ func winAsk(args ...object.Object) object.Object {
 			msg = args[1].Inspect()
 		}
 	}
-	res := walk.MsgBox(nil, title, msg, walk.MsgBoxYesNo|walk.MsgBoxIconQuestion)
+	res := walk.MsgBox(nil, I18nText(title), I18nText(msg), walk.MsgBoxYesNo|walk.MsgBoxIconQuestion|msgBoxDirStyle())
 	return &object.Boolean{Value: res == walk.DlgCmdYes}
 }
 
 func winShow(st *windowState) object.Object {
+	// חלון GUI — מסתירים CMD נפרד שנפתח עם yod.exe (לא טרמינל קיים)
+	console.HideIfOwned()
+
 	var mw *walk.MainWindow
 	if st.dark {
 		preferAppDarkMode()
@@ -1017,8 +1304,14 @@ func winShow(st *windowState) object.Object {
 		// MinSize קטן מ־Size — אחרת חלון גדול עם תוכן גבוה ננעל ולא נכנס למסך
 		MinSize: Size{Width: min(st.width, 720), Height: min(st.height, 480)},
 		Size:     Size{Width: st.width, Height: st.height},
-		Layout:   VBox{Margins: Margins{Left: 10, Top: 8, Right: 10, Bottom: 8}, Spacing: 6},
+		Layout:   VBox{Margins: Margins{Left: 2, Top: 0, Right: 2, Bottom: 0}, Spacing: 0},
 		Children: children,
+	}
+	if shouldDeferWindowShow(st) {
+		st.deferShow = true
+		st.revealed = false
+		// לא מציגים עדיין — אחרי Create נגדיר alpha=0 ואז Show שקוף
+		cfg.Visible = false
 	}
 	if len(st.menuItems) > 0 {
 		cfg.MenuItems = st.menuItems
@@ -1038,6 +1331,7 @@ func winShow(st *windowState) object.Object {
 
 	st.mw = mw
 	st.closed = false
+	applyWindowPlacement(st)
 	setTimerUISync(func(fn func()) {
 		if st.mw != nil && !st.closed {
 			st.mw.Synchronize(fn)
@@ -1045,6 +1339,10 @@ func winShow(st *windowState) object.Object {
 			fn()
 		}
 	})
+
+	if st.deferShow {
+		applySplashTransparent(st)
+	}
 
 	if iconPath != "" {
 		_ = applyWindowIcon(st, iconPath)
@@ -1055,12 +1353,15 @@ func winShow(st *windowState) object.Object {
 	applyDarkControlsRecursive(st.children, st.dark)
 
 	for _, ch := range st.children {
-		wireBrowsersRecursive(ch, mw)
+		linkParentWindow(ch, st)
+		wireBrowsersRecursive(ch, mw, st)
+		wireGPUSurfacesRecursive(ch, mw)
 		wireSurfaceResize(ch)
 	}
 
 	mw.SizeChanged().Attach(func() {
 		resizeBrowsersRecursive(st.children)
+		resizeGPUSurfacesRecursive(st.children)
 		for _, ch := range st.children {
 			wireSurfaceResize(ch)
 			syncSurfaceSizesRecursive(ch)
@@ -1068,6 +1369,9 @@ func winShow(st *windowState) object.Object {
 	})
 
 	mw.Starting().Attach(func() {
+		if st.deferShow {
+			applySplashTransparent(st)
+		}
 		for _, ch := range st.children {
 			wireSurfaceResize(ch)
 			syncSurfaceSizesRecursive(ch)
@@ -1079,8 +1383,35 @@ func winShow(st *windowState) object.Object {
 	})
 
 	mw.Closing().Attach(func(canceled *bool, reason walk.CloseReason) {
+		if st.forceClose {
+			disposeWindowTray(st)
+			st.closed = true
+			return
+		}
+		if st.onClosing != nil {
+			res := invokeYodResult(st.onClosing, nil)
+			if object.Truthy(res) {
+				*canceled = true
+				hideMainWindow(st)
+				return
+			}
+		}
+		// אם יש מגש — X מסתיר לרקע גם בלי בסגירה מפורש
+		if st.tray != nil || st.trayConfigured {
+			*canceled = true
+			hideMainWindow(st)
+			return
+		}
+		disposeWindowTray(st)
 		st.closed = true
 	})
+
+	if st.trayConfigured {
+		if err := applyWindowTray(st); err != nil {
+			// מגש נכשל — לא מונעים את פתיחת החלון
+			fmt.Fprintf(os.Stderr, "אזהרה: חלון.מגש: %v\n", err)
+		}
+	}
 
 	for _, t := range st.timers {
 		t := t
@@ -1105,12 +1436,17 @@ func winShow(st *windowState) object.Object {
 		}()
 	}
 
-	mw.Run()
+	// לולאת ההודעות חוסמת עד סגירת החלון — משחררים את מנעול הריצה כדי שמשימות רקע
+	// יוכלו לרוץ, וה־callbacks (שרצים על thread זה) יתפסו אותו מחדש דרך invokeYod.
+	object.WithoutYodLock(func() {
+		mw.Run()
+	})
 	st.closed = true
 	st.mw = nil
 	setTimerUISync(nil)
 	_ = timerStopAll()
 	soundStopAll()
+	recordStopAll()
 	return &object.Null{}
 }
 
@@ -1225,17 +1561,22 @@ func applyListDark(st *controlState) {
 	st.listBox.Invalidate()
 }
 
-func wireBrowsersRecursive(ch *controlState, mw *walk.MainWindow) {
+func wireBrowsersRecursive(ch *controlState, mw *walk.MainWindow, winSt *windowState) {
 	if (ch.kind == "דפדפן" || ch.kind == "וידאו") && ch.host != nil {
-		br, err := attachWebView2(ch.host, ch.url, ch.html)
+		br, err := attachWebView2(ch.host, ch.url, ch.html, winSt)
 		if err != nil {
 			walk.MsgBox(mw, "שגיאה", err.Error(), walk.MsgBoxIconError)
 			return
 		}
 		ch.browser = br
+		ch.parentWin = winSt
+		if ch.kind == "דפדפן" || ch.kind == "וידאו" {
+			wireBrowserBridge(ch)
+		}
+		browserStartNavigation(ch)
 	}
 	for _, c := range ch.children {
-		wireBrowsersRecursive(c, mw)
+		wireBrowsersRecursive(c, mw, winSt)
 	}
 }
 
@@ -1284,6 +1625,15 @@ func winMessage(args ...object.Object) object.Object {
 			msg = args[1].Inspect()
 		}
 	}
-	walk.MsgBox(nil, title, msg, walk.MsgBoxIconInformation)
+	walk.MsgBox(nil, I18nText(title), I18nText(msg), walk.MsgBoxIconInformation|msgBoxDirStyle())
 	return &object.Null{}
+}
+
+// msgBoxDirStyle מחזיר דגלי כיוון ל־MessageBox לפי שפת הממשק הפעילה:
+// RTL (עברית/ערבית וכו') → יישור לימין + סדר קריאה מימין לשמאל; LTR → ללא דגלים.
+func msgBoxDirStyle() walk.MsgBoxStyle {
+	if I18nDirection() == "rtl" {
+		return walk.MsgBoxRight | walk.MsgBoxRTLReading
+	}
+	return 0
 }

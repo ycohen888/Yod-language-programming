@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית הקלטה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.99.0</span><strong>הקלטה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית הקלטה</h1>
+      <p class="lead">
+        הקלטת אזור מסך ומיקרופון ל־MP4 ב־Windows דרך <strong>ffmpeg</strong> חיצוני.
+        טוענים עם <code>כלול "הקלטה"</code>. שונה מ־<code>שמע</code>/<code>וידאו</code> (שם רק ניגון).
+      </p>
+
+      <div class="callout tip">
+        נדרש <code>ffmpeg.exe</code> ב־PATH, ליד קובץ ה־EXE של התוכנה, או נתיב ידני עם
+        <code>הקלטה.קבע_ffmpeg</code>.
+      </div>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>שם</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>הקלטה.זמין()</code></td><td>האם נמצא ffmpeg</td></tr>
+          <tr><td><code>הקלטה.קבע_ffmpeg(נתיב)</code></td><td>נתיב ידני ל־ffmpeg</td></tr>
+          <tr><td><code>הקלטה.נתיב_ffmpeg()</code></td><td>הנתיב שנמצא (או מחרוזת ריקה)</td></tr>
+          <tr><td><code>הקלטה.בחר_אזור()</code></td><td>שכבת מסך לבחירת מלבן — מחזיר <code>{x, y, רוחב, גובה}</code> או <code>ריק</code></td></tr>
+          <tr><td><code>הקלטה.רשימת_מיקרופונים()</code></td><td>שמות התקני DirectShow</td></tr>
+          <tr><td><code>הקלטה.התחל_מסך(נתיב, x, y, רוחב, גובה, אפשרויות?)</code></td><td>הקלטת אזור ל־MP4; אפשרויות: <code>מיקרופון</code>, <code>התקן</code>, <code>fps</code>, <code>רוחב_פלט</code>/<code>גובה_פלט</code> (רזולוציה קבועה — הקטע נשמר בגודלו האמיתי וממורכז, בלי הגדלה)</td></tr>
+          <tr><td><code>הקלטה.התחל_קול(נתיב, אפשרויות?)</code></td><td>מיקרופון בלבד (WAV/MP3/MP4 לפי סיומת)</td></tr>
+          <tr><td><code>הקלטה.עצור()</code></td><td>עצירה נקייה; מחזיר נתיב הקובץ</td></tr>
+          <tr><td><code>הקלטה.מקליט()</code></td><td>האם יש הקלטה פעילה</td></tr>
+          <tr><td><code>הקלטה.קובץ_נוכחי()</code></td><td>נתיב היעד בזמן הקלטה</td></tr>
+          <tr><td><code>הקלטה.החל_טקסטים(קלט, פלט, רשימה)</code></td><td>צריבת שכבות טקסט ל־MP4 (חוסם; ראה למטה)</td></tr>
+          <tr><td><code>הקלטה.גופן_ברירת_מחדל()</code></td><td>נתיב גופן עברי מ־Windows\Fonts</td></tr>
+        </tbody>
+      </table>
+
+      <h2>גרסאות ברקע (בלי מסך שחור · 0.99.0)</h2>
+      <p>
+        צריבת טקסטים, מניית מיקרופונים ועצירה (כולל remux) הן פעולות ffmpeg
+        <strong>חוסמות</strong>. בממשק גרפי הריצו אותן ברקע בדפוס
+        <code>התחל</code> → <code>מצב</code>, עם פוללינג של <code>טיימרים.אחרי</code>.
+      </p>
+      <table class="method-table">
+        <thead><tr><th>שם</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>הקלטה.החל_טקסטים_התחל(קלט, פלט, רשימה)</code></td><td>צריבה ברקע → <code>{מזהה}</code></td></tr>
+          <tr><td><code>הקלטה.מצב_צריבה(מזהה)</code></td><td><code>{הסתיים, הצליח, פלט, שגיאה}</code></td></tr>
+          <tr><td><code>הקלטה.בטל_צריבה(מזהה)</code></td><td>ביטול מעקב אחרי צריבה</td></tr>
+          <tr><td><code>הקלטה.רשימת_מיקרופונים_התחל()</code></td><td>מניית מיקרופונים ברקע → <code>{מזהה}</code></td></tr>
+          <tr><td><code>הקלטה.מצב_מיקרופונים(מזהה)</code></td><td><code>{הסתיים, הצליח, רשימה, שגיאה}</code></td></tr>
+          <tr><td><code>הקלטה.עצור_התחל()</code></td><td>עצירה + remux ברקע → <code>{מזהה}</code></td></tr>
+          <tr><td><code>הקלטה.מצב_עצירה(מזהה)</code></td><td><code>{הסתיים, קובץ, שגיאה}</code></td></tr>
+        </tbody>
+      </table>
+      <figure class="example">
+        <span class="example-label">צריבת טקסטים ברקע עם פוללינג</span>
+        <pre class="code-block">כלול "הקלטה"
+כלול "טיימרים"
+
+משתנה צריבה = הקלטה.החל_טקסטים_התחל("הקלטה.mp4", "פלט.mp4", שכבות)
+פונקציה בדוק()
+  משתנה מצב = הקלטה.מצב_צריבה(צריבה.מזהה)
+  אם (לא מצב.הסתיים) {
+    טיימרים.אחרי(500, בדוק)
+    החזר ריק
+  }
+  אם (מצב.הצליח) { הדפס "נשמר: " + מצב.פלט } אחרת { הדפס "שגיאה: " + מצב.שגיאה }
+סוף
+בדוק()</pre>
+      </figure>
+
+      <h2>שכבות טקסט על הסרטון</h2>
+      <p>
+        כל פריט ברשימה הוא מילון. אחרי הקלטה (או על קובץ קיים) קוראים ל־
+        <code>החל_טקסטים</code> — ffmpeg צורב את הטקסטים לתוך הקובץ (לא רק בתצוגה).
+      </p>
+      <table class="method-table">
+        <thead>
+          <tr><th>שדה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>טקסט</code></td><td>חובה — המחרוזת שתוצג (עברית נתמכת)</td></tr>
+          <tr><td><code>גודל</code></td><td>גודל גופן בפיקסלים (ברירת מחדל 36)</td></tr>
+          <tr><td><code>צבע</code></td><td><code>#ffffff</code> או שם כמו <code>לבן</code> / <code>אדום</code></td></tr>
+          <tr><td><code>מיקום</code></td><td>למשל <code>למטה_מרכז</code>, <code>למעלה_ימין</code>, <code>אמצע</code>, או <code>מותאם</code> עם <code>x</code>/<code>y</code></td></tr>
+          <tr><td><code>רקע</code></td><td>צבע רקע מאחורי הטקסט (אופציונלי)</td></tr>
+          <tr><td><code>שקיפות_רקע</code></td><td>0–1 (ברירת מחדל 0.45)</td></tr>
+          <tr><td><code>צל</code></td><td>אמת/שקר</td></tr>
+          <tr><td><code>התחלה</code> / <code>סיום</code></td><td>זמן בשניות — מתי השכבה מופיעה</td></tr>
+          <tr><td><code>גופן</code></td><td>נתיב לקובץ TTF (אופציונלי)</td></tr>
+        </tbody>
+      </table>
+
+      <figure class="example">
+        <span class="example-label">צריבת כותרת לסרטון</span>
+        <pre class="code-block">כלול "הקלטה"
+
+הקלטה.החל_טקסטים("הקלטה.mp4", "הקלטה_עם_טקסט.mp4", [
+    {
+        "טקסט": "הדגמה · שפת יוד",
+        "גודל": 42,
+        "צבע": "#ffffff",
+        "מיקום": "למטה_מרכז",
+        "רקע": "#000000",
+        "שקיפות_רקע": 0.5,
+        "צל": אמת
+    }
+])</pre>
+      </figure>
+
+      <div class="callout tip">
+        לתצוגה מקדימה בנגן בלי צריבה: <code>וידאו.קבע_שכבות_טקסט(רשימה)</code>
+        ו־<code>וידאו.הצג_שכבות(אמת/שקר)</code>.
+        באפליקציית הדוגמה יש <strong>עורך שכבות מקצועי</strong>: נגן משמאל
+        ועורך מימין, עץ שכבות, סימון על המסך, וגרירת טקסט למיקום. לחיצה כפולה
+        על שכבה פותחת <strong>חלון הגדרות מאוחד</strong> עם כל האפשרויות (טקסט /
+        גופן / צבע / מיקום / רקע / תזמון). גרירה על המסך מדווחת דרך
+        <code>וידאו.בהודעה</code> ומעדכנת מיקום <code>מותאם</code> (video-px).
+        שכבות מוצגות גם ללא וידאו מקושר, כך שאפשר לעצב ולשמור פרוייקט
+        (<code>.video</code>) מראש — והקלטה מקשרת וידאו אוטומטית (או «קשר וידאו קיים…»).
+        העורך נשאר נקי: מעליו בר הקלטה קומפקטי (~60px), ושאר הפרטים (פרטי הקלטה, נגן)
+        עברו לתפריט <strong>«הקלטה נוכחית»</strong> ולחלונות צפים שנפתחים ממנו.
+      </div>
+
+      <figure class="example">
+        <span class="example-label">הקלטת אזור עם מיקרופון</span>
+        <pre class="code-block">כלול "הקלטה"
+
+אם (לא הקלטה.זמין()) {
+    הדפס("חסר ffmpeg")
+} אחרת {
+    משתנה אזור = הקלטה.בחר_אזור()
+    אם (אזור != ריק) {
+        הקלטה.התחל_מסך("סרטון.mp4", אזור.x, אזור.y, אזור.רוחב, אזור.גובה, {
+            "מיקרופון": אמת,
+            "fps": 30
+        })
+        // … אחרי כמה שניות:
+        הקלטה.עצור()
+    }
+}</pre>
+      </figure>
+
+      <div class="callout tip">
+        בבחירת אזור: גרור מלבן בעכבר; Esc לביטול. הקלטה אחת בלבד בכל רגע.
+        דוגמה מלאה עם ממשק: <code>פרוייקט דוגמה/הקלטת מסך/</code>.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

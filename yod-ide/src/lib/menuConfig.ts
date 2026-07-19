@@ -77,6 +77,7 @@ export const APP_MENU: MenuGroup[] = [
       { label: "בדוק קומפילציה", action: "run.check", kb: "F7" },
       { type: "separator" },
       { label: "ארוז ל־EXE", action: "run.pack", kb: "Ctrl+Shift+P" },
+      { label: "פתח מיקום EXE", action: "run.openDistExe" },
     ],
   },
   {

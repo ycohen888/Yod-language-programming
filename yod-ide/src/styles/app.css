@@ -288,6 +288,16 @@ button:disabled {
   color: #ffffff;
 }
 
+.menubar-option:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.menubar-option:disabled:hover {
+  background: transparent;
+  color: #cccccc;
+}
+
 .menubar-option-kb {
   color: #858585;
   font-size: 12px;
@@ -310,8 +320,11 @@ button:disabled {
   flex-direction: column;
   align-items: center;
   padding-top: 8px;
+  padding-bottom: 8px;
   gap: 4px;
   border-left: 1px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .activity button {
@@ -334,6 +347,15 @@ button:disabled {
 
 .activity button.active {
   box-shadow: inset -2px 0 0 var(--accent);
+}
+
+.activity button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.activity button:disabled:hover {
+  color: var(--fg-dim);
 }
 
 .sidebar {
@@ -664,6 +686,8 @@ button:disabled {
   color: var(--fg-dim);
   background: transparent;
   flex-shrink: 0;
+  cursor: default;
+  user-select: none;
 }
 
 .tab:hover {
@@ -719,6 +743,10 @@ button:disabled {
   direction: rtl;
 }
 
+.editor-surface.is-ltr {
+  direction: ltr;
+}
+
 .editor-surface.is-hidden {
   visibility: hidden;
   pointer-events: none;
@@ -728,6 +756,10 @@ button:disabled {
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+.cm-host--ltr .cm-editor {
+  direction: ltr;
 }
 
 .cm-host .cm-editor {

@@ -9,7 +9,8 @@ import (
 
 func BuiltinNames() []string {
 	return []string{
-		"בסיס", "קבצים", "JSON", "זמן", "טיימרים", "מתמטיקה", "מספרים", "מערכת", "רשת", "SQL", "חלונות", "גרפים", "ציור", "הצפנה", "לוח", "עכבר", "מקלדת", "שמע", "וידאו", "תמונות", "דיבור", "תוצאה",
+		"בסיס", "קבצים", "JSON", "זמן", "טיימרים", "מתמטיקה", "מספרים", "מערכת", "רשת", "SQL", "חלונות", "גרפים", "ציור", "הצפנה", "לוח", "עכבר", "מקלדת", "שמע", "וידאו", "תמונות", "דיבור", "הקלטה", "תוצאה",
+		"גיליון", "אימייל", "חומרה", "אוטומציה", "GPU", "תרגום",
 	}
 }
 
@@ -66,6 +67,8 @@ func LoadBuiltin(name string) (object.Object, error) {
 		return NewImagesModule(), nil
 	case "דיבור":
 		return NewSpeechModule(), nil
+	case "הקלטה":
+		return NewRecordModule(), nil
 	case "JSON", "json":
 		return NewJSONModule(), nil
 	case "זמן":
@@ -78,6 +81,18 @@ func LoadBuiltin(name string) (object.Object, error) {
 		return NewNumbersModule(), nil
 	case "מערכת":
 		return NewSystemModule(), nil
+	case "גיליון":
+		return NewSpreadsheetModule(), nil
+	case "אימייל":
+		return NewEmailModule(), nil
+	case "חומרה":
+		return NewHardwareModule(), nil
+	case "אוטומציה":
+		return NewAutomationModule(), nil
+	case "GPU", "gpu":
+		return NewGPUModule(), nil
+	case "תרגום":
+		return NewI18nModule(), nil
 	default:
 		return nil, fmt.Errorf("ספרייה מובנית לא נמצאה: %q", name)
 	}

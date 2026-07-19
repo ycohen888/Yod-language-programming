@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית תלת | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">חבילת פרויקט · 0.90</span><strong>תלת</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>תלת־ממד ב־WebGL</h1>
+      <p class="lead">
+        סצנת תלת־ממד רצה ב־WebGL בתוך <code>חלונות.דפדפן</code> (WebView2).
+        יוד שולטת דרך גשר ההודעות — בלי מנוע GPU מקומי ובלי Unity.
+        החבילה נמצאת ב־<code>פרוייקט דוגמה/תלת/</code> ואינה ספריית Go מובנית.
+      </p>
+
+      <h2>קבצים</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>קובץ</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>תלת.יוד</code></td><td>עטיפה עברית: פתח, הוסף_קוביה, מצלמה, סובב, טען_מודל…</td></tr>
+          <tr><td><code>מנוע.js</code></td><td>WebGL: תאורה כיוונית, קוביות, glTF בסיסי, מצלמת מסלול</td></tr>
+          <tr><td><code>סצנה_בסיס.html</code></td><td>דף שמטעין את המנוע</td></tr>
+          <tr><td><code>התחל.יוד</code></td><td>דמו שליטה מיוד</td></tr>
+          <tr><td><code>מודלים/פירמידה.gltf</code></td><td>מודל לדוגמה (מוטמע, אופליין)</td></tr>
+        </tbody>
+      </table>
+
+      <h2>API עברי</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>קריאה</th><th>תיאור</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>תלת.פתח(דפדפן, נתיב_html?)</code></td><td>מחבר דפדפן ומנווט לסצנה</td></tr>
+          <tr><td><code>תלת.הוסף_קוביה(מזהה, x,y,z, קנה, r,g,b)</code></td><td>מוסיף קוביה לסצנה</td></tr>
+          <tr><td><code>תלת.קבע_מצלמה(yaw, pitch, dist)</code></td><td>מצלמת מסלול</td></tr>
+          <tr><td><code>תלת.סובב</code> / <code>הזז</code></td><td>שינוי אובייקט לפי מזהה</td></tr>
+          <tr><td><code>תלת.טען_מודל(נתיב, מזהה, …)</code></td><td>קורא glTF ביוד ושולח ל־JS</td></tr>
+          <tr><td><code>תלת.בעת_מוכן</code> / <code>בעת_לחיצה</code> / <code>בעת_מצלמה</code></td><td>אירועים מהדף</td></tr>
+          <tr><td><code>תלת.נקה()</code></td><td>מסיר אובייקטים</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "חלונות"
+כלול "תלת.יוד"
+
+משתנה ח = חלונות.חלון("תלת")
+ח.קבע_גודל(900, 600)
+משתנה ד = חלונות.דפדפן()
+תלת.פתח(ד)
+
+תלת.בעת_מוכן(פונקציה() {
+  תלת.הוסף_קוביה("ראשית", 0, 0, 0, 1, 0.3, 0.7, 1)
+  תלת.קבע_מצלמה(0.6, 0.3, 8)
+})
+
+ח.הוסף(ד)
+ח.הצג()</pre>
+        <div class="output">
+          <span class="output-label">פלט</span>
+          <pre>(חלון עם סצנת WebGL; גרירת עכבר מסובבת מצלמה)</pre>
+        </div>
+      </figure>
+
+      <div class="callout tip">
+        <strong>דמואים:</strong>
+        <code>פרוייקט דוגמה/תלת/</code> (שליטה),
+        <code>פרוייקט דוגמה/תלת-גלריה/</code> (glTF + כמה אובייקטים),
+        ו־<code>תלת-ממד/</code> (גשר בסיסי בלי חבילת תלת).
+      </div>
+
+      <h2>מגבלות</h2>
+      <ul>
+        <li>אין פיזיקה תלת / עורך סצנות / shaders מורכבים</li>
+        <li>glTF בסיסי (POSITION + indices); בלי אנימציית שלד מלאה</li>
+        <li>דורש WebView2 Runtime ב־Windows</li>
+      </ul>
+
+      <p>
+        הגשר עצמו מתועד ב־<a href="ספריית-חלונות.html">ספריית חלונות</a>
+        (<code>דפדפן.שלח</code> / <code>בהודעה</code> / <code>הרץ_js</code>).
+      </p>
+    </article>
+    <p class="footer">מדריך שפת יוד · תלת 0.89–0.90</p>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

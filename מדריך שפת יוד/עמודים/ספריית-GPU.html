@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית GPU | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.98</span><strong>GPU</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית GPU מקומית</h1>
+      <p class="lead">
+        ציור תלת־ממד מקומי ב־OpenGL על <code>חלונות.משטח_GPU</code> — בלי WebView.
+        זה לא אותו דבר כמו <code>חלונות.משטח</code> (2D ל־UI/מפות על Direct2D) —
+        רכיבי ממשק ויוצר מפות נשארים על <code>משטח</code>.
+        WebGL ב־<code>דפדפן</code> נשאר לנתונים/דמואים קלים; GPU מקומי לייעוד ביצועים ומשחקים תלת־ממדיים.
+      </p>
+
+      <h2>משטח</h2>
+      <pre class="code" dir="ltr"><code>כלול "חלונות"
+משתנה מ = חלונות.משטח_GPU(640, 480)
+מ.נקה(0.08, 0.1, 0.14)
+מ.הצג_משולש()
+מ.רענן()</code></pre>
+      <table class="method-table">
+        <thead><tr><th>מתודה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>נקה(r,g,b)</code></td><td>צבע רקע (0–1)</td></tr>
+          <tr><td><code>הצג_משולש()</code></td><td>דמו משולש צבעוני מסתובב</td></tr>
+          <tr><td><code>קבע_סצנה(ס)</code></td><td>מצייר סצנה מ־<code>GPU.סצנה</code></td></tr>
+          <tr><td><code>רענן()</code></td><td>פריים + החלפת באפרים</td></tr>
+          <tr><td><code>קרא_FPS()</code> / <code>קרא_backend()</code></td><td>מדדים</td></tr>
+        </tbody>
+      </table>
+
+      <h2>סצנה</h2>
+      <pre class="code" dir="ltr"><code>כלול "GPU"
+משתנה ס = GPU.סצנה()
+ס.קבע_מצלמה(3, 2, 4, 0, 0.4, 0)
+משתנה ק = ס.הוסף(GPU.קוביה(), "קוביה")
+ק.קבע_מיקום(0, 0.5, 0)
+מ.קבע_סצנה(ס)</code></pre>
+      <table class="method-table">
+        <thead><tr><th>API</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>GPU.סצנה()</code></td><td>מצלמה + אור + צמתים</td></tr>
+          <tr><td><code>GPU.קוביה()</code> / <code>מישור(גודל)</code></td><td>רשתות מובנות</td></tr>
+          <tr><td><code>GPU.טען_מודל(gltf)</code></td><td>glTF 2.0 בסיסי (POSITION+indices)</td></tr>
+          <tr><td><code>GPU.טען_תמונה(נתיב, משטח)</code></td><td>PNG/JPEG → מזהה טקסטורה</td></tr>
+          <tr><td><code>ס.מצלמת_מסלול(yaw,pitch,מרחק)</code></td><td>מצלמת אורביט במעלות</td></tr>
+        </tbody>
+      </table>
+
+      <h2>נכסים מקומיים</h2>
+      <p>
+        מניפסט JSON בעברית בתיקיית <code>נכסים/</code>:
+        <code>{"נכסים":[{"שם":"…","סוג":"מודל|תמונה|שמע","נתיב":"…"}]}</code>
+      </p>
+      <ul>
+        <li><code>GPU.טען_מניפסט(נתיב)</code></li>
+        <li><code>GPU.סרוק_נכסים(תיקייה)</code></li>
+        <li><code>GPU.ייבא_zip(zip, יעד)</code> — חילוץ + מניפסט (מדף מקומי)</li>
+      </ul>
+
+      <h2>דוגמאות</h2>
+      <ul>
+        <li><code>פרוייקט דוגמה/GPU-משולש</code> — G.1 smoke test</li>
+        <li><code>פרוייקט דוגמה/GPU-סצנה</code> — קוביה + glTF</li>
+        <li><code>פרוייקט דוגמה/עורך-סצנות</code> — היררכיה / Inspector / שחק / ZIP</li>
+      </ul>
+
+      <h2>Backend</h2>
+      <p>
+        כיום: <strong>OpenGL</strong> דרך WGL על HWND של Composite (היבריד עם walk).
+        שכבת <code>gpu.Backend</code> מאפשרת החלפה עתידית ל־wgpu בלי לשבור את ה־API העברי.
+      </p>
+    </article>
+  </div>
+  </div>
+  <script src="../js/sidebar.js"></script>
+</body>
+</html>

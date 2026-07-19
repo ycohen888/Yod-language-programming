@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>שכבות ממשק | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מדריך · 0.87</span><strong>שכבות ממשק</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>Win32 מול רכיבים — מתי מה</h1>
+      <p class="lead">
+        יוד לא מחליפה את Win32 ברכיבי משטח. יש שתי שכבות משלימות.
+      </p>
+      <table class="method-table">
+        <thead><tr><th>שכבה</th><th>מתי להשתמש</th></tr></thead>
+        <tbody>
+          <tr><td><code>חלונות</code> (Win32)</td><td>חלון ראשי, שדות מקוריים, טבלה, דיאלוגים, תפריט עליון, דפדפן/WebView</td></tr>
+          <tr><td><code>רכיבים</code> (משטח)</td><td>HUD למשחק, לוחות כהים מצוירים, סליידרים/שבבים מותאמים, תפריט הקשר מצויר</td></tr>
+        </tbody>
+      </table>
+      <h2>פוקוס מקלדת</h2>
+      <p>
+        ב־<code>לוח_רכיבים</code>, רכיב שמחזיר <code>מקבל_מיקוד()=אמת</code> (למשל <code>קלט_טקסט</code>)
+        מקבל מיקוד בלחיצה; <code>משטח.בקש_מיקוד()</code> מעביר מקלדת למשטח.
+        בטפסי Win32 עדיף <code>חלונות.שדה</code> לביצועי הקלדה.
+      </p>
+      <h2>רכיבים חדשים (0.83–0.87)</h2>
+      <ul>
+        <li><code>סרגל_גלילה</code> — פס עצמאי</li>
+        <li><code>תפריט_הקשר</code> — קליק ימין; ב־<code>לוח_רכיבים.תפריט_הקשר</code></li>
+      </ul>
+      <div class="callout tip">
+        דמו: <code>פרוייקט דוגמה/רכיבים/</code> — כולל תפריט הקשר וגלילה.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

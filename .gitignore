@@ -1,4 +1,4 @@
-﻿# Binaries & build
+# Binaries & build
 *.exe
 *.dll
 *.so
@@ -32,7 +32,26 @@ yod-*-windows-amd64.zip
 # SQLite / local DBs
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
+*.sqlite3
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+**/credentials.json
+**/secrets.json
+**/*סיסמאות*.json
+
+# נתוני ריצה של פרויקטי דוגמה — לא להעלות (סיסמאות / מצב / DB)
+# ראו גם: פרוייקט דוגמה/.gitignore
+**/נתונים/
+**/data/
+**/Data/
+**/_בדיק*/
+**/_בדיקת_*/
 
 # Archive scratch
 yod/examples/archive_out/
@@ -57,6 +76,20 @@ info_program.html
 
 # Release artifacts (attached via GitHub Release)
 dist/
+dist_exe/
+**/dist_exe/
 yod-ide/release/
 yod-ide/dist/
 
+# קבצי שגיאה/סטטוס מקומיים
+_*.txt
+
+# תוכנות חופשיות ודוגמאות — לא מעלים קוד מקור/EXE, רק README + קישור הורדה.
+# ההרצות מופצות כ־ZIP דרך servxx.com/ads/ (ראו README של כל תוכנה).
+פרוייקט דוגמה/*
+!פרוייקט דוגמה/מוניטור/
+פרוייקט דוגמה/מוניטור/*
+!פרוייקט דוגמה/מוניטור/README.md
+!פרוייקט דוגמה/גיבוי/
+פרוייקט דוגמה/גיבוי/*
+!פרוייקט דוגמה/גיבוי/README.md

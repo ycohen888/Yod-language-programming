@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"unicode"
 
 	_ "golang.org/x/image/bmp"
@@ -21,6 +22,7 @@ import (
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/text/unicode/bidi"
 
+	"yod/internal/draw2d"
 	"yod/internal/object"
 )
 
@@ -28,6 +30,7 @@ func NewDrawingModule() *object.Module {
 	m := &object.Module{Name: "ציור", Attrs: map[string]object.Object{}}
 	m.Attrs["לוח"] = &object.Builtin{Fn: drawCreateBoard}
 	m.Attrs["טען_תמונה"] = &object.Builtin{Fn: drawLoadImage}
+	m.Attrs["טען"] = &object.Builtin{Fn: drawLoadImage} // כינוי ל־טען_תמונה / תמונות.טען
 	m.Attrs["צבע"] = &object.Builtin{Fn: drawMakeColor}
 	return m
 }
@@ -36,11 +39,60 @@ type drawBoard struct {
 	img    *image.RGBA
 	stroke color.RGBA
 	fill   color.RGBA
-	width  int // עובי קו
+	width  int // עובי קו (ב־DIP)
 	fontSz float64
 	face   font.Face
 	// align: 0 שמאל, 1 ימין, 2 מרכז — קובע איך מפרשים את x בטקסט
 	align int
+	// dpr — יחס פיקסלים/DIP; ציור/טקסט מוכפלים לחדות ב־HiDPI
+	dpr float64
+	// backend — ציור משטח (CPU / Direct2D); לוח ציור רגיל יכול להיות nil
+	backend draw2d.Backend2D
+}
+
+func (st *drawBoard) syncImgFromBackend() {
+	if st == nil || st.backend == nil {
+		return
+	}
+	if buf := st.backend.Buffer(); buf != nil {
+		st.img = buf
+	}
+}
+
+func (st *drawBoard) clearBackend(c color.RGBA) {
+	if st.backend != nil {
+		st.backend.Clear(c)
+		st.syncImgFromBackend()
+		return
+	}
+	draw.Draw(st.img, st.img.Bounds(), &image.Uniform{C: c}, image.Point{}, draw.Src)
+}
+
+// sp — המרת יחידת לוגיקה (DIP) לפיקסל התקן.
+func (st *drawBoard) sp(v int) int {
+	if st == nil || st.dpr <= 1.001 {
+		return v
+	}
+	return int(math.Round(float64(v) * st.dpr))
+}
+
+func (st *drawBoard) scaleVals(vals []int) []int {
+	if st == nil || st.dpr <= 1.001 || len(vals) == 0 {
+		return vals
+	}
+	out := make([]int, len(vals))
+	for i, v := range vals {
+		out[i] = st.sp(v)
+	}
+	return out
+}
+
+func (st *drawBoard) strokePx() int {
+	w := st.width
+	if w < 1 {
+		w = 1
+	}
+	return st.sp(w)
 }
 
 type drawImage struct {
@@ -121,6 +173,9 @@ func wrapBoard(st *drawBoard) *object.GuiWidget {
 	}}
 	w.Attrs["קבע_יישור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return setBoardTextAlign(st, a...)
+	}}
+	w.Attrs["קרא_יישור"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return boardReadTextAlign(st)
 	}}
 	w.Attrs["נקה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		c := color.RGBA{255, 255, 255, 255}
@@ -219,6 +274,9 @@ func wrapBoard(st *drawBoard) *object.GuiWidget {
 	w.Attrs["רוחב_טקסט"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return boardTextWidth(st, a...)
 	}}
+	w.Attrs["מיקום_סמן"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return boardTextCaretInset(st, a...)
+	}}
 	drawImg := &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return boardDrawImage(st, a...)
 	}}
@@ -263,11 +321,32 @@ func drawLoadImage(args ...object.Object) object.Object {
 	if !ok {
 		return errObj("ציור.טען_תמונה מצפה לנתיב מחרוזת")
 	}
+	return imageLoadFromPath(path)
+}
+
+// imageLoadFromPath — ליבת טעינה משותפת לציור ולתמונות.
+func imageLoadFromPath(path string) object.Object {
 	img, err := loadImageFile(path)
 	if err != nil {
 		return errObj(err.Error())
 	}
 	return wrapImage(img)
+}
+
+// imageSaveWidget — ליבת שמירה משותפת (תמונות.שמור / מתודת שמור על רכיב).
+func imageSaveWidget(obj object.Object, path string, errPrefix string) object.Object {
+	gw, ok := obj.(*object.GuiWidget)
+	if !ok {
+		return errObj(errPrefix + " מצפה לרכיב תמונה")
+	}
+	di, ok := gw.Data.(*drawImage)
+	if !ok || di.img == nil {
+		return errObj(errPrefix + " מצפה לרכיב תמונה")
+	}
+	if err := saveImageFile(di.img, resolveAppPath(path)); err != nil {
+		return errObj(err.Error())
+	}
+	return object.Nil
 }
 
 func wrapImage(img image.Image) *object.GuiWidget {
@@ -283,10 +362,7 @@ func wrapImage(img image.Image) *object.GuiWidget {
 		if !ok {
 			return errObj("שמור מצפה לנתיב מחרוזת")
 		}
-		if err := saveImageFile(img, resolveAppPath(path)); err != nil {
-			return errObj(err.Error())
-		}
-		return object.Nil
+		return imageSaveWidget(w, path, "שמור")
 	}}
 	return w
 }
@@ -306,7 +382,7 @@ func drawMakeColor(args ...object.Object) object.Object {
 
 func boardDrawImage(st *drawBoard, args ...object.Object) object.Object {
 	if len(args) < 3 {
-		return errObj("תמונה מצפה לתמונה/נתיב, x, y [, רוחב, גובה]")
+		return errObj("תמונה מצפה לתמונה/נתיב, x, y [, רוחב, גובה [, זווית [, הפוך]]]")
 	}
 	var src image.Image
 	switch v := args[0].(type) {
@@ -325,22 +401,196 @@ func boardDrawImage(st *drawBoard, args ...object.Object) object.Object {
 	default:
 		return errObj("תמונה מצפה לרכיב תמונה או לנתיב")
 	}
-	vals, err := nums("תמונה", args[1:], len(args)-1)
-	if err != nil {
-		return err
+	vals, errV := nums("תמונה", args[1:], len(args)-1)
+	if errV != nil {
+		var perr error
+		vals, perr = parseImageDrawNums(args[1:])
+		if perr != nil {
+			return errObj(perr.Error())
+		}
 	}
 	x, y := vals[0], vals[1]
 	dw, dh := src.Bounds().Dx(), src.Bounds().Dy()
+	angle := 0.0
+	flipH := false
 	if len(vals) >= 4 {
 		dw, dh = vals[2], vals[3]
 	}
+	if len(vals) >= 5 {
+		angle = float64(vals[4])
+	}
+	if len(vals) >= 6 {
+		flipH = vals[5] != 0
+	}
+	if len(args) >= 7 {
+		if b, ok := args[6].(*object.Boolean); ok {
+			flipH = b.Value
+		}
+	} else if len(args) == 6 {
+		if b, ok := args[5].(*object.Boolean); ok {
+			flipH = b.Value
+		}
+	}
+	// HiDPI: קואורדינטות וגודל ב־DIP → פיקסלים
+	x, y = st.sp(x), st.sp(y)
+	dw, dh = st.sp(dw), st.sp(dh)
 	if dw < 1 || dh < 1 {
 		return errObj("גודל תמונה לא תקין")
 	}
-	dst := image.Rect(x, y, x+dw, y+dh)
-	xdraw.CatmullRom.Scale(st.img, dst, src, src.Bounds(), draw.Over, nil)
+	if st.backend != nil {
+		st.backend.DrawImage(src, x, y, dw, dh, angle, flipH)
+		st.syncImgFromBackend()
+		return object.Nil
+	}
+	src = prepareSprite(src, dw, dh, angle, flipH)
+	sb := src.Bounds()
+	dst := image.Rect(x, y, x+sb.Dx(), y+sb.Dy())
+	draw.Draw(st.img, dst, src, sb.Min, draw.Over)
 	return object.Nil
 }
+
+func parseImageDrawNums(args []object.Object) ([]int, error) {
+	out := make([]int, 0, len(args))
+	for _, a := range args {
+		switch v := a.(type) {
+		case *object.Number:
+			out = append(out, int(v.Value))
+		case *object.Boolean:
+			if v.Value {
+				out = append(out, 1)
+			} else {
+				out = append(out, 0)
+			}
+		default:
+			return nil, fmt.Errorf("תמונה מצפה למספרים אחרי הנתיב")
+		}
+	}
+	if len(out) < 2 {
+		return nil, fmt.Errorf("תמונה מצפה לפחות ל־x, y")
+	}
+	return out, nil
+}
+
+// prepareSprite — שינוי גודל, הפוך אופקי וסיבוב במעלות (סביב המרכז).
+func prepareSprite(src image.Image, dw, dh int, angleDeg float64, flipH bool) image.Image {
+	scaled := image.NewRGBA(image.Rect(0, 0, dw, dh))
+	xdraw.CatmullRom.Scale(scaled, scaled.Bounds(), src, src.Bounds(), draw.Over, nil)
+	if flipH {
+		scaled = flipImageHorizontal(scaled)
+	}
+	if angleDeg == 0 || math.Mod(angleDeg, 360) == 0 {
+		return scaled
+	}
+	return rotateImage(scaled, angleDeg)
+}
+
+func flipImageHorizontal(src *image.RGBA) *image.RGBA {
+	b := src.Bounds()
+	w, h := b.Dx(), b.Dy()
+	out := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			out.Set(w-1-x, y, src.At(b.Min.X+x, b.Min.Y+y))
+		}
+	}
+	return out
+}
+
+func rotateImage(src *image.RGBA, angleDeg float64) *image.RGBA {
+	rad := angleDeg * math.Pi / 180
+	cosA := math.Cos(rad)
+	sinA := math.Sin(rad)
+	b := src.Bounds()
+	w, h := float64(b.Dx()), float64(b.Dy())
+	cx, cy := w/2, h/2
+	corners := [][2]float64{
+		{0, 0}, {w, 0}, {0, h}, {w, h},
+	}
+	minX, minY := math.Inf(1), math.Inf(1)
+	maxX, maxY := math.Inf(-1), math.Inf(-1)
+	for _, c := range corners {
+		dx, dy := c[0]-cx, c[1]-cy
+		rx := dx*cosA - dy*sinA
+		ry := dx*sinA + dy*cosA
+		if rx < minX {
+			minX = rx
+		}
+		if ry < minY {
+			minY = ry
+		}
+		if rx > maxX {
+			maxX = rx
+		}
+		if ry > maxY {
+			maxY = ry
+		}
+	}
+	outW := int(math.Ceil(maxX-minX)) + 1
+	outH := int(math.Ceil(maxY-minY)) + 1
+	if outW < 1 {
+		outW = 1
+	}
+	if outH < 1 {
+		outH = 1
+	}
+	out := image.NewRGBA(image.Rect(0, 0, outW, outH))
+	ocx, ocy := float64(outW)/2, float64(outH)/2
+	cosB := math.Cos(-rad)
+	sinB := math.Sin(-rad)
+	for y := 0; y < outH; y++ {
+		for x := 0; x < outW; x++ {
+			dx, dy := float64(x)-ocx, float64(y)-ocy
+			sx := dx*cosB - dy*sinB + cx
+			sy := dx*sinB + dy*cosB + cy
+			out.Set(x, y, sampleBilinear(src, sx, sy))
+		}
+	}
+	return out
+}
+
+func sampleBilinear(src *image.RGBA, fx, fy float64) color.Color {
+	b := src.Bounds()
+	if fx < -1 || fy < -1 || fx > float64(b.Dx()) || fy > float64(b.Dy()) {
+		return color.RGBA{}
+	}
+	x0 := int(math.Floor(fx))
+	y0 := int(math.Floor(fy))
+	tx := fx - float64(x0)
+	ty := fy - float64(y0)
+	c00 := rgbaAtClamped(src, x0, y0)
+	c10 := rgbaAtClamped(src, x0+1, y0)
+	c01 := rgbaAtClamped(src, x0, y0+1)
+	c11 := rgbaAtClamped(src, x0+1, y0+1)
+	return color.RGBA{
+		R: lerpByte(lerpByte(c00.R, c10.R, tx), lerpByte(c01.R, c11.R, tx), ty),
+		G: lerpByte(lerpByte(c00.G, c10.G, tx), lerpByte(c01.G, c11.G, tx), ty),
+		B: lerpByte(lerpByte(c00.B, c10.B, tx), lerpByte(c01.B, c11.B, tx), ty),
+		A: lerpByte(lerpByte(c00.A, c10.A, tx), lerpByte(c01.A, c11.A, tx), ty),
+	}
+}
+
+func rgbaAtClamped(src *image.RGBA, x, y int) color.RGBA {
+	b := src.Bounds()
+	if x < 0 || y < 0 || x >= b.Dx() || y >= b.Dy() {
+		return color.RGBA{}
+	}
+	return src.RGBAAt(b.Min.X+x, b.Min.Y+y)
+}
+
+func lerpByte(a, b uint8, t float64) uint8 {
+	if t <= 0 {
+		return a
+	}
+	if t >= 1 {
+		return b
+	}
+	return uint8(math.Round(float64(a)*(1-t) + float64(b)*t))
+}
+
+var (
+	imageCacheMu sync.Mutex
+	imageCache   = map[string]image.Image{}
+)
 
 func resolveAppPath(path string) string {
 	if filepath.IsAbs(path) {
@@ -359,7 +609,15 @@ func resolveAppPath(path string) string {
 }
 
 func loadImageFile(path string) (image.Image, error) {
-	f, err := os.Open(resolveAppPath(path))
+	key := filepath.Clean(resolveAppPath(path))
+	imageCacheMu.Lock()
+	if img, ok := imageCache[key]; ok {
+		imageCacheMu.Unlock()
+		return img, nil
+	}
+	imageCacheMu.Unlock()
+
+	f, err := os.Open(key)
 	if err != nil {
 		return nil, fmt.Errorf("לא הצלחתי לפתוח תמונה: %v", err)
 	}
@@ -368,6 +626,9 @@ func loadImageFile(path string) (image.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("פורמט תמונה לא נתמך או פגום (png/jpg/gif…): %v", err)
 	}
+	imageCacheMu.Lock()
+	imageCache[key] = img
+	imageCacheMu.Unlock()
 	return img, nil
 }
 
@@ -797,6 +1058,17 @@ func setBoardTextAlign(st *drawBoard, a ...object.Object) object.Object {
 	return object.Nil
 }
 
+func boardReadTextAlign(st *drawBoard) object.Object {
+	switch st.align {
+	case 1:
+		return &object.String{Value: "ימין"}
+	case 2:
+		return &object.String{Value: "מרכז"}
+	default:
+		return &object.String{Value: "שמאל"}
+	}
+}
+
 func boardDrawTextBox(st *drawBoard, a ...object.Object) object.Object {
 	if len(a) != 4 {
 		return errObj("טקסט_בתיבה מצפה למחרוזת, x, y, רוחב")
@@ -827,7 +1099,8 @@ func measureBoardText(st *drawBoard, text string) (float64, string, error) {
 	if err != nil {
 		return 0, "", err
 	}
-	visual := visualOrderRTL(text)
+	// יישור ימין = פסקה RTL (כמו עורך יוד); שמאל/מרכז = LTR
+	visual := visualOrderForAlign(text, st.align)
 	if visual == "" {
 		return 0, visual, nil
 	}
@@ -844,6 +1117,7 @@ func drawTextOnBoard(st *drawBoard, text string, x, y int) error {
 	if err != nil {
 		return err
 	}
+	x, y = st.sp(x), st.sp(y)
 	drawX := x
 	switch st.align {
 	case 1: // ימין — x הוא הקצה הימני של הטקסט
@@ -855,7 +1129,7 @@ func drawTextOnBoard(st *drawBoard, text string, x, y int) error {
 		Dst:  st.img,
 		Src:  image.NewUniform(st.stroke),
 		Face: face,
-		Dot:  fixed.P(drawX, y+int(st.fontSz)),
+		Dot:  fixed.P(drawX, y+int(sizeForFace(st))),
 	}
 	d.DrawString(visual)
 	return nil
@@ -880,43 +1154,245 @@ func boardTextWidth(st *drawBoard, args ...object.Object) object.Object {
 	if err != nil {
 		return errObj(err.Error())
 	}
+	if st.dpr > 1.001 {
+		w = w / st.dpr
+	}
 	return &object.Number{Value: w}
 }
 
-// visualOrderRTL — סדר חזותי לציור: עברית נקראת מימין, ספרות/אנגלית נשארות טבעיות
-func visualOrderRTL(s string) string {
+// boardTextCaretInset — מרחק הסמן מצד תחילת הפסקה (ימין ב־RTL, שמאל ב־LTR).
+// תואם בדיוק לציור BiDi (אותו סדר חזותי) — עברית + אנגלית + מספרים כמו וורד.
+func boardTextCaretInset(st *drawBoard, args ...object.Object) object.Object {
+	if len(args) != 2 {
+		return errObj("מיקום_סמן מצפה למחרוזת ולאינדקס")
+	}
+	s, ok := asString(args[0])
+	if !ok {
+		if args[0] == nil || args[0] == object.Nil {
+			s = ""
+		} else {
+			return errObj("מיקום_סמן מצפה למחרוזת ולאינדקס")
+		}
+	}
+	n, ok := args[1].(*object.Number)
+	if !ok {
+		return errObj("מיקום_סמן מצפה למחרוזת ולאינדקס")
+	}
+	rs := []rune(s)
+	caret := int(n.Value)
+	if caret < 0 {
+		caret = 0
+	}
+	if caret > len(rs) {
+		caret = len(rs)
+	}
+	rtlPara := st.align == 1
+
+	face, err := st.ensureFace()
+	if err != nil {
+		return errObj(err.Error())
+	}
+	fromLeft := caretOffsetFromTextLeft(face, s, caret, rtlPara)
+	if !rtlPara {
+		return &object.Number{Value: fromLeft}
+	}
+	disp, _, _ := buildVisualMap(s, true)
+	fullW := measureFaceAdvance(face, disp)
+	inset := fullW - fromLeft
+	if inset < 0 {
+		inset = 0
+	}
+	return &object.Number{Value: inset}
+}
+
+func measureFaceAdvance(face font.Face, s string) float64 {
+	if s == "" {
+		return 0
+	}
+	return float64(font.MeasureString(face, s)) / 64.0
+}
+
+func paragraphOrder(text string, rtlPara bool) (bidi.Ordering, bool) {
+	var p bidi.Paragraph
+	opts := []bidi.Option{}
+	if rtlPara {
+		opts = append(opts, bidi.DefaultDirection(bidi.RightToLeft))
+	} else {
+		opts = append(opts, bidi.DefaultDirection(bidi.LeftToRight))
+	}
+	_, err := p.SetString(text, opts...)
+	if err != nil {
+		return bidi.Ordering{}, false
+	}
+	ord, err := p.Order()
+	if err != nil || ord.NumRuns() == 0 {
+		return bidi.Ordering{}, false
+	}
+	return ord, true
+}
+
+// buildVisualMap — סדר חזותי שמאלי→ימין כמו וורד/פסקה RTL.
+// Order() של x/text מחזיר ריצות לפי סדר לוגי; בפסקת RTL הופכים את סדר הריצות
+// כדי שאנגלית/מספרים יופיעו משמאל לעברית (כמו בוורד).
+func buildVisualMap(text string, rtlPara bool) (display string, logicalOfVisual []int, fromRTL []bool) {
+	rs := []rune(text)
+	n := len(rs)
+	if n == 0 {
+		return "", nil, nil
+	}
+	ord, ok := paragraphOrder(text, rtlPara)
+	if !ok {
+		logicalOfVisual = make([]int, n)
+		fromRTL = make([]bool, n)
+		if rtlPara && hasRTLRune(text) {
+			out := make([]rune, n)
+			for i := 0; i < n; i++ {
+				out[i] = rs[n-1-i]
+				logicalOfVisual[i] = n - 1 - i
+				fromRTL[i] = true
+			}
+			return string(out), logicalOfVisual, fromRTL
+		}
+		for i := 0; i < n; i++ {
+			logicalOfVisual[i] = i
+		}
+		return text, logicalOfVisual, fromRTL
+	}
+
+	type runInfo struct {
+		start, end int
+		rtl        bool
+	}
+	runs := make([]runInfo, 0, ord.NumRuns())
+	for i := 0; i < ord.NumRuns(); i++ {
+		run := ord.Run(i)
+		start, endIncl := run.Pos()
+		end := endIncl + 1
+		if start < 0 {
+			start = 0
+		}
+		if end > n {
+			end = n
+		}
+		runs = append(runs, runInfo{start: start, end: end, rtl: run.Direction() == bidi.RightToLeft})
+	}
+	// פסקת RTL: הריצה הראשונה לוגית יושבת מימין — הופכים לסדר ציור משמאל לימין
+	if rtlPara {
+		for i, j := 0, len(runs)-1; i < j; i, j = i+1, j-1 {
+			runs[i], runs[j] = runs[j], runs[i]
+		}
+	}
+
+	var out []rune
+	logicalOfVisual = make([]int, 0, n)
+	fromRTL = make([]bool, 0, n)
+	for _, run := range runs {
+		if run.rtl {
+			for j := run.end - 1; j >= run.start; j-- {
+				out = append(out, rs[j])
+				logicalOfVisual = append(logicalOfVisual, j)
+				fromRTL = append(fromRTL, true)
+			}
+		} else {
+			for j := run.start; j < run.end; j++ {
+				out = append(out, rs[j])
+				logicalOfVisual = append(logicalOfVisual, j)
+				fromRTL = append(fromRTL, false)
+			}
+		}
+	}
+	return string(out), logicalOfVisual, fromRTL
+}
+
+// caretOffsetFromTextLeft — מרחק הסמן מקצה שמאל של המחרוזת החזותית (אותה מחרוזת שצוירים).
+// מדידה רק על קידומות של הסדר החזותי — תואם ל־MeasureString של הציור המלא.
+func caretOffsetFromTextLeft(face font.Face, text string, caret int, rtlPara bool) float64 {
+	rs := []rune(text)
+	n := len(rs)
+	if n == 0 {
+		return 0
+	}
+	if caret < 0 {
+		caret = 0
+	}
+	if caret > n {
+		caret = n
+	}
+
+	disp, mapping, fromRTL := buildVisualMap(text, rtlPara)
+	drunes := []rune(disp)
+	if len(drunes) != len(mapping) || len(mapping) != n || len(fromRTL) != n {
+		if !rtlPara {
+			return measureFaceAdvance(face, string(rs[:caret]))
+		}
+		return measureFaceAdvance(face, disp)
+	}
+
+	visOf := func(log int) int {
+		for vi, li := range mapping {
+			if li == log {
+				return vi
+			}
+		}
+		return -1
+	}
+
+	measurePrefix := func(visCount int) float64 {
+		if visCount <= 0 {
+			return 0
+		}
+		if visCount >= len(drunes) {
+			return measureFaceAdvance(face, disp)
+		}
+		return measureFaceAdvance(face, string(drunes[:visCount]))
+	}
+
+	if caret == 0 {
+		vi := visOf(0)
+		if vi < 0 {
+			return 0
+		}
+		if fromRTL[vi] {
+			return measurePrefix(vi + 1) // leading RTL = ימין הגליף
+		}
+		return measurePrefix(vi) // leading LTR = שמאל
+	}
+
+	log := caret - 1
+	vi := visOf(log)
+	if vi < 0 {
+		return measurePrefix(len(drunes))
+	}
+	if fromRTL[vi] {
+		return measurePrefix(vi) // trailing RTL = שמאל הגליף
+	}
+	return measurePrefix(vi + 1) // trailing LTR/ספרות = ימין
+}
+
+// visualOrderForAlign — סדר חזותי לציור; זהה ל־buildVisualMap.
+func visualOrderForAlign(s string, align int) string {
 	if s == "" {
 		return s
 	}
-	var p bidi.Paragraph
-	opts := []bidi.Option{}
-	if hasRTLRune(s) {
-		opts = append(opts, bidi.DefaultDirection(bidi.RightToLeft))
-	}
-	_, _ = p.SetString(s, opts...)
-	ord, err := p.Order()
-	if err != nil || ord.NumRuns() == 0 {
-		if hasRTLRune(s) {
-			return bidi.ReverseString(s)
-		}
+	rtlPara := align == 1
+	if !rtlPara && !hasRTLRune(s) {
 		return s
 	}
-	var b strings.Builder
-	b.Grow(len(s))
-	for i := 0; i < ord.NumRuns(); i++ {
-		run := ord.Run(i)
-		part := run.String()
-		if run.Direction() == bidi.RightToLeft {
-			part = bidi.ReverseString(part)
-		}
-		b.WriteString(part)
-	}
-	return b.String()
+	disp, _, _ := buildVisualMap(s, rtlPara)
+	return disp
 }
 
-// visualOrderLTR — תאימות לשם ישן; משתמש באותו עיבוד BiDi
+// visualOrderRTL — תאימות לשם ישן; ברירת פסקה RTL כשיש תווים עבריים/ערביים
+func visualOrderRTL(s string) string {
+	if hasRTLRune(s) {
+		return visualOrderForAlign(s, 1)
+	}
+	return visualOrderForAlign(s, 0)
+}
+
+// visualOrderLTR — תאימות לשם ישן
 func visualOrderLTR(s string) string {
-	return visualOrderRTL(s)
+	return visualOrderForAlign(s, 0)
 }
 
 func hasRTLRune(s string) bool {
@@ -926,6 +1402,38 @@ func hasRTLRune(s string) bool {
 		}
 	}
 	return false
+}
+
+func hasLatinLetter(s string) bool {
+	for _, r := range s {
+		if (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') {
+			return true
+		}
+		if unicode.Is(unicode.Latin, r) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasASCIIDigit(s string) bool {
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			return true
+		}
+	}
+	return false
+}
+
+func sizeForFace(st *drawBoard) float64 {
+	sz := st.fontSz
+	if sz < 8 {
+		sz = 8
+	}
+	if st.dpr > 1.001 {
+		sz = sz * st.dpr
+	}
+	return sz
 }
 
 func (st *drawBoard) ensureFace() (font.Face, error) {
@@ -950,7 +1458,7 @@ func (st *drawBoard) ensureFace() (font.Face, error) {
 			continue
 		}
 		face, err := opentype.NewFace(f, &opentype.FaceOptions{
-			Size: st.fontSz,
+			Size: sizeForFace(st),
 			DPI:  72,
 		})
 		if err != nil {

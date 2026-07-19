@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ספריית חומרה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">ספרייה · 0.78.0 · Windows</span><strong>חומרה</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1>ספריית חומרה</h1>
+      <p class="lead">
+        תקשורת Serial / COM (למשל Arduino, ESP32) ב־Windows.
+        טוענים עם <code>כלול "חומרה"</code>.
+      </p>
+
+      <h2>פונקציות</h2>
+      <table class="method-table">
+        <thead><tr><th>פונקציה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>חומרה.רשימה()</code></td><td>שמות פורטים זמינים</td></tr>
+          <tr><td><code>חומרה.פתח(שם, באוד [, timeout_מ״ש])</code></td><td>פותח פורט; ברירת timeout 1000 מ״ש</td></tr>
+        </tbody>
+      </table>
+
+      <h2>מתודות על פורט</h2>
+      <table class="method-table">
+        <thead><tr><th>מתודה</th><th>תיאור</th></tr></thead>
+        <tbody>
+          <tr><td><code>כתוב(מחרוזת)</code></td><td>כותב לפורט</td></tr>
+          <tr><td><code>קרא_שורה()</code></td><td>קורא עד ירידת שורה (עם timeout)</td></tr>
+          <tr><td><code>זמין()</code></td><td>בתים במאגר הקריאה</td></tr>
+          <tr><td><code>סגור()</code></td><td>סוגר את הפורט</td></tr>
+        </tbody>
+      </table>
+
+      <h2>דוגמה</h2>
+      <figure class="example">
+        <span class="example-label">דוגמה</span>
+        <pre class="code-block">כלול "חומרה"
+
+הדפס(חומרה.רשימה())
+משתנה פ = חומרה.פתח("COM3", 115200)
+פ.כתוב("ON\n")
+הדפס(פ.קרא_שורה())
+פ.סגור()</pre>
+      </figure>
+
+      <div class="callout tip">
+        <strong>שים לב:</strong> בלי timeout הקריאה עלולה להיתקע — ברירת המחדל היא שנייה אחת.
+      </div>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

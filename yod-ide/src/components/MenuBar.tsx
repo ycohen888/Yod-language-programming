@@ -3,9 +3,11 @@ import { APP_MENU, type MenuEntry } from "../lib/menuConfig";
 
 type Props = {
   onAction: (action: string) => void;
+  /** פעולות שצריך לכבות (למשל פתח מיקום EXE בלי dist_exe). */
+  disabledActions?: ReadonlySet<string>;
 };
 
-export function MenuBar({ onAction }: Props) {
+export function MenuBar({ onAction, disabledActions }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -27,6 +29,7 @@ export function MenuBar({ onAction }: Props) {
 
   const run = (entry: MenuEntry) => {
     if (entry.type === "separator") return;
+    if (disabledActions?.has(entry.action)) return;
     setOpenId(null);
     onAction(entry.action);
   };
@@ -59,6 +62,7 @@ export function MenuBar({ onAction }: Props) {
                     type="button"
                     className="menubar-option"
                     role="menuitem"
+                    disabled={!!disabledActions?.has(entry.action)}
                     onClick={() => run(entry)}
                   >
                     <span className="menubar-option-label">{entry.label}</span>

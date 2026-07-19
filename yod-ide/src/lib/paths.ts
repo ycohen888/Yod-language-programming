@@ -36,6 +36,15 @@ export function pathBase(p: string): string {
   return idx >= 0 ? p.slice(idx + 1) : p;
 }
 
+/** סיומות משפחת שפת יוד — רק אלה נפתחות ב־RTL בעורך. */
+export function isYodFamilyFile(pathOrName: string | null | undefined): boolean {
+  if (!pathOrName) return false;
+  const name = pathBase(pathOrName);
+  if (name.endsWith(".יוד")) return true;
+  const lower = name.toLowerCase();
+  return lower.endsWith(".yod");
+}
+
 export function joinPath(dir: string, name: string): string {
   if (!dir) return name;
   const sep = dir.includes("\\") ? "\\" : "/";

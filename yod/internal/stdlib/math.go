@@ -23,6 +23,8 @@ func NewMathModule() *object.Module {
 	m.Attrs["עיגול"] = &object.Builtin{Fn: mathRound}
 	m.Attrs["מקסימום"] = &object.Builtin{Fn: mathMax}
 	m.Attrs["מינימום"] = &object.Builtin{Fn: mathMin}
+	m.Attrs["atan2"] = &object.Builtin{Fn: mathAtan2}
+	m.Attrs["זווית"] = &object.Builtin{Fn: mathAngleDeg}
 	return m
 }
 
@@ -128,4 +130,31 @@ func mathMin(args ...object.Object) object.Object {
 		}
 	}
 	return best
+}
+
+// mathAtan2 — atan2(y, x) ברדיאנים (כמו בשפות אחרות).
+func mathAtan2(args ...object.Object) object.Object {
+	if err := expectArgs("מתמטיקה.atan2", 2, args); err != nil {
+		return err
+	}
+	y, ok1 := args[0].(*object.Number)
+	x, ok2 := args[1].(*object.Number)
+	if !ok1 || !ok2 {
+		return errObj("מתמטיקה.atan2 מצפה לשני מספרים (y, x)")
+	}
+	return &object.Number{Value: math.Atan2(y.Value, x.Value)}
+}
+
+// mathAngleDeg — זווית במעלות מ־(0,0) ל־(x,y): זווית(y, x).
+func mathAngleDeg(args ...object.Object) object.Object {
+	if err := expectArgs("מתמטיקה.זווית", 2, args); err != nil {
+		return err
+	}
+	y, ok1 := args[0].(*object.Number)
+	x, ok2 := args[1].(*object.Number)
+	if !ok1 || !ok2 {
+		return errObj("מתמטיקה.זווית מצפה לשני מספרים (y, x)")
+	}
+	deg := math.Atan2(y.Value, x.Value) * 180 / math.Pi
+	return &object.Number{Value: deg}
 }

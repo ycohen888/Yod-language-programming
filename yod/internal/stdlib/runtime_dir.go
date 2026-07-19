@@ -35,7 +35,7 @@ func AppBaseDir() string {
 
 // FindAppIconPath מחפש יוד.ico / app.ico ליד הפרויקט או ה־EXE.
 func FindAppIconPath() string {
-	names := []string{"יוד.ico", "yod.ico", "app.ico", "icon.ico"}
+	names := []string{"app.ico", "icon.ico", "יוד.ico", "yod.ico"}
 	seen := map[string]bool{}
 	var dirs []string
 	add := func(d string) {

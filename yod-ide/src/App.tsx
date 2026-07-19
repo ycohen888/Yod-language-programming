@@ -4,7 +4,7 @@ import { Icon } from "./components/Icon";
 import { MenuBar } from "./components/MenuBar";
 import { TreeContextMenu, type TreeCtxItem } from "./components/TreeContextMenu";
 import { TreeInlineInput } from "./components/TreeInlineInput";
-import { parseProblems, pathBase, pathDir, resolveFilePath } from "./lib/paths";
+import { parseProblems, pathBase, pathDir, resolveFilePath, isYodFamilyFile, joinPath } from "./lib/paths";
 import { formatYodSource } from "./lib/yodFormat";
 import { buildProjectIndex, clearProjectIndex, getMergedSymbols, getProjectIndex, getSymbolsForFile, type ProjectSymbol } from "./lib/projectIndex";
 import type { CommandItem, OpenTab, PanelKind, Problem } from "./types";
@@ -18,14 +18,10 @@ type TreeInlineEdit =
   | { kind: "rename"; targetPath: string; isDir: boolean };
 
 type TreeCtxState = { x: number; y: number; path: string; isDir: boolean };
+type TabCtxState = { x: number; y: number; key: string };
+type CloseTabMode = "ask" | "save" | "discard";
 
 type SidebarView = "files" | "outline" | "symbols";
-
-function joinPath(dir: string, name: string): string {
-  if (!dir) return name;
-  const sep = dir.includes("\\") ? "\\" : "/";
-  return dir.replace(/[\\/]+$/, "") + sep + name;
-}
 
 const SHORTCUTS_TEXT =
   "עורך יוד — קיצורי מקלדת\n\n" +
@@ -39,6 +35,7 @@ const SHORTCUTS_TEXT =
   "Ctrl+N  קובץ חדש בסייר · Ctrl+O / S  פתח / שמור\n" +
   "F2  שינוי שם · Delete  מחיקה בסייר\n" +
   "Ctrl+W  סגור טאב\n" +
+  "לחיצה ימנית על טאב  סגור / אחרים / כולם / ושמור\n" +
   "Ctrl+Z / Y  בטל / בצע שוב\n" +
   "Ctrl+F / H  חיפוש / החלפה\n" +
   "Ctrl+G  מעבר לשורה\n" +
@@ -56,6 +53,7 @@ export default function App() {
   const [treeSelected, setTreeSelected] = useState<string | null>(null);
   const [treeEdit, setTreeEdit] = useState<TreeInlineEdit | null>(null);
   const [treeCtx, setTreeCtx] = useState<TreeCtxState | null>(null);
+  const [tabCtx, setTabCtx] = useState<TabCtxState | null>(null);
   const [sidebarView, setSidebarView] = useState<SidebarView>("files");
   const [symbolTick, setSymbolTick] = useState(0);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -73,6 +71,7 @@ export default function App() {
   const [paletteQ, setPaletteQ] = useState("");
   const [paletteIdx, setPaletteIdx] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [distExeExists, setDistExeExists] = useState(false);
   const [yodExe, setYodExe] = useState("");
   const [aboutOpen, setAboutOpen] = useState<{
     engineVer: string;
@@ -190,6 +189,55 @@ export default function App() {
       showError(String(e));
     }
   }, [showError]);
+
+  const distExeDir = useCallback((projectRoot: string | null | undefined) => {
+    if (!projectRoot) return null;
+    return joinPath(projectRoot, "dist_exe");
+  }, []);
+
+  const refreshDistExeExists = useCallback(async () => {
+    const dir = distExeDir(rootRef.current);
+    if (!dir) {
+      setDistExeExists(false);
+      return false;
+    }
+    try {
+      const ok = await window.yod.exists(dir);
+      if (!ok) {
+        setDistExeExists(false);
+        return false;
+      }
+      const st = await window.yod.stat(dir);
+      const isDir = !!st?.isDir;
+      setDistExeExists(isDir);
+      return isDir;
+    } catch {
+      setDistExeExists(false);
+      return false;
+    }
+  }, [distExeDir]);
+
+  const openDistExeLocation = useCallback(async () => {
+    const dir = distExeDir(rootRef.current);
+    if (!dir) {
+      setStatus("אין תיקיית פרויקט פתוחה");
+      return;
+    }
+    const exists = await refreshDistExeExists();
+    if (!exists) {
+      setStatus("עדיין אין dist_exe — ארוז ל־EXE קודם");
+      return;
+    }
+    try {
+      const kids = await window.yod.readDir(dir);
+      const exe = kids.find((k) => !k.isDir && k.name.toLowerCase().endsWith(".exe"));
+      if (exe) await window.yod.showItem(exe.path);
+      else await window.yod.showItem(dir);
+      setStatus("נפתח מיקום EXE");
+    } catch (e) {
+      showError(String(e));
+    }
+  }, [distExeDir, refreshDistExeExists, showError]);
 
   const resolveParentDir = useCallback(async (): Promise<string | null> => {
     const r = rootRef.current;
@@ -630,7 +678,7 @@ export default function App() {
   );
 
   const newUntitled = useCallback(() => {
-    const key = `untitled:${untitledSeq++}`;
+    const key = `untitled:${untitledSeq++}.יוד`;
     const tab: OpenTab = {
       key,
       path: null,
@@ -650,16 +698,16 @@ export default function App() {
     });
   }, []);
 
-  const saveActive = useCallback(
-    async (forceSaveAs = false) => {
-      const tab = tabsRef.current.find((t) => t.key === activeKeyRef.current);
-      if (!tab || savingRef.current) return;
+  const saveTabByKey = useCallback(
+    async (key: string, forceSaveAs = false): Promise<string | null> => {
+      const tab = tabsRef.current.find((t) => t.key === key);
+      if (!tab || savingRef.current) return null;
       const text = editorRef.current?.getText(tab.key);
-      if (text == null) return;
+      if (text == null) return null;
       let target = forceSaveAs ? null : tab.path;
       if (!target) {
         target = await window.yod.saveFileDialog(tab.path || tab.title);
-        if (!target) return;
+        if (!target) return null;
       }
       savingRef.current = true;
       try {
@@ -669,19 +717,26 @@ export default function App() {
           editorRef.current?.closeDocument(tab.key);
           editorRef.current?.openDocument(newKey, text);
         }
-        setTabs((prev) =>
-          prev.map((t) =>
+        setTabs((prev) => {
+          const next = prev.map((t) =>
             t.key === tab.key
               ? { ...t, path: target, title: pathBase(target!), dirty: false, key: newKey, modelUri: newKey }
               : t
-          )
-        );
-        setActiveKey(newKey);
-        requestAnimationFrame(() => editorRef.current?.activate(newKey));
+          );
+          tabsRef.current = next;
+          return next;
+        });
+        if (activeKeyRef.current === tab.key) {
+          setActiveKey(newKey);
+          activeKeyRef.current = newKey;
+          requestAnimationFrame(() => editorRef.current?.activate(newKey));
+        }
         setStatus(`נשמר: ${pathBase(target)}`);
         void reindexProject(rootRef.current);
+        return newKey;
       } catch (e) {
         showError(e instanceof Error ? e.message : String(e));
+        return null;
       } finally {
         savingRef.current = false;
       }
@@ -689,29 +744,49 @@ export default function App() {
     [showError, reindexProject]
   );
 
+  const saveActive = useCallback(
+    async (forceSaveAs = false) => {
+      const key = activeKeyRef.current;
+      if (!key) return;
+      await saveTabByKey(key, forceSaveAs);
+    },
+    [saveTabByKey]
+  );
+
   const closeTab = useCallback(
-    async (key: string) => {
-      const tab = tabsRef.current.find((t) => t.key === key);
+    async (key: string, mode: CloseTabMode = "ask") => {
+      let workingKey = key;
+      const tab = tabsRef.current.find((t) => t.key === workingKey);
       if (!tab) return;
       if (tab.dirty) {
-        const ok = await window.yod.dialogPrompt({
-          kind: "confirm",
-          title: "שמירה",
-          message: `לשמור שינויים ב־${tab.title}?`,
-        });
-        if (ok) {
-          setActiveKey(key);
-          editorRef.current?.activate(key);
-          await saveActive(false);
+        if (mode === "save") {
+          const savedKey = await saveTabByKey(workingKey, false);
+          if (!savedKey) return;
+          workingKey = savedKey;
+        } else if (mode === "ask") {
+          const ok = await window.yod.dialogPrompt({
+            kind: "confirm",
+            title: "שמירה",
+            message: `לשמור שינויים ב־${tab.title}?`,
+          });
+          if (ok === null) return;
+          if (ok) {
+            const savedKey = await saveTabByKey(workingKey, false);
+            if (!savedKey) return;
+            workingKey = savedKey;
+          }
         }
       }
-      editorRef.current?.closeDocument(key);
+      if (!tabsRef.current.some((t) => t.key === workingKey)) return;
+      editorRef.current?.closeDocument(workingKey);
       setTabs((prev) => {
-        const next = prev.filter((t) => t.key !== key);
-        if (activeKeyRef.current === key) {
-          const idx = prev.findIndex((t) => t.key === key);
+        const next = prev.filter((t) => t.key !== workingKey);
+        tabsRef.current = next;
+        if (activeKeyRef.current === workingKey) {
+          const idx = prev.findIndex((t) => t.key === workingKey);
           const fallback = next[Math.min(idx, next.length - 1)] ?? null;
           setActiveKey(fallback?.key ?? null);
+          activeKeyRef.current = fallback?.key ?? null;
           requestAnimationFrame(() => {
             if (fallback) editorRef.current?.activate(fallback.key);
           });
@@ -719,7 +794,30 @@ export default function App() {
         return next;
       });
     },
-    [saveActive]
+    [saveTabByKey]
+  );
+
+  const closeOtherTabs = useCallback(
+    async (keepKey: string, mode: CloseTabMode = "ask") => {
+      const keys = tabsRef.current.filter((t) => t.key !== keepKey).map((t) => t.key);
+      for (const k of keys) {
+        await closeTab(k, mode);
+      }
+      if (tabsRef.current.some((t) => t.key === keepKey)) {
+        activateTab(keepKey);
+      }
+    },
+    [closeTab, activateTab]
+  );
+
+  const closeAllTabs = useCallback(
+    async (mode: CloseTabMode = "ask") => {
+      const keys = tabsRef.current.map((t) => t.key);
+      for (const k of keys) {
+        await closeTab(k, mode);
+      }
+    },
+    [closeTab]
   );
 
   const runYodCmd = useCallback(
@@ -771,13 +869,17 @@ export default function App() {
         setProblems(probs);
         if (probs.some((p) => p.severity === "error")) setPanel("problems");
         setStatus(res.code === 0 ? "הסתיים בהצלחה" : `הסתיים עם שגיאה (${res.code})`);
+        if (cmd === "ארוז" && res.code === 0) {
+          void refreshDistExeExists();
+          void refreshTree();
+        }
       } catch (e) {
         showError(String(e));
       } finally {
         setBusy(false);
       }
     },
-    [saveActive, showError]
+    [saveActive, showError, refreshDistExeExists, refreshTree]
   );
 
   const handleMenu = useCallback(
@@ -804,6 +906,7 @@ export default function App() {
           setTreeExpanded({});
           setTreeSelected(null);
           setTreeEdit(null);
+          setDistExeExists(false);
           clearProjectIndex();
           setStatus("נסגרה תיקייה");
           break;
@@ -819,6 +922,7 @@ export default function App() {
         case "tree.refresh":
           await refreshTree();
           await reindexProject(rootRef.current);
+          await refreshDistExeExists();
           break;
         case "tree.newFile":
           await beginCreate("create-file");
@@ -892,6 +996,9 @@ export default function App() {
           break;
         case "run.pack":
           await runYodCmd(["ארוז"], "אורז");
+          break;
+        case "run.openDistExe":
+          await openDistExeLocation();
           break;
         case "view.format": {
           const key = activeKeyRef.current;
@@ -1035,12 +1142,26 @@ export default function App() {
       reloadDir,
       askText,
       runYodCmd,
+      openDistExeLocation,
+      refreshDistExeExists,
       gotoDefinition,
       findReferences,
       cursor.line,
       showError,
     ]
   );
+
+  useEffect(() => {
+    void refreshDistExeExists();
+  }, [root, refreshDistExeExists]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      void refreshDistExeExists();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshDistExeExists]);
 
   useEffect(() => {
     void window.yod.getPaths().then((p) => {
@@ -1105,6 +1226,11 @@ export default function App() {
       { id: "yod.vm", label: "מכונה (התחל.יוד / פרויקט)", keybinding: "F6", run: () => handleMenu("run.vm") },
       { id: "yod.check", label: "בדיקת סגנון ותחביר", keybinding: "F7", run: () => handleMenu("run.check") },
       { id: "yod.pack", label: "ארוז ל־EXE", keybinding: "Ctrl+Shift+P", run: () => handleMenu("run.pack") },
+      {
+        id: "yod.openDistExe",
+        label: "פתח מיקום EXE",
+        run: () => handleMenu("run.openDistExe"),
+      },
       { id: "view.format", label: "סדר קוד", keybinding: "Shift+Alt+F", run: () => handleMenu("view.format") },
       { id: "edit.matchPair", label: "זוג תואם (התחלה/סוף / סוגריים)", keybinding: "Ctrl+}", run: () => handleMenu("edit.matchPair") },
       { id: "edit.replace", label: "החלפה…", keybinding: "Ctrl+H", run: () => handleMenu("edit.replace") },
@@ -1306,6 +1432,7 @@ export default function App() {
                     e.preventDefault();
                     e.stopPropagation();
                     setTreeSelected(ent.path);
+                    setTabCtx(null);
                     setTreeCtx({ x: e.clientX, y: e.clientY, path: ent.path, isDir: ent.isDir });
                   }}
                   title={ent.path}
@@ -1381,8 +1508,24 @@ export default function App() {
     return items.slice(0, 80);
   }, [quickQ, symbolTick, root, openFile, navigateToSymbol]);
 
+  const disabledMenuActions = useMemo(
+    () => (distExeExists ? undefined : new Set(["run.openDistExe"])),
+    [distExeExists]
+  );
+
   const sidebarTitle =
     sidebarView === "files" ? "סייר" : sidebarView === "outline" ? "ניתוח קובץ" : "סימבולי פרויקט";
+
+  const tabCtxItems: TreeCtxItem[] = tabCtx
+    ? [
+        { type: "item", label: "סגור", action: "tab.close" },
+        { type: "item", label: "סגור אחרים", action: "tab.closeOthers" },
+        { type: "item", label: "סגור כולם", action: "tab.closeAll" },
+        { type: "separator" },
+        { type: "item", label: "סגור ושמור", action: "tab.closeSave" },
+        { type: "item", label: "סגור כולם ושמור", action: "tab.closeAllSave" },
+      ]
+    : [];
 
   const ctxItems: TreeCtxItem[] = treeCtx
     ? [
@@ -1405,7 +1548,7 @@ export default function App() {
         <div className="brand" title="יוד">
           <img className="brand-icon" src={`${import.meta.env.BASE_URL}icon.png`} alt="יוד" width={16} height={16} />
         </div>
-        <MenuBar onAction={(a) => void handleMenu(a)} />
+        <MenuBar onAction={(a) => void handleMenu(a)} disabledActions={disabledMenuActions} />
         <div style={{ marginInlineStart: "auto", color: "var(--fg-dim)", fontSize: 12 }}>
           {root ? pathBase(root) : "אין פרויקט"}
         </div>
@@ -1440,11 +1583,22 @@ export default function App() {
           <button type="button" title="פלטת פקודות (F1)" onClick={() => setPaletteOpen(true)}>
             <Icon name="search" size={24} />
           </button>
-          <button type="button" title="הרצה (F5)" onClick={() => void handleMenu("run.interpreter")} disabled={!activeTab?.path}>
+          <button type="button" title="הרצה (F5)" onClick={() => void handleMenu("run.interpreter")} disabled={!activeTab?.path && !root}>
             <Icon name="play_arrow" size={24} />
           </button>
-          <button type="button" title="בדיקה (F7)" onClick={() => void handleMenu("run.check")} disabled={!activeTab?.path}>
-            <Icon name="build" size={24} />
+          <button type="button" title="בדיקה (F7)" onClick={() => void handleMenu("run.check")} disabled={!activeTab?.path && !root}>
+            <Icon name="spellcheck" size={24} />
+          </button>
+          <button type="button" title="ארוז ל־EXE (Ctrl+Shift+P)" onClick={() => void handleMenu("run.pack")} disabled={!root && !activeTab?.path}>
+            <Icon name="inventory_2" size={24} />
+          </button>
+          <button
+            type="button"
+            title={distExeExists ? "פתח מיקום EXE" : "פתח מיקום EXE (אין dist_exe עדיין)"}
+            onClick={() => void handleMenu("run.openDistExe")}
+            disabled={!distExeExists}
+          >
+            <Icon name="folder_open" size={24} />
           </button>
         </aside>
 
@@ -1489,6 +1643,7 @@ export default function App() {
                 if ((e.target as HTMLElement).closest(".tree-item")) return;
                 e.preventDefault();
                 setTreeSelected(root);
+                setTabCtx(null);
                 setTreeCtx({ x: e.clientX, y: e.clientY, path: root, isDir: true });
               }}
             >
@@ -1527,19 +1682,50 @@ export default function App() {
           )}
         </aside>
         <section className="main-col">
-          <div className="tabs" role="tablist">
+          <div
+            className="tabs"
+            role="tablist"
+            onContextMenu={(e) => {
+              e.preventDefault();
+            }}
+          >
             {tabs.map((t) => (
-              <div key={t.key} className={`tab${t.key === activeKey ? " active" : ""}`} role="tab">
+              <div
+                key={t.key}
+                className={`tab${t.key === activeKey ? " active" : ""}`}
+                role="tab"
+                onClick={() => activateTab(t.key)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTreeCtx(null);
+                  setTabCtx({ x: e.clientX, y: e.clientY, key: t.key });
+                }}
+              >
                 <button
                   type="button"
                   className="title"
                   onClick={() => activateTab(t.key)}
-                  style={{ background: "none", border: "none", color: "inherit", padding: 0 }}
+                  style={{ background: "none", border: "none", color: "inherit", padding: 0, pointerEvents: "none" }}
                 >
                   {t.dirty ? <span className="dirty">● </span> : null}
                   {t.title}
                 </button>
-                <button type="button" className="close" title="סגירה" onClick={() => void closeTab(t.key)}>
+                <button
+                  type="button"
+                  className="close"
+                  title="סגירה"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void closeTab(t.key);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setTreeCtx(null);
+                    setTabCtx({ x: e.clientX, y: e.clientY, key: t.key });
+                  }}
+                >
                   <Icon name="close" size={14} />
                 </button>
               </div>
@@ -1567,7 +1753,12 @@ export default function App() {
                 </div>
               </div>
             ) : null}
-            <div className={`editor-surface${tabs.length === 0 ? " is-hidden" : ""}`} dir="rtl">
+            <div
+              className={`editor-surface${tabs.length === 0 ? " is-hidden" : ""}${
+                activeTab && !isYodFamilyFile(activeTab.path ?? activeTab.title) ? " is-ltr" : ""
+              }`}
+              dir={activeTab && !isYodFamilyFile(activeTab.path ?? activeTab.title) ? "ltr" : "rtl"}
+            >
               <CodeEditor
                 ref={editorRef}
                 className="cm-host"
@@ -1681,7 +1872,10 @@ export default function App() {
           <span>
             שורה {cursor.line}, עמודה {cursor.col}
           </span>
-          <span>UTF-8 · RTL</span>
+          <span>
+            UTF-8 ·{" "}
+            {activeTab && !isYodFamilyFile(activeTab.path ?? activeTab.title) ? "LTR" : "RTL"}
+          </span>
           <span title={yodExe}>{yodExe ? pathBase(yodExe) : "yod"}</span>
         </div>
       </footer>
@@ -1709,6 +1903,33 @@ export default function App() {
                 await deleteTreeItem(ctx.path);
               } else {
                 await handleMenu(action);
+              }
+            })();
+          }}
+        />
+      ) : null}
+
+      {tabCtx ? (
+        <TreeContextMenu
+          x={tabCtx.x}
+          y={tabCtx.y}
+          items={tabCtxItems}
+          onClose={() => setTabCtx(null)}
+          onAction={(action) => {
+            const ctx = tabCtx;
+            setTabCtx(null);
+            if (!ctx) return;
+            void (async () => {
+              if (action === "tab.close") {
+                await closeTab(ctx.key, "ask");
+              } else if (action === "tab.closeOthers") {
+                await closeOtherTabs(ctx.key, "ask");
+              } else if (action === "tab.closeAll") {
+                await closeAllTabs("ask");
+              } else if (action === "tab.closeSave") {
+                await closeTab(ctx.key, "save");
+              } else if (action === "tab.closeAllSave") {
+                await closeAllTabs("save");
               }
             })();
           }}

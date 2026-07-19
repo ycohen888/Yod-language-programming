@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 export type TreeCtxItem =
   | { type: "item"; label: string; action: string; danger?: boolean }
@@ -16,17 +17,34 @@ export function TreeContextMenu({ x, y, items, onAction, onClose }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    let alive = true;
     const onDown = (e: MouseEvent) => {
+      // לא סוגרים על אותה לחיצה ימנית שפתחה את התפריט
+      if (e.button === 2) return;
       if (!ref.current?.contains(e.target as Node)) onClose();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
+    const onCtx = (e: Event) => {
+      if (!ref.current?.contains(e.target as Node)) {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    // אחרי פריים — כדי שלא ייסגר מיד מאותו אירוע פתיחה
+    const t = window.setTimeout(() => {
+      if (!alive) return;
+      window.addEventListener("mousedown", onDown, true);
+      window.addEventListener("keydown", onKey);
+      window.addEventListener("contextmenu", onCtx, true);
+    }, 0);
     return () => {
-      window.removeEventListener("mousedown", onDown);
+      alive = false;
+      window.clearTimeout(t);
+      window.removeEventListener("mousedown", onDown, true);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("contextmenu", onCtx, true);
     };
   }, [onClose]);
 
@@ -44,7 +62,7 @@ export function TreeContextMenu({ x, y, items, onAction, onClose }: Props) {
     el.style.top = `${top}px`;
   }, [x, y]);
 
-  return (
+  return createPortal(
     <div ref={ref} className="tree-ctx-menu" style={{ left: x, top: y }} role="menu">
       {items.map((it, i) =>
         it.type === "separator" ? (
@@ -55,7 +73,8 @@ export function TreeContextMenu({ x, y, items, onAction, onClose }: Props) {
             type="button"
             className={`tree-ctx-item${it.danger ? " danger" : ""}`}
             role="menuitem"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               onClose();
               onAction(it.action);
             }}
@@ -64,6 +83,7 @@ export function TreeContextMenu({ x, y, items, onAction, onClose }: Props) {
           </button>
         )
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

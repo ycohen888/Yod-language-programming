@@ -111,3 +111,26 @@ func TestListYodFiles(t *testing.T) {
 		t.Fatalf("got %v", files)
 	}
 }
+
+func TestDefaultAppName(t *testing.T) {
+	dir := t.TempDir()
+	proj := filepath.Join(dir, "גיבוי")
+	_ = os.Mkdir(proj, 0755)
+	main := filepath.Join(proj, MainFileName)
+	_ = os.WriteFile(main, []byte("הדפס: 1\n"), 0644)
+	if got := DefaultAppName(main); got != "גיבוי" {
+		t.Fatalf("project main: got %q want גיבוי", got)
+	}
+	exe := DefaultEXEPath(main)
+	if filepath.Base(exe) != "גיבוי.exe" {
+		t.Fatalf("DefaultEXEPath base: %q", filepath.Base(exe))
+	}
+	lonely := filepath.Join(dir, "סנייק.יוד")
+	_ = os.WriteFile(lonely, []byte("הדפס: 1\n"), 0644)
+	if got := DefaultAppName(lonely); got != "סנייק" {
+		t.Fatalf("single file: got %q want סנייק", got)
+	}
+	if SanitizeAppName(`a:b*c`) != "a_b_c" {
+		t.Fatalf("sanitize: %q", SanitizeAppName(`a:b*c`))
+	}
+}

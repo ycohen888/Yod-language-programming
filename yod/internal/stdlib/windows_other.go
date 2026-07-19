@@ -19,14 +19,17 @@ func NewWindowsModule() *object.Module {
 	m.Attrs["עמודה"] = unsupported
 	m.Attrs["מסגרת"] = unsupported
 	m.Attrs["משטח"] = unsupported
+	m.Attrs["משטח_GPU"] = unsupported
 	m.Attrs["דגם"] = unsupported
 	m.Attrs["סמל"] = unsupported
 	m.Attrs["הודעה"] = unsupported
 	m.Attrs["בחר_שמירה"] = unsupported
 	m.Attrs["בחר_פתיחה"] = unsupported
+	m.Attrs["בחר_תיקייה"] = unsupported
 	m.Attrs["רשימה"] = unsupported
 	m.Attrs["טבלה"] = unsupported
 	m.Attrs["גרף"] = unsupported
 	m.Attrs["שאל"] = unsupported
+	m.Attrs["גודל_מסך"] = unsupported
 	return m
 }

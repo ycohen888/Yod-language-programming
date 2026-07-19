@@ -10,6 +10,7 @@ func NewTimeModule() *object.Module {
 	m := &object.Module{Name: "זמן", Attrs: map[string]object.Object{}}
 	m.Attrs["עכשיו"] = &object.Builtin{Fn: timeNow}
 	m.Attrs["חותמת"] = &object.Builtin{Fn: timeStamp}
+	m.Attrs["מילי"] = &object.Builtin{Fn: timeMilli}
 	m.Attrs["תאריך"] = &object.Builtin{Fn: timeDate}
 	m.Attrs["שעה"] = &object.Builtin{Fn: timeClock}
 	m.Attrs["המתן"] = &object.Builtin{Fn: timeSleep}
@@ -39,6 +40,14 @@ func timeStamp(args ...object.Object) object.Object {
 		return errObj("זמן.חותמת מצפה ל־0 ארגומנטים")
 	}
 	return &object.Number{Value: float64(time.Now().Unix())}
+}
+
+// זמן.מילי() — מילישניות מאז 1970 (למדידת קצב מדויקת)
+func timeMilli(args ...object.Object) object.Object {
+	if len(args) != 0 {
+		return errObj("זמן.מילי מצפה ל־0 ארגומנטים")
+	}
+	return &object.Number{Value: float64(time.Now().UnixMilli())}
 }
 
 func timeDate(args ...object.Object) object.Object {

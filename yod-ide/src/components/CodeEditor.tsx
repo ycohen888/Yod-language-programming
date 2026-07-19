@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { EditorState, Prec, type Extension } from "@codemirror/state";
 import {
   EditorView,
@@ -36,6 +36,8 @@ import {
 } from "../lib/yodDiagnostics";
 import { setLiveDocument, clearLiveDocument } from "../lib/projectIndex";
 import { jumpToYodPair } from "../lib/yodBlockMatch";
+import { isYodFamilyFile } from "../lib/paths";
+import { languageSupportForPath } from "../lib/languageModes";
 
 export type CodeEditorHandle = {
   openDocument: (key: string, text: string) => void;
@@ -95,6 +97,42 @@ function buildExtensions(
   onCursor?: (line: number, col: number) => void,
   onGotoDefinition?: (word: string) => void
 ): Extension {
+  const yodMode = key !== "__empty" && isYodFamilyFile(key);
+  const dir = yodMode ? "rtl" : "ltr";
+  const lang = yodMode ? "he" : "en";
+  const textAlign = yodMode ? "right" : "left";
+
+  const yodOnly: Extension[] = yodMode
+    ? [
+        ...yodDiagnosticsExt,
+        yodSyntaxHighlighting,
+        yodStreamLanguage,
+        yodBidiIsolates(),
+        ...yodAutocompletion,
+        Prec.highest(
+          keymap.of([
+            { key: "Ctrl-}", run: jumpToYodPairAlways },
+            { key: "Ctrl-{", run: jumpToYodPairAlways },
+            { key: "Ctrl-]", run: jumpToYodPairAlways },
+            { key: "Ctrl-[", run: jumpToYodPairAlways },
+            { key: "Ctrl-Shift-]", run: jumpToYodPairAlways },
+            { key: "Ctrl-Shift-[", run: jumpToYodPairAlways },
+            { key: "Mod-}", run: jumpToYodPairAlways },
+            { key: "Mod-{", run: jumpToYodPairAlways },
+            { key: "Mod-]", run: jumpToYodPairAlways },
+            { key: "Mod-[", run: jumpToYodPairAlways },
+            { key: "Mod-Shift-]", run: jumpToYodPairAlways },
+            { key: "Mod-Shift-[", run: jumpToYodPairAlways },
+          ])
+        ),
+      ]
+    : (() => {
+        const langExt = languageSupportForPath(key);
+        const extras: Extension[] = [...yodDiagnosticsExt, yodSyntaxHighlighting];
+        if (langExt) extras.push(langExt);
+        return extras;
+      })();
+
   return [
     lineNumbers(),
     highlightActiveLine(),
@@ -104,28 +142,7 @@ function buildExtensions(
     bracketMatching(),
     highlightSelectionMatches(),
     search({ top: true, createPanel: createYodSearchPanel }),
-    ...yodDiagnosticsExt,
-    yodSyntaxHighlighting,
-    yodStreamLanguage,
-    yodBidiIsolates(),
-    ...yodAutocompletion,
-    Prec.highest(
-      keymap.of([
-        // גובר על defaultKeymap: Mod-] / Mod-[ = הזחה כמו Tab
-        { key: "Ctrl-}", run: jumpToYodPairAlways },
-        { key: "Ctrl-{", run: jumpToYodPairAlways },
-        { key: "Ctrl-]", run: jumpToYodPairAlways },
-        { key: "Ctrl-[", run: jumpToYodPairAlways },
-        { key: "Ctrl-Shift-]", run: jumpToYodPairAlways },
-        { key: "Ctrl-Shift-[", run: jumpToYodPairAlways },
-        { key: "Mod-}", run: jumpToYodPairAlways },
-        { key: "Mod-{", run: jumpToYodPairAlways },
-        { key: "Mod-]", run: jumpToYodPairAlways },
-        { key: "Mod-[", run: jumpToYodPairAlways },
-        { key: "Mod-Shift-]", run: jumpToYodPairAlways },
-        { key: "Mod-Shift-[", run: jumpToYodPairAlways },
-      ])
-    ),
+    ...yodOnly,
     keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
     EditorView.domEventHandlers({
       click(event, view) {
@@ -140,8 +157,8 @@ function buildExtensions(
         return true;
       },
     }),
-    EditorView.editorAttributes.of({ dir: "rtl", spellcheck: "false", lang: "he" }),
-    EditorView.contentAttributes.of({ dir: "rtl", lang: "he" }),
+    EditorView.editorAttributes.of({ dir, spellcheck: "false", lang }),
+    EditorView.contentAttributes.of({ dir, lang }),
     EditorView.theme(
       {
         "&": {
@@ -157,24 +174,26 @@ function buildExtensions(
         ".cm-scroller": {
           overflow: "auto",
           fontFamily: 'Consolas, "Courier New", "Noto Sans Hebrew", monospace',
-          direction: "rtl",
+          direction: dir,
         },
         ".cm-content": {
-          direction: "rtl",
-          textAlign: "right",
+          direction: dir,
+          textAlign,
           caretColor: yodPhpDarkColors.foreground,
           padding: "8px 0",
           color: yodPhpDarkColors.foreground,
         },
         ".cm-line": {
-          direction: "rtl",
-          textAlign: "right",
+          direction: dir,
+          textAlign,
         },
         ".cm-gutters": {
           backgroundColor: yodPhpDarkColors.background,
           color: yodPhpDarkColors.lineNumber,
           border: "none",
-          borderLeft: "1px solid #3c3c3c",
+          ...(yodMode
+            ? { borderLeft: "1px solid #3c3c3c" }
+            : { borderRight: "1px solid #3c3c3c" }),
         },
         ".cm-diag-gutter": {
           width: "14px",
@@ -278,12 +297,18 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
   const statesRef = useRef<Map<string, EditorState>>(new Map());
   const activeKeyRef = useRef<string | null>(null);
   const fontSizeRef = useRef(BASE_FONT);
+  const [contentDir, setContentDir] = useState<"rtl" | "ltr">("rtl");
   const dirtyFn = useRef(onDirty);
   const cursorFn = useRef(onCursor);
   const gotoFn = useRef(onGotoDefinition);
   dirtyFn.current = onDirty;
   cursorFn.current = onCursor;
   gotoFn.current = onGotoDefinition;
+
+  const syncHostDir = (key: string | null) => {
+    const rtl = !key || key === "__empty" || isYodFamilyFile(key);
+    setContentDir(rtl ? "rtl" : "ltr");
+  };
 
   const recreateActiveWithFont = (size: number) => {
     const view = viewRef.current;
@@ -359,6 +384,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       });
       statesRef.current.set(key, state);
       setLiveDocument(key, text);
+      syncHostDir(key);
     },
     activate(key) {
       const view = viewRef.current;
@@ -384,6 +410,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       view.setState(state);
       activeKeyRef.current = key;
       setLiveDocument(key, state.doc.toString());
+      syncHostDir(key);
       view.focus();
     },
     closeDocument(key) {
@@ -391,6 +418,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       clearLiveDocument(key);
       if (activeKeyRef.current === key) {
         activeKeyRef.current = null;
+        syncHostDir(null);
         viewRef.current?.setState(
           EditorState.create({
             doc: "",
@@ -509,5 +537,11 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     },
   }));
 
-  return <div ref={hostRef} className={className ?? "cm-host"} dir="rtl" />;
+  return (
+    <div
+      ref={hostRef}
+      className={`${className ?? "cm-host"}${contentDir === "ltr" ? " cm-host--ltr" : " cm-host--rtl"}`}
+      dir={contentDir}
+    />
+  );
 });

@@ -26,8 +26,13 @@
       <p class="lead">
         לוח ציור לצורות, צבעים, טקסט ותמונות (PNG / JPG / GIF / BMP).
         טוענים עם <code>כלול "ציור"</code>. אפשר לשמור לקובץ או להציג בחלון Windows.
-        לצייר אינטראקטיבי בעכבר — השתמשו ב־<code>חלונות.משטח</code> (ראו <a href="ספריית-חלונות.html">ספריית חלונות</a>).
       </p>
+      <div class="callout tip">
+        <strong>מתי מה:</strong>
+        <code>ציור.לוח</code> = תמונה אופליין (שמירה/הצגה).
+        לצייר חי עם עכבר — <code>חלונות.משטח</code>.
+        לטעינה/שמירה בלבד אפשר גם <code>כלול "תמונות"</code> (אותו יישום כמו <code>ציור.טען</code>).
+      </div>
 
       <h2>יצירה וצבעים</h2>
       <table class="method-table">
@@ -36,7 +41,7 @@
         </thead>
         <tbody>
           <tr><td><code>ציור.לוח(רוחב, גובה)</code></td><td>יוצר לוח לבן לציור</td></tr>
-          <tr><td><code>ציור.טען_תמונה(נתיב)</code></td><td>טוען PNG/JPG/GIF/BMP</td></tr>
+          <tr><td><code>ציור.טען_תמונה(נתיב)</code> / <code>ציור.טען(נתיב)</code></td><td>טוען PNG/JPG/GIF/BMP (זהה ל־<code>תמונות.טען</code>)</td></tr>
           <tr><td><code>ציור.צבע(…)</code></td><td>יוצר צבע משם או מ־RGB</td></tr>
           <tr><td><code>לוח.קבע_צבע</code></td><td>צבע קו / טקסט (שם או RGB)</td></tr>
           <tr><td><code>לוח.קבע_מילוי</code></td><td>צבע מילוי לצורות מלאות</td></tr>
