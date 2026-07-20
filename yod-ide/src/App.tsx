@@ -12,6 +12,11 @@ import { buildProjectIndex, clearProjectIndex, getMergedSymbols, getProjectIndex
 import type { Bookmark, CommandItem, OpenTab, PanelKind, Problem, RecentEntry } from "./types";
 import { SymbolTree } from "./components/SymbolTree";
 import { clearRecent, getRecent, loadSession, pushRecent, saveSession } from "./lib/session";
+import { SettingsModal } from "./components/SettingsModal";
+import { DiffView } from "./components/DiffView";
+import { TerminalPanel, type TerminalPanelHandle } from "./components/TerminalPanel";
+import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "./lib/settings";
+import type { Settings } from "./types";
 import "./styles/app.css";
 
 let untitledSeq = 1;
@@ -30,7 +35,8 @@ const SHORTCUTS_TEXT =
   "עורך יוד — קיצורי מקלדת\n\n" +
   "קובץ ← פתח תיקייה (Ctrl+Shift+O)\n" +
   "הקובץ הראשי: התחל.יוד — ממנו מריצים (F5)\n\n" +
-  "F5 / F6 / F7  הרץ / מכונה / בדוק\n" +
+  "F5 / F6 / F7  הרץ תוכנית (חלון Windows עולה) / מכונה / בדוק\n" +
+  "Shift+F5  הרץ בטרמינל המשולב · Ctrl+`  טרמינל · קלט אינטראקטיבי (stdin)\n" +
   "Ctrl+P  פתיחה מהירה · Ctrl+Shift+F  חיפוש בפרויקט\n" +
   "F12 / Ctrl+לחיצה  מעבר להגדרה · Shift+F12  הפניות\n" +
   "F1  פלטת פקודות · Shift+Alt+F  סדר קוד\n" +
@@ -44,6 +50,9 @@ const SHORTCUTS_TEXT =
   "Ctrl+G  מעבר לשורה\n" +
   "Ctrl+/  הערה · Ctrl+Shift+D  שכפול שורה\n" +
   "Ctrl+B  קבע נקודה בקוד (לשונית נקודות)\n" +
+  "Ctrl+D  בחר את המופע הבא · Alt+לחיצה  סמן נוסף\n" +
+  "Ctrl+Alt+[ / ]  כווץ / הרחב בלוק · הקלד פונקציה/אם/עבור ובחר תבנית (Tab)\n" +
+  "Ctrl+,  הגדרות · תצוגה ← השוואה מול הדיסק\n" +
   "Ctrl± / Ctrl+0  גודל גופן";
 
 export default function App() {
@@ -84,6 +93,16 @@ export default function App() {
     ideVer: string;
   } | null>(null);
   const [emailCopied, setEmailCopied] = useState(false);
+  const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [winMaximized, setWinMaximized] = useState(false);
+  const [diffState, setDiffState] = useState<{
+    title: string;
+    path: string;
+    diskText: string;
+    bufferText: string;
+    yod: boolean;
+  } | null>(null);
   const [inputPrompt, setInputPrompt] = useState<{
     title: string;
     message: string;
@@ -91,6 +110,7 @@ export default function App() {
     resolve: (v: string | null) => void;
   } | null>(null);
   const editorRef = useRef<CodeEditorHandle | null>(null);
+  const terminalRef = useRef<TerminalPanelHandle | null>(null);
   const tabsRef = useRef(tabs);
   const activeKeyRef = useRef(activeKey);
   const rootRef = useRef(root);
@@ -100,14 +120,29 @@ export default function App() {
   const tabLinesRef = useRef<Record<string, number>>({});
   const openedFromArgRef = useRef(false);
   const readyToSaveRef = useRef(false);
+  const settingsRef = useRef(settings);
+  const autosaveTimerRef = useRef<Record<string, number>>({});
 
   tabsRef.current = tabs;
   activeKeyRef.current = activeKey;
   rootRef.current = root;
   treeSelectedRef.current = treeSelected;
   cursorRef.current = cursor;
+  settingsRef.current = settings;
 
   const activeTab = tabs.find((t) => t.key === activeKey) ?? null;
+
+  // החלת העדפות: נושא ה-IDE + מראה העורך + שמירה מתמשכת
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.theme;
+    editorRef.current?.applySettings(settings);
+    saveSettings(settings);
+  }, [settings]);
+
+  // כותרת החלון: "יוד - <תיקיית הפרויקט>" כשפתוח פרויקט, אחרת "יוד"
+  useEffect(() => {
+    document.title = root ? `יוד - ${pathBase(root)}` : "יוד";
+  }, [root]);
 
   const askText = useCallback((title: string, message: string, initial: string) => {
     return new Promise<string | null>((resolve) => {
@@ -807,8 +842,22 @@ export default function App() {
     async (key: string, forceSaveAs = false): Promise<string | null> => {
       const tab = tabsRef.current.find((t) => t.key === key);
       if (!tab || savingRef.current) return null;
-      const text = editorRef.current?.getText(tab.key);
-      if (text == null) return null;
+      const raw = editorRef.current?.getText(tab.key);
+      if (raw == null) return null;
+      let text = raw;
+      // סידור-בשמירה: מפעיל את מסדר הקוד המקומי לקבצי יוד לפני הכתיבה
+      if (settingsRef.current.formatOnSave && isYodFamilyFile(tab.path ?? tab.title)) {
+        try {
+          const formatted = formatYodSource(raw);
+          const norm = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+          if (typeof formatted === "string" && norm(formatted) !== norm(raw)) {
+            text = formatted;
+            editorRef.current?.setText(tab.key, formatted);
+          }
+        } catch {
+          /* אם הסידור נכשל — שומרים כמו שהוא */
+        }
+      }
       let target = forceSaveAs ? null : tab.path;
       if (!target) {
         target = await window.yod.saveFileDialog(tab.path || tab.title);
@@ -987,6 +1036,87 @@ export default function App() {
     [saveActive, showError, refreshDistExeExists, refreshTree]
   );
 
+  // הרצת התוכנית דרך מנוע יוד (כמו פעם): חלון קונסול מוסתר, אבל חלונות GUI של «חלונות»
+  // עולים כרגיל; פלט/שגיאות בפאנל «פלט». where="terminal" — הרצה בטרמינל המשולב (stdin).
+  const runProgram = useCallback(
+    async (
+      kind: "project" | "current",
+      mode: "הרץ" | "מכונה",
+      where: "app" | "terminal" = "app"
+    ) => {
+      const exe = yodExe;
+      if (!exe) {
+        setStatus("לא נמצא מנוע יוד (yod)");
+        return;
+      }
+      const tab = tabsRef.current.find((t) => t.key === activeKeyRef.current);
+      if (tab?.dirty && tab.path) await saveActive(false);
+
+      let cwd: string | undefined;
+      let target: string | undefined;
+      if (kind === "current") {
+        if (!tab?.path || !isYodFamilyFile(tab.path)) {
+          setStatus("אין קובץ יוד פעיל להרצה");
+          return;
+        }
+        cwd = pathDir(tab.path);
+        target = tab.path;
+      } else {
+        const projectRoot = rootRef.current;
+        if (projectRoot) {
+          cwd = projectRoot;
+          target = projectRoot;
+          const mainTab = tabsRef.current.find(
+            (t) =>
+              t.path &&
+              (pathBase(t.path) === "התחל.יוד" || pathBase(t.path) === "התחלה.יוד") &&
+              t.dirty
+          );
+          if (mainTab?.path) {
+            const text = editorRef.current?.getText(mainTab.key);
+            if (text != null) {
+              await window.yod.writeFile(mainTab.path, text);
+              setTabs((prev) => prev.map((t) => (t.key === mainTab.key ? { ...t, dirty: false } : t)));
+            }
+          }
+        } else if (tab?.path && isYodFamilyFile(tab.path)) {
+          cwd = pathDir(tab.path);
+          target = tab.path;
+        } else {
+          setStatus("אין פרויקט או קובץ יוד להרצה");
+          return;
+        }
+      }
+
+      if (where === "terminal") {
+        setPanel("terminal");
+        setStatus(mode === "מכונה" ? "מכונה (טרמינל)" : "הרצה (טרמינל)");
+        await terminalRef.current?.openAndRun({ exe, args: [mode, target as string], cwd });
+        return;
+      }
+
+      // מפעיל את התוכנית עצמה — חלונות Windows עולים; פלט בפאנל
+      setBusy(true);
+      setPanel("output");
+      setStatus(mode === "מכונה" ? "מכונה…" : "מריץ…");
+      setOutput(`${mode}…\n`);
+      try {
+        const res = await window.yod.runYod([mode, target as string], cwd);
+        const text = [res.stdout, res.stderr].filter(Boolean).join("\n");
+        setOutput(`> ${res.exe} ${res.args.join(" ")}\n\n${text || "(אין פלט)"}\n\nקוד יציאה: ${res.code}`);
+        const probs = parseProblems(text);
+        setProblems(probs);
+        if (probs.some((p) => p.severity === "error")) setPanel("problems");
+        setStatus(res.code === 0 ? "הסתיים בהצלחה" : `הסתיים עם שגיאה (${res.code})`);
+      } catch (e) {
+        showError(String(e));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [yodExe, saveActive, showError]
+  );
+
   const handleMenu = useCallback(
     async (action: string) => {
       const ed = editorRef.current;
@@ -1099,10 +1229,22 @@ export default function App() {
           ed?.jumpToMatchingPair();
           break;
         case "run.interpreter":
-          await runYodCmd(["הרץ"], "מריץ");
+          await runProgram("project", "הרץ");
           break;
         case "run.vm":
-          await runYodCmd(["מכונה"], "מכונה");
+          await runProgram("project", "מכונה");
+          break;
+        case "run.current":
+          await runProgram("current", "הרץ");
+          break;
+        case "run.interpreter.terminal":
+          await runProgram("project", "הרץ", "terminal");
+          break;
+        case "run.current.terminal":
+          await runProgram("current", "הרץ", "terminal");
+          break;
+        case "run.stop":
+          terminalRef.current?.interruptActive();
           break;
         case "run.check":
           await runYodCmd(["בדוק"], "בודק");
@@ -1146,6 +1288,39 @@ export default function App() {
             setTabs((prev) => prev.map((t) => (t.key === key ? { ...t, dirty: true } : t)));
             setStatus("הקוד סודר");
           }
+          break;
+        }
+        case "view.settings":
+          setSettingsOpen(true);
+          break;
+        case "view.diff": {
+          const key = activeKeyRef.current;
+          const tab = key ? tabsRef.current.find((t) => t.key === key) : null;
+          if (!tab || !tab.path) {
+            setStatus("השוואה זמינה רק לקובץ שמור");
+            break;
+          }
+          const bufferText = editorRef.current?.getText(tab.key) ?? "";
+          let diskText = "";
+          try {
+            const res = await window.yod.readFile(tab.path);
+            diskText = res.text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+          } catch (e) {
+            showError(e instanceof Error ? e.message : String(e));
+            break;
+          }
+          const normB = bufferText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+          if (diskText === normB) {
+            setStatus("אין הבדלים מול הגרסה שעל הדיסק");
+            break;
+          }
+          setDiffState({
+            title: tab.title,
+            path: tab.path,
+            diskText,
+            bufferText: normB,
+            yod: isYodFamilyFile(tab.path),
+          });
           break;
         }
         case "view.sidebar.files":
@@ -1197,11 +1372,31 @@ export default function App() {
         case "code.clearBookmarks":
           clearBookmarks();
           break;
+        case "code.fold":
+          ed?.foldCode();
+          break;
+        case "code.unfold":
+          ed?.unfoldCode();
+          break;
+        case "code.foldAll":
+          ed?.foldAll();
+          break;
+        case "code.unfoldAll":
+          ed?.unfoldAll();
+          break;
         case "view.problems":
           setPanel("problems");
           break;
         case "view.output":
           setPanel("output");
+          break;
+        case "view.terminal":
+          setPanel("terminal");
+          terminalRef.current?.focus();
+          break;
+        case "terminal.new":
+          setPanel("terminal");
+          terminalRef.current?.newSession("powershell");
           break;
         case "view.palette":
           setPaletteOpen(true);
@@ -1264,6 +1459,7 @@ export default function App() {
       reloadDir,
       askText,
       runYodCmd,
+      runProgram,
       openDistExeLocation,
       refreshDistExeExists,
       gotoDefinition,
@@ -1291,6 +1487,7 @@ export default function App() {
     void window.yod.getPaths().then((p) => {
       setYodExe(p.yodExe);
     });
+    void window.yod.windowIsMaximized().then(setWinMaximized);
     const offPath = window.yod.onOpenPath((p) => {
       openedFromArgRef.current = true;
       readyToSaveRef.current = true;
@@ -1299,9 +1496,11 @@ export default function App() {
     const offMenu = window.yod.onMenu((action) => {
       void handleMenu(action);
     });
+    const offMax = window.yod.onMaximized(setWinMaximized);
     return () => {
       offPath();
       offMenu();
+      offMax();
     };
   }, [openPath, handleMenu]);
 
@@ -1417,9 +1616,15 @@ export default function App() {
       { id: "open.file", label: "פתיחת קובץ…", keybinding: "Ctrl+O", run: () => handleMenu("file.open") },
       { id: "file.new", label: "קובץ חדש", keybinding: "Ctrl+N", run: () => handleMenu("file.new") },
       { id: "file.save", label: "שמירה", keybinding: "Ctrl+S", run: () => handleMenu("file.save") },
-      { id: "yod.run", label: "הרצה (התחל.יוד / פרויקט)", keybinding: "F5", run: () => handleMenu("run.interpreter") },
-      { id: "yod.vm", label: "מכונה (התחל.יוד / פרויקט)", keybinding: "F6", run: () => handleMenu("run.vm") },
+      { id: "yod.run", label: "הרץ תוכנית (התחל.יוד / פרויקט)", keybinding: "F5", run: () => handleMenu("run.interpreter") },
+      { id: "yod.runCurrent", label: "הרץ קובץ נוכחי", run: () => handleMenu("run.current") },
+      { id: "yod.vm", label: "הרץ תוכנית — מכונה/bytecode", keybinding: "F6", run: () => handleMenu("run.vm") },
+      { id: "yod.runTerm", label: "הרץ בטרמינל המשולב", keybinding: "Shift+F5", run: () => handleMenu("run.interpreter.terminal") },
+      { id: "yod.runCurrentTerm", label: "הרץ קובץ נוכחי בטרמינל", run: () => handleMenu("run.current.terminal") },
+      { id: "yod.stop", label: "עצור הרצה (Ctrl+C בטרמינל)", run: () => handleMenu("run.stop") },
       { id: "yod.check", label: "בדיקת סגנון ותחביר", keybinding: "F7", run: () => handleMenu("run.check") },
+      { id: "view.terminal", label: "טרמינל — הצג/מקד", keybinding: "Ctrl+`", run: () => handleMenu("view.terminal") },
+      { id: "terminal.new", label: "טרמינל חדש (PowerShell)", run: () => handleMenu("terminal.new") },
       { id: "yod.pack", label: "ארוז ל־EXE", keybinding: "Ctrl+Shift+P", run: () => handleMenu("run.pack") },
       {
         id: "yod.openDistExe",
@@ -1428,7 +1633,13 @@ export default function App() {
       },
       { id: "code.addBookmark", label: "קבע נקודה בקוד", keybinding: "Ctrl+B", run: () => handleMenu("code.addBookmark") },
       { id: "code.showBookmarks", label: "נקודות — הצג לשונית", run: () => handleMenu("code.showBookmarks") },
+      { id: "code.fold", label: "כווץ בלוק", keybinding: "Ctrl+Alt+[", run: () => handleMenu("code.fold") },
+      { id: "code.unfold", label: "הרחב בלוק", keybinding: "Ctrl+Alt+]", run: () => handleMenu("code.unfold") },
+      { id: "code.foldAll", label: "כווץ את כל הבלוקים", run: () => handleMenu("code.foldAll") },
+      { id: "code.unfoldAll", label: "הרחב את כל הבלוקים", run: () => handleMenu("code.unfoldAll") },
       { id: "view.format", label: "סדר קוד", keybinding: "Shift+Alt+F", run: () => handleMenu("view.format") },
+      { id: "view.diff", label: "השוואה מול הגרסה שעל הדיסק", run: () => handleMenu("view.diff") },
+      { id: "view.settings", label: "הגדרות", keybinding: "Ctrl+,", run: () => handleMenu("view.settings") },
       { id: "edit.matchPair", label: "זוג תואם (התחלה/סוף / סוגריים)", keybinding: "Ctrl+}", run: () => handleMenu("edit.matchPair") },
       { id: "edit.replace", label: "החלפה…", keybinding: "Ctrl+H", run: () => handleMenu("edit.replace") },
       { id: "view.palette", label: "הצגת פלטת פקודות", keybinding: "F1", run: () => handleMenu("view.palette") },
@@ -1452,6 +1663,11 @@ export default function App() {
         void handleMenu("view.palette");
         return;
       }
+      if (mod && e.key === ",") {
+        e.preventDefault();
+        void handleMenu("view.settings");
+        return;
+      }
       if (e.key === "F12") {
         e.preventDefault();
         void handleMenu(e.shiftKey ? "nav.findRefs" : "nav.gotoDef");
@@ -1459,7 +1675,7 @@ export default function App() {
       }
       if (e.key === "F5") {
         e.preventDefault();
-        void handleMenu("run.interpreter");
+        void handleMenu(e.shiftKey ? "run.interpreter.terminal" : "run.interpreter");
         return;
       }
       if (e.key === "F6") {
@@ -1470,6 +1686,21 @@ export default function App() {
       if (e.key === "F7") {
         e.preventDefault();
         void handleMenu("run.check");
+        return;
+      }
+      if (mod && (e.key === "`" || e.code === "Backquote")) {
+        e.preventDefault();
+        void handleMenu("view.terminal");
+        return;
+      }
+      if (mod && e.altKey && (e.key === "[" || e.code === "BracketLeft")) {
+        e.preventDefault();
+        void handleMenu("code.fold");
+        return;
+      }
+      if (mod && e.altKey && (e.key === "]" || e.code === "BracketRight")) {
+        e.preventDefault();
+        void handleMenu("code.unfold");
         return;
       }
       if (e.key === "Escape") {
@@ -1762,64 +1993,136 @@ export default function App() {
     <div className="app">
       <header className="titlebar titlebar-slim">
         <div className="brand" title="יוד">
-          <img className="brand-icon" src={`${import.meta.env.BASE_URL}icon.png`} alt="יוד" width={16} height={16} />
+          <img className="brand-icon" src={`${import.meta.env.BASE_URL}icon.png`} alt="" width={16} height={16} />
+          <span className="brand-name">יוד</span>
         </div>
         <MenuBar
           onAction={(a) => void handleMenu(a)}
           disabledActions={disabledMenuActions}
           dynamicItems={dynamicMenuItems}
         />
-        <div style={{ marginInlineStart: "auto", color: "var(--fg-dim)", fontSize: 12 }}>
+        <div className="titlebar-project">
           {root ? pathBase(root) : "אין פרויקט"}
+        </div>
+        <div className="titlebar-win-controls" dir="rtl">
+          <button
+            type="button"
+            className="win-ctrl"
+            title="מזער"
+            aria-label="מזער"
+            onClick={() => void window.yod.windowMinimize()}
+          >
+            <Icon name="minimize" size={16} />
+          </button>
+          <button
+            type="button"
+            className="win-ctrl"
+            title={winMaximized ? "שחזר" : "הגדל"}
+            aria-label={winMaximized ? "שחזר" : "הגדל"}
+            onClick={() => void window.yod.windowMaximizeToggle().then(setWinMaximized)}
+          >
+            <Icon name={winMaximized ? "filter_none" : "crop_square"} size={15} />
+          </button>
+          <button
+            type="button"
+            className="win-ctrl win-ctrl-close"
+            title="סגור"
+            aria-label="סגור"
+            onClick={() => void window.yod.windowClose()}
+          >
+            <Icon name="close" size={17} />
+          </button>
         </div>
       </header>
 
       <div className="workspace">
         <aside className="activity" aria-label="פעילות">
-          <button
-            type="button"
-            className={sidebarView === "files" ? "active" : ""}
-            title="סייר קבצים"
-            onClick={() => setSidebarView("files")}
-          >
-            <Icon name="folder" size={24} />
-          </button>
-          <button
-            type="button"
-            className={sidebarView === "outline" ? "active" : ""}
-            title="ניתוח קובץ"
-            onClick={() => setSidebarView("outline")}
-          >
-            <Icon name="list_alt" size={24} />
-          </button>
-          <button
-            type="button"
-            className={sidebarView === "symbols" ? "active" : ""}
-            title="סימבולי פרויקט"
-            onClick={() => setSidebarView("symbols")}
-          >
-            <Icon name="account_tree" size={24} />
-          </button>
-          <button type="button" title="פלטת פקודות (F1)" onClick={() => setPaletteOpen(true)}>
-            <Icon name="search" size={24} />
-          </button>
-          <button type="button" title="הרצה (F5)" onClick={() => void handleMenu("run.interpreter")} disabled={!activeTab?.path && !root}>
-            <Icon name="play_arrow" size={24} />
-          </button>
-          <button type="button" title="בדיקה (F7)" onClick={() => void handleMenu("run.check")} disabled={!activeTab?.path && !root}>
-            <Icon name="spellcheck" size={24} />
-          </button>
-          <button type="button" title="ארוז ל־EXE (Ctrl+Shift+P)" onClick={() => void handleMenu("run.pack")} disabled={!root && !activeTab?.path}>
-            <Icon name="inventory_2" size={24} />
-          </button>
-          <button
-            type="button"
-            title={distExeExists ? "פתח מיקום EXE" : "פתח מיקום EXE (אין dist_exe עדיין)"}
-            onClick={() => void handleMenu("run.openDistExe")}
-            disabled={!distExeExists}
-          >
-            <Icon name="folder_open" size={24} />
-          </button>
+          <div className="activity-group" role="group" aria-label="ניווט">
+            <button
+              type="button"
+              className={sidebarView === "files" ? "active" : ""}
+              title="סייר קבצים"
+              onClick={() => setSidebarView("files")}
+            >
+              <Icon name="folder" size={22} />
+            </button>
+            <button
+              type="button"
+              className={sidebarView === "outline" ? "active" : ""}
+              title="ניתוח קובץ"
+              onClick={() => setSidebarView("outline")}
+            >
+              <Icon name="list_alt" size={22} />
+            </button>
+            <button
+              type="button"
+              className={sidebarView === "symbols" ? "active" : ""}
+              title="סימבולי פרויקט"
+              onClick={() => setSidebarView("symbols")}
+            >
+              <Icon name="account_tree" size={22} />
+            </button>
+            <button type="button" title="פלטת פקודות (F1)" onClick={() => setPaletteOpen(true)}>
+              <Icon name="search" size={22} />
+            </button>
+          </div>
+
+          <div className="activity-sep" role="separator" />
+
+          <div className="activity-group" role="group" aria-label="הרצה">
+            <button
+              type="button"
+              className="activity-run"
+              title="הרץ תוכנית — חלון Windows עולה (F5) · Shift+F5 בטרמינל"
+              onClick={() => void handleMenu("run.interpreter")}
+              disabled={!activeTab?.path && !root}
+            >
+              <Icon name="play_arrow" size={22} />
+            </button>
+            <button
+              type="button"
+              title="הרץ קובץ נוכחי — חלון Windows עולה"
+              onClick={() => void handleMenu("run.current")}
+              disabled={!isYodFamilyFile(activeTab?.path ?? activeTab?.title ?? "")}
+            >
+              <Icon name="play_circle" size={22} />
+            </button>
+            <button type="button" title="עצור טרמינל (Ctrl+C)" onClick={() => void handleMenu("run.stop")}>
+              <Icon name="stop" size={22} />
+            </button>
+            <button type="button" title="טרמינל (Ctrl+`)" onClick={() => void handleMenu("view.terminal")}>
+              <Icon name="terminal" size={22} />
+            </button>
+          </div>
+
+          <div className="activity-sep" role="separator" />
+
+          <div className="activity-group" role="group" aria-label="בנייה">
+            <button
+              type="button"
+              title="בדיקה (F7)"
+              onClick={() => void handleMenu("run.check")}
+              disabled={!activeTab?.path && !root}
+            >
+              <Icon name="spellcheck" size={22} />
+            </button>
+            <button
+              type="button"
+              title="ארוז ל־EXE (Ctrl+Shift+P)"
+              onClick={() => void handleMenu("run.pack")}
+              disabled={!root && !activeTab?.path}
+            >
+              <Icon name="inventory_2" size={22} />
+            </button>
+            <button
+              type="button"
+              title={distExeExists ? "פתח מיקום EXE" : "פתח מיקום EXE (אין dist_exe עדיין)"}
+              onClick={() => void handleMenu("run.openDistExe")}
+              disabled={!distExeExists}
+            >
+              <Icon name="folder_open" size={22} />
+            </button>
+          </div>
         </aside>
 
         <aside className="sidebar">
@@ -2004,6 +2307,18 @@ export default function App() {
                     prev.map((t) => (t.key === key && !t.dirty ? { ...t, dirty: true } : t))
                   );
                   setSymbolTick((t) => t + 1);
+                  // שמירה אוטומטית (debounce) — רק לקבצים עם נתיב
+                  if (settingsRef.current.autosave) {
+                    const tabForSave = tabsRef.current.find((t) => t.key === key);
+                    if (tabForSave?.path) {
+                      const timers = autosaveTimerRef.current;
+                      if (timers[key]) window.clearTimeout(timers[key]);
+                      timers[key] = window.setTimeout(() => {
+                        delete timers[key];
+                        void saveTabByKey(key, false);
+                      }, 1000);
+                    }
+                  }
                   // אחרי תיקון בעורך — מסירים סימוני שגיאה לקובץ הזה
                   const tab = tabsRef.current.find((t) => t.key === key);
                   const base = tab?.path ? pathBase(tab.path) : null;
@@ -2053,11 +2368,15 @@ export default function App() {
                 <span>נקודות{bookmarks.length ? ` (${bookmarks.length})` : ""}</span>
               </button>
               <button type="button" className={panel === "output" ? "active" : ""} onClick={() => setPanel("output")}>
-                <Icon name="terminal" size={14} />
+                <Icon name="description" size={14} />
                 <span>פלט</span>
               </button>
+              <button type="button" className={panel === "terminal" ? "active" : ""} onClick={() => void handleMenu("view.terminal")}>
+                <Icon name="terminal" size={14} />
+                <span>טרמינל</span>
+              </button>
             </div>
-            <div className="panel-body">
+            <div className="panel-body" style={panel === "terminal" ? { display: "none" } : undefined}>
               {panel === "bookmarks"
                 ? bookmarks.length === 0
                   ? "אין נקודות. הצב את הסמן בשורה ולחץ 'קוד ← קבע נקודה' (Ctrl+B)."
@@ -2129,6 +2448,19 @@ export default function App() {
                           {p.message}
                         </button>
                       ))}
+            </div>
+            <div
+              className="panel-term-wrap"
+              style={panel === "terminal" ? undefined : { display: "none" }}
+            >
+              <TerminalPanel
+                ref={terminalRef}
+                visible={panel === "terminal"}
+                theme={settings.theme}
+                fontFamily={settings.fontFamily}
+                fontSize={settings.fontSize}
+                defaultCwd={root ?? undefined}
+              />
             </div>
           </div>
         </section>
@@ -2411,6 +2743,35 @@ export default function App() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {settingsOpen ? (
+        <SettingsModal
+          settings={settings}
+          onChange={setSettings}
+          onReset={() => setSettings(DEFAULT_SETTINGS)}
+          onClose={() => setSettingsOpen(false)}
+        />
+      ) : null}
+
+      {diffState ? (
+        <DiffView
+          title={diffState.title}
+          diskText={diffState.diskText}
+          bufferText={diffState.bufferText}
+          settings={settings}
+          yod={diffState.yod}
+          onApply={(text) => {
+            const key = diffState.path;
+            editorRef.current?.setText(key, text);
+            if (activeKeyRef.current === key) editorRef.current?.activate(key);
+            setTabs((prev) =>
+              prev.map((t) => (t.key === key ? { ...t, dirty: true } : t))
+            );
+            setDiffState(null);
+          }}
+          onClose={() => setDiffState(null)}
+        />
       ) : null}
 
       {inputPrompt ? (

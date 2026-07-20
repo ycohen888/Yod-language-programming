@@ -5559,14 +5559,29 @@
     var brand = document.createElement("span");
     brand.className = "navbar-brand mb-0 h1 fs-5";
     var mark;
-    if (this.brandIcon && ICO[this.brandIcon]) {
+    var brandSrc = this.brandIcon || "";
+    var isBrandImg =
+      brandSrc.indexOf("data:") === 0 ||
+      brandSrc.indexOf("file:") === 0 ||
+      brandSrc.indexOf("http:") === 0 ||
+      brandSrc.indexOf("https:") === 0 ||
+      /\.(png|jpe?g|gif|webp|svg|ico)(\?|#|$)/i.test(brandSrc);
+    if (brandSrc && ICO[brandSrc]) {
       mark = document.createElement("span");
       mark.className = "yod-brand-mark yod-brand-ico";
-      mark.innerHTML = svgIcon(this.brandIcon, "");
-    } else if (this.brandIcon) {
+      mark.innerHTML = svgIcon(brandSrc, "");
+    } else if (brandSrc && isBrandImg) {
+      mark = document.createElement("img");
+      mark.className = "yod-brand-mark";
+      mark.alt = this.title || "לוגו";
+      mark.width = 28;
+      mark.height = 28;
+      mark.decoding = "async";
+      mark.src = brandSrc;
+    } else if (brandSrc) {
       mark = document.createElement("span");
       mark.className = "yod-brand-mark yod-brand-emoji";
-      mark.textContent = this.brandIcon;
+      mark.textContent = brandSrc;
     } else {
       mark = document.createElement("img");
       mark.className = "yod-brand-mark";

@@ -33,6 +33,8 @@ type Chromium struct {
 
 	// Settings
 	DataPath string
+	// TransparentBackground — PutDefaultBackgroundColor עם A=0 כבר ביצירת הבקר (לפני ניווט)
+	TransparentBackground bool
 
 	// permissions
 	permissions      map[CoreWebView2PermissionKind]CoreWebView2PermissionState
@@ -222,14 +224,13 @@ func (e *Chromium) CreateCoreWebView2ControllerCompleted(res uintptr, controller
 
 	_ = e.controller.AddAcceleratorKeyPressed(e.acceleratorKeyPressed, &token)
 
-	// רקע ברירת מחדל כהה — מונע הבזק לבן לפני NavigateToString / HTML
+	// רקע ברירת מחדל — שקוף מלא לווידג׳טים, או כהה למניעת הבזק לבן
 	if c2 := controller.GetICoreWebView2Controller2(); c2 != nil {
-		_ = c2.PutDefaultBackgroundColor(COREWEBVIEW2_COLOR{
-			A: 255,
-			R: 14,
-			G: 17,
-			B: 22,
-		})
+		if e.TransparentBackground {
+			_ = c2.PutDefaultBackgroundColor(COREWEBVIEW2_COLOR{A: 0, R: 0, G: 0, B: 0})
+		} else {
+			_ = c2.PutDefaultBackgroundColor(COREWEBVIEW2_COLOR{A: 255, R: 14, G: 17, B: 22})
+		}
 	}
 
 	atomic.StoreUintptr(&e.inited, 1)
@@ -370,6 +371,16 @@ func (e *Chromium) SetDefaultBackgroundColor(a, r, g, b uint8) error {
 		return nil
 	}
 	return c2.PutDefaultBackgroundColor(COREWEBVIEW2_COLOR{A: a, R: r, G: g, B: b})
+}
+
+// Close משחרר את בקר WebView2 לפני סגירת החלון (מונע ERROR 1412 ב־Chrome_WidgetWin_0).
+func (e *Chromium) Close() {
+	if e == nil || e.controller == nil {
+		return
+	}
+	_ = e.controller.Close()
+	e.controller = nil
+	e.webview = nil
 }
 
 func boolToInt(input bool) int {

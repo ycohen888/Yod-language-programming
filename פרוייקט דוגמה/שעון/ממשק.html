@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>שעון · יוד</title>
+  <link rel="icon" href="app.ico" type="image/x-icon"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Orbitron:wght@600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="סגנון.css"/>
+</head>
+<body>
+  <div id="app" class="app" data-theme="neon" data-format="24">
+    <div id="clock-view" class="view">
+      <div id="clock-wrap" class="clock-wrap" title="גררו להזזה · לחצן ימני לתפריט">
+        <div id="digital" class="digital">
+          <button type="button" class="gear" data-gear title="הגדרות" aria-label="הגדרות">⚙</button>
+          <button type="button" class="btn-exit-x" data-exit title="יציאה" aria-label="יציאה">×</button>
+          <div class="dig-time" id="dig-time">00:00:00</div>
+          <div class="dig-date" id="dig-date"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings-view" class="view settings-view" hidden>
+      <div class="settings-card">
+        <header>
+          <img src="לוגו.png" width="24" height="24" alt=""/>
+          <strong>הגדרות</strong>
+          <button type="button" class="x" id="btn-close-settings" aria-label="סגור">×</button>
+        </header>
+        <label>עיצוב
+          <select id="set-theme"></select>
+        </label>
+        <label>שעה
+          <select id="set-format">
+            <option value="24">24 שעות</option>
+            <option value="12">12 שעות</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="set-seconds" checked/> שניות</label>
+        <label class="check"><input type="checkbox" id="set-date" checked/> תאריך</label>
+        <label class="check"><input type="checkbox" id="set-topmost" checked/> תמיד מעל</label>
+        <div class="settings-actions">
+          <button type="button" id="btn-exit" class="danger">יציאה</button>
+          <button type="button" id="btn-back" class="primary">חזרה לשעון</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="menu" class="menu" hidden role="menu">
+      <button type="button" data-act="settings">הגדרות</button>
+      <button type="button" data-act="topmost" id="btn-topmost">תמיד מעל ✓</button>
+      <hr/>
+      <button type="button" data-act="exit" class="danger">יציאה</button>
+    </div>
+  </div>
+  <script src="מנוע.js"></script>
+</body>
+</html>

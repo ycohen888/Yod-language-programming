@@ -55,12 +55,24 @@ func winForceClose(st *windowState, args ...object.Object) object.Object {
 		return errObj("חלון.סגור מצפה ל־0 ארגומנטים")
 	}
 	st.forceClose = true
+	st.closed = true
 	disposeWindowTray(st)
+	disposeWindowBrowsers(st)
 	if st.mw != nil {
-		st.mw.Synchronize(func() {
-			st.forceClose = true
-			_ = st.mw.Close()
-		})
+		hwnd := st.mw.Handle()
+		st.forceClose = true
+		if hwnd != 0 {
+			win.PostMessage(hwnd, win.WM_CLOSE, 0, 0)
+			go func() {
+				time.Sleep(150 * time.Millisecond)
+				win.PostQuitMessage(0)
+			}()
+		} else {
+			st.mw.Synchronize(func() {
+				st.forceClose = true
+				_ = st.mw.Close()
+			})
+		}
 	}
 	return object.Nil
 }

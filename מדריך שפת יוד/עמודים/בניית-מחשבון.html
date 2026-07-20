@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מחשבון — מדריך בניית תוכנה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מדריך בניית תוכנה</span><strong>מחשבון</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1 id="top">בניית מחשבון מקצועי — חלון יוד + ממשק HTML</h1>
+      <p class="lead">
+        דוגמה פתוחת קוד: מחשבון שולחן־עבודה עם עיצוב כהה/בהיר, היסטוריה ומקלדת —
+        על בסיס <code>פרוייקט דוגמה/מחשבון/</code>.
+      </p>
+
+      <div class="callout tip">
+        <strong>הרצה:</strong>
+        <pre class="code-block">יוד הרץ "פרוייקט דוגמה\מחשבון"</pre>
+        או פתחו את התיקייה בעורך יוד ולחצו F5.
+      </div>
+
+      <h2 id="overview">1. מה בונים</h2>
+      <ul>
+        <li>חלון Windows ביוד (<code>חלונות.חלון</code> + <code>חלונות.דפדפן</code>) בגודל קבוע (<code>קבע_גודל_קבוע</code>).</li>
+        <li>ממשק HTML/CSS/JS מקומי שנטען ב־WebView2 דרך <code>דפדפן.נווט</code>.</li>
+        <li>תצוגה כפולה (ביטוי + תוצאה), פעולות ופונקציות, היסטוריה, מקלדת.</li>
+        <li>מתג נושא כהה / בהיר (נשמר ב־localStorage).</li>
+      </ul>
+
+      <h2 id="files">2. מפת קבצים</h2>
+      <table class="method-table">
+        <thead>
+          <tr><th>קובץ</th><th>תפקיד</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>התחל.יוד</code></td><td>נקודת כניסה — <code>יבא { הפעל_מחשבון }</code></td></tr>
+          <tr><td><code>הפעלה.יוד</code></td><td>תיקיית הרצה + קריאה ל־<code>בנה_חלון_מחשבון</code></td></tr>
+          <tr><td><code>ממשק.יוד</code></td><td>חלון, דפדפן, ניווט ל־<code>file:///…/ממשק.html</code></td></tr>
+          <tr><td><code>ממשק.html</code></td><td>מבנה הממשק</td></tr>
+          <tr><td><code>לוגו.png</code> / <code>app.ico</code></td><td>לוגו ואייקון חלון Windows</td></tr>
+          <tr><td><code>סגנון.css</code></td><td>עיצוב מקצועי</td></tr>
+          <tr><td><code>מנוע.js</code></td><td>לוגיקת חישוב, היסטוריה, מקלדת</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="pattern">3. הדפוס החשוב</h2>
+      <p>
+        יוד מנהל את <strong>החלון והמחזור חיים</strong>; הממשק והחישוב רצים בדפדפן המובנה.
+        כך מקבלים אנימציות ופריסה עשירה בלי לבנות כל כפתור ב־Win32.
+      </p>
+      <figure class="example">
+        <span class="example-label">זרימה</span>
+        <pre class="code-block">התחל.יוד
+  → הפעל_מחשבון()
+  → בנה_חלון_מחשבון()
+  → דפדפן.נווט("file:///…/ממשק.html")
+  → ח.הצג()</pre>
+      </figure>
+
+      <h2 id="next">4. מה ללמוד מכאן</h2>
+      <ul>
+        <li>ניווט ל־HTML מקומי מתוך יוד (בלי ספריית העיצוב).</li>
+        <li>הפרדת אחריות: מנוע חלון ביוד, UX בדפדפן.</li>
+        <li>השוו ל־<a href="בניית-מוניטור.html">מוניטור</a> / <a href="בניית-גיבוי.html">גיבוי</a> שמשתמשים בספריית <code>עיצוב/</code>.</li>
+      </ul>
+
+      <p>
+        קוד מלא: <code>פרוייקט דוגמה/מחשבון/</code> ·
+        <a href="ספריית-חלונות.html">ספריית חלונות</a>
+      </p>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

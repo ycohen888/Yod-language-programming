@@ -586,9 +586,64 @@ html, body {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 1rem;
-  align-items: stretch;
+  gap: 0.5rem;
+  align-items: center;
   margin-bottom: 0;
+}
+
+/* פריסת עמוד (צד + ראשי / עמודות): יישור למעלה — לא מרכוז אנכי באמצע החלון */
+.yod-box-row:has(> .yod-box-col) {
+  align-items: flex-start;
+}
+
+/* שורת כלים (שדה/בחירה/כפתור/פס) — שורה אחת בלי שבירת שורה */
+.yod-box-row:not(:has(> .yod-box-col)) {
+  flex-wrap: nowrap;
+}
+
+/* שורת כלים: שדה מתרחב, בחירה/כפתור/פס בגובה אחיד בשורה אחת */
+.yod-box-row > input.yod-control.form-control,
+.yod-box-row > .yod-control.form-control:not(textarea) {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  margin: 0 !important;
+}
+
+.yod-box-row > select.yod-control.form-select,
+.yod-box-row > .yod-control.form-select {
+  flex: 0 0 8.75rem;
+  width: 8.75rem;
+  max-width: 8.75rem;
+  margin: 0 !important;
+}
+
+.yod-box-row > .btn.yod-control {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  white-space: nowrap;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+}
+
+.yod-box-row > .progress.yod-control {
+  flex: 1 1 auto;
+  min-width: 5rem;
+  width: auto;
+  margin: 0 !important;
+  height: var(--yod-h) !important;
+  align-self: center;
+}
+
+.yod-box-row > .progress.yod-control .progress-bar {
+  line-height: var(--yod-h);
+}
+
+.yod-box-row > .yod-label {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  white-space: nowrap;
 }
 
 /* עמודות ברוחב שווה בתוך שורה (למשל מקור | יעד); סרגל צד נשאר צר */
@@ -644,13 +699,37 @@ html, body {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.35rem;
   min-height: 0;
+  padding-block: 0.35rem;
 }
 
 .yod-log-footer > .yod-label {
   max-width: none;
-  margin: 0 0 0.1rem;
+  margin: 0;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.yod-log-footer > .yod-box-row {
+  width: 100%;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.yod-log-footer > .yod-box-row > .progress.yod-control {
+  flex: 1 1 auto;
+  min-width: 4rem;
+  height: var(--yod-h) !important;
+  margin: 0 !important;
+}
+
+.yod-log-footer > .yod-box-row > .btn.yod-control {
+  flex: 0 0 auto;
+  margin: 0 !important;
+  min-height: var(--yod-h);
 }
 
 /* ——— כרזת פרסום (באנר נעוץ בתחתית) ——— */
@@ -1102,26 +1181,15 @@ body.yod-modal-open-body {
   color: var(--bs-body-color, #fff);
 }
 
-/* פריסת סרגל עליון לפי כיוון:
-   RTL — כפתורים מימין, לוגו משמאל
-   LTR — כפתורים משמאל, לוגו מימין */
+/* פריסת סרגל עליון לפי כיוון המסמך:
+   LTR — תפריט/כפתורים משמאל, לוגו+שם מימין (כמו עכשיו)
+   RTL — בדיוק הפוך: לוגו+שם משמאל, תפריט/כפתורים מימין */
 .yod-topnav.yod-control {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-}
-[dir="rtl"] .yod-topnav .navbar-nav,
-[dir="rtl"] .yod-topnav .yod-topnav-menus {
-  order: 1;
-  margin-inline-start: 0;
-  margin-inline-end: 0;
-}
-[dir="rtl"] .yod-topnav .navbar-brand {
-  order: 2;
-  margin-inline-start: auto;
-  margin-inline-end: 0;
 }
 [dir="ltr"] .yod-topnav .navbar-nav,
 [dir="ltr"] .yod-topnav .yod-topnav-menus {
@@ -1132,6 +1200,17 @@ body.yod-modal-open-body {
 [dir="ltr"] .yod-topnav .navbar-brand {
   order: 2;
   margin-inline-start: auto;
+  margin-inline-end: 0;
+}
+[dir="rtl"] .yod-topnav .yod-topnav-menus,
+[dir="rtl"] .yod-topnav .navbar-nav {
+  order: 1;
+  margin-inline-start: 0;
+  margin-inline-end: auto;
+}
+[dir="rtl"] .yod-topnav .navbar-brand {
+  order: 2;
+  margin-inline-start: 0;
   margin-inline-end: 0;
 }
 .yod-topnav .yod-menu-mega-host {
@@ -2829,6 +2908,15 @@ html[data-bs-theme="light"] #yod-splash-bar {
 .yod-datagrid .tabulator-header .tabulator-col.tabulator-sortable:hover {
   background-color: var(--yod-surface-3);
 }
+@media (hover: hover) and (pointer: fine) {
+  .yod-datagrid .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover {
+    background-color: var(--yod-surface-3) !important;
+  }
+  [data-bs-theme="light"] .yod-datagrid .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover,
+  .yod-datagrid[data-yod-grid-theme="light"] .tabulator-header .tabulator-col.tabulator-sortable.tabulator-col-sorter-element:hover {
+    background-color: #cdcdcd !important;
+  }
+}
 .yod-datagrid .tabulator-header .tabulator-col .tabulator-col-sorter .tabulator-arrow {
   border-bottom-color: var(--yod-muted);
 }
@@ -2851,8 +2939,33 @@ html[data-bs-theme="light"] #yod-splash-bar {
 [data-bs-theme="light"] .yod-datagrid .tabulator-row.tabulator-row-even {
   background-color: rgba(15, 23, 42, 0.02);
 }
-.yod-datagrid .tabulator-row:hover {
-  background-color: var(--yod-surface-2);
+/* Hover: Tabulator ברירת־מחדל (#bbb) לבן מדי בכהה — עוקפים לפי נושא */
+@media (hover: hover) and (pointer: fine) {
+  .yod-datagrid .tabulator-row:hover,
+  .yod-datagrid .tabulator-row.tabulator-selectable:hover {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+    cursor: pointer;
+  }
+  [data-bs-theme="light"] .yod-datagrid .tabulator-row:hover,
+  [data-bs-theme="light"] .yod-datagrid .tabulator-row.tabulator-selectable:hover {
+    background-color: #bbb !important;
+  }
+  .yod-datagrid[data-yod-grid-theme="dark"] .tabulator-row:hover,
+  .yod-datagrid[data-yod-grid-theme="dark"] .tabulator-row.tabulator-selectable:hover {
+    background-color: rgba(255, 255, 255, 0.07) !important;
+  }
+  .yod-datagrid[data-yod-grid-theme="light"] .tabulator-row:hover,
+  .yod-datagrid[data-yod-grid-theme="light"] .tabulator-row.tabulator-selectable:hover {
+    background-color: #bbb !important;
+  }
+  /* שורה שנבחרה + hover */
+  .yod-datagrid .tabulator-row.tabulator-selected:hover {
+    background-color: rgba(46, 196, 182, 0.22) !important;
+  }
+  [data-bs-theme="light"] .yod-datagrid .tabulator-row.tabulator-selected:hover,
+  .yod-datagrid[data-yod-grid-theme="light"] .tabulator-row.tabulator-selected:hover {
+    background-color: rgba(13, 148, 136, 0.22) !important;
+  }
 }
 .yod-datagrid .tabulator-row.tabulator-selected {
   background-color: var(--yod-accent-soft) !important;

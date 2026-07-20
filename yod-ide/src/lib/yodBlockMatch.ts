@@ -25,7 +25,7 @@ export const YOD_BLOCK_OPENERS = new Set([
 
 type PairHit = { from: number; to: number; mateFrom: number; mateTo: number };
 
-type ScanTok =
+export type ScanTok =
   | { kind: "braceOpen" | "braceClose" | "parenOpen" | "parenClose" | "bracketOpen" | "bracketClose"; from: number; to: number }
   | { kind: "openWord" | "closeWord"; from: number; to: number; word: string };
 
@@ -42,7 +42,7 @@ function skipString(text: string, i: number, quote: '"' | "'"): number {
   return text.length;
 }
 
-function tokenize(text: string): ScanTok[] {
+export function tokenize(text: string): ScanTok[] {
   const out: ScanTok[] = [];
   let i = 0;
   while (i < text.length) {

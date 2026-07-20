@@ -171,5 +171,7 @@ export const yodStreamLanguage = StreamLanguage.define({
   },
   languageData: {
     commentTokens: { line: "//", block: { open: "/*", close: "*/" } },
+    // דה-הזחה אוטומטית בהקלדת סוגר/סוף/ענפי המשך
+    indentOnInput: /^\s*(סוף|\}|אחרת|אחרת_אם|תפוס|לבסוף)$/,
   },
 });

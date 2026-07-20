@@ -1,5 +1,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { EditorState, Prec, StateEffect, StateField, type Extension } from "@codemirror/state";
+import {
+  Compartment,
+  EditorState,
+  Prec,
+  StateEffect,
+  StateField,
+  type Extension,
+} from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -9,6 +16,8 @@ import {
   dropCursor,
   gutter,
   GutterMarker,
+  rectangularSelection,
+  crosshairCursor,
 } from "@codemirror/view";
 import {
   defaultKeymap,
@@ -26,9 +35,33 @@ import {
   openSearchPanel,
 } from "@codemirror/search";
 import { createYodSearchPanel } from "../lib/yodSearchPanel";
-import { bracketMatching } from "@codemirror/language";
+import {
+  bracketMatching,
+  indentUnit,
+  indentOnInput,
+  codeFolding,
+  foldGutter,
+  foldCode,
+  unfoldCode,
+  foldAll,
+  unfoldAll,
+} from "@codemirror/language";
+import {
+  closeBrackets,
+  closeBracketsKeymap,
+  nextSnippetField,
+  prevSnippetField,
+  clearSnippet,
+} from "@codemirror/autocomplete";
+import { yodFoldService, yodIndentService } from "../lib/yodCodeStructure";
 import { yodStreamLanguage } from "../lib/yodCmLanguage";
-import { yodSyntaxHighlighting, yodPhpDarkColors } from "../lib/yodHighlightStyle";
+import {
+  makeSyntaxHighlighting,
+  paletteForTheme,
+  type EditorPalette,
+} from "../lib/yodHighlightStyle";
+import { DEFAULT_SETTINGS } from "../lib/settings";
+import type { Settings } from "../types";
 import { yodAutocompletion } from "../lib/yodCompletion";
 import { yodBidiIsolates } from "../lib/yodBidi";
 import {
@@ -58,6 +91,10 @@ export type CodeEditorHandle = {
   toggleComment: () => void;
   duplicateLine: () => void;
   jumpToMatchingPair: () => void;
+  foldCode: () => void;
+  unfoldCode: () => void;
+  foldAll: () => void;
+  unfoldAll: () => void;
   zoom: (delta: number) => void;
   zoomReset: () => void;
   getFontSize: () => number;
@@ -65,6 +102,8 @@ export type CodeEditorHandle = {
   setDiagnostics: (diags: EditorDiagnostic[]) => void;
   /** מסמן שורות כנקודות (סימניות) בשוליים, לכל טאב לפי מפתח. */
   setBookmarkLines: (key: string, lines: number[]) => void;
+  /** מחיל העדפות (נושא/גופן/טאב/גלישה) על התצוגה בזמן אמת. */
+  applySettings: (settings: Settings) => void;
 };
 
 type Props = {
@@ -75,7 +114,128 @@ type Props = {
   className?: string;
 };
 
-const BASE_FONT = 14;
+const MIN_FONT = 10;
+const MAX_FONT = 28;
+
+/** compartments לשינוי חי של מראה/טאב/גלישה בלי לבנות מחדש את המצב. */
+const appearanceCompartment = new Compartment();
+const tabCompartment = new Compartment();
+const wrapCompartment = new Compartment();
+
+/** גודל גופן אפקטיבי = בסיס מההגדרות + הזחת זום, מוגבל לטווח. */
+function effectiveFont(settings: Settings, offset: number): number {
+  return Math.min(MAX_FONT, Math.max(MIN_FONT, settings.fontSize + offset));
+}
+
+/** תוסף הזחת טאב (רוחב טאב + יחידת הזחה). */
+function tabExtension(settings: Settings): Extension {
+  return [EditorState.tabSize.of(settings.tabSize), indentUnit.of(" ".repeat(settings.tabSize))];
+}
+
+/** תוסף גלישת שורות (או ריק). */
+function wrapExtension(settings: Settings): Extension {
+  return settings.wordWrap ? EditorView.lineWrapping : [];
+}
+
+/** בונה את תוסף המראה (הדגשת תחביר + ערכת צבעים + גופן) לפי הגדרות + כיווניות הטאב. */
+function appearanceExtension(key: string, settings: Settings, offset: number): Extension {
+  const yodMode = key !== "__empty" && isYodFamilyFile(key);
+  const dir = yodMode ? "rtl" : "ltr";
+  const textAlign = yodMode ? "right" : "left";
+  const p: EditorPalette = paletteForTheme(settings.theme);
+  const fontSize = effectiveFont(settings, offset);
+  return [
+    makeSyntaxHighlighting(p),
+    EditorView.theme(
+      {
+        "&": {
+          height: "100%",
+          width: "100%",
+          fontSize: `${fontSize}px`,
+          backgroundColor: p.background,
+          color: p.foreground,
+        },
+        "&.cm-ctrl-nav .cm-content": {
+          cursor: "pointer",
+        },
+        ".cm-scroller": {
+          overflow: "auto",
+          fontFamily: settings.fontFamily,
+          direction: dir,
+        },
+        ".cm-content": {
+          direction: dir,
+          textAlign,
+          caretColor: p.foreground,
+          padding: "8px 0",
+          color: p.foreground,
+        },
+        ".cm-line": {
+          direction: dir,
+          textAlign,
+        },
+        ".cm-gutters": {
+          backgroundColor: p.background,
+          color: p.lineNumber,
+          border: "none",
+          ...(yodMode
+            ? { borderLeft: `1px solid ${p.gutterBorder}` }
+            : { borderRight: `1px solid ${p.gutterBorder}` }),
+        },
+        ".cm-diag-gutter": {
+          width: "14px",
+          minWidth: "14px",
+        },
+        ".cm-diag-mark": {
+          width: "8px",
+          height: "8px",
+          margin: "4px auto",
+          borderRadius: "0",
+        },
+        ".cm-diag-error": { backgroundColor: "#f14c4c" },
+        ".cm-diag-warning": { backgroundColor: "#cca700" },
+        ".cm-diag-info": { backgroundColor: "#3794ff" },
+        ".cm-diag-line-error": { backgroundColor: "rgba(241, 76, 76, 0.12)" },
+        ".cm-diag-line-warning": { backgroundColor: "rgba(204, 167, 0, 0.10)" },
+        ".cm-diag-line-info": { backgroundColor: "rgba(55, 148, 255, 0.08)" },
+        ".cm-panels.cm-panels-top": {
+          backgroundColor: "transparent",
+          borderBottom: "none",
+        },
+        ".cm-searchMatch": { backgroundColor: "rgba(234, 92, 0, 0.33)" },
+        ".cm-searchMatch.cm-searchMatch-selected": {
+          backgroundColor: "rgba(234, 92, 0, 0.55)",
+        },
+        ".cm-activeLineGutter": { backgroundColor: p.activeLineGutter },
+        // רקע חצי-שקוף כדי שצבע הסימון (selection) ייראה גם בשורה הפעילה
+        ".cm-activeLine": { backgroundColor: p.activeLine },
+        ".cm-bookmark-gutter": {
+          width: "12px",
+          minWidth: "12px",
+        },
+        ".cm-bookmark-mark": {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+        },
+        ".cm-bookmark-mark::before": {
+          content: '""',
+          width: "7px",
+          height: "7px",
+          borderRadius: "50%",
+          backgroundColor: "#e0a33e",
+          boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
+        },
+        "&.cm-focused .cm-cursor": { borderLeftColor: p.foreground },
+        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
+          backgroundColor: `${p.selection} !important`,
+        },
+      },
+      { dark: p.dark }
+    ),
+  ];
+}
 
 /** תמיד מחזיר true — מונע מ־defaultKeymap להפעיל הזחה על Ctrl+[ / Ctrl+] */
 function jumpToYodPairAlways(view: EditorView): boolean {
@@ -135,7 +295,8 @@ function identifierAt(text: string, col: number): string | null {
 
 function buildExtensions(
   key: string,
-  fontSize: number,
+  settings: Settings,
+  fontOffset: number,
   onDirty?: (key: string) => void,
   onCursor?: (line: number, col: number) => void,
   onGotoDefinition?: (word: string) => void
@@ -143,14 +304,14 @@ function buildExtensions(
   const yodMode = key !== "__empty" && isYodFamilyFile(key);
   const dir = yodMode ? "rtl" : "ltr";
   const lang = yodMode ? "he" : "en";
-  const textAlign = yodMode ? "right" : "left";
 
   const yodOnly: Extension[] = yodMode
     ? [
         ...yodDiagnosticsExt,
-        yodSyntaxHighlighting,
         yodStreamLanguage,
         yodBidiIsolates(),
+        yodFoldService,
+        yodIndentService,
         ...yodAutocompletion,
         Prec.highest(
           keymap.of([
@@ -171,24 +332,55 @@ function buildExtensions(
       ]
     : (() => {
         const langExt = languageSupportForPath(key);
-        const extras: Extension[] = [...yodDiagnosticsExt, yodSyntaxHighlighting];
+        const extras: Extension[] = [...yodDiagnosticsExt];
         if (langExt) extras.push(langExt);
         return extras;
       })();
 
   return [
+    appearanceCompartment.of(appearanceExtension(key, settings, fontOffset)),
+    tabCompartment.of(tabExtension(settings)),
+    wrapCompartment.of(wrapExtension(settings)),
     lineNumbers(),
     bookmarkLinesField,
     bookmarkGutter,
+    codeFolding(),
+    foldGutter({
+      markerDOM(open) {
+        const el = document.createElement("span");
+        el.className = "cm-yod-fold-marker";
+        el.textContent = open ? "\u25be" : "\u25b8";
+        return el;
+      },
+    }),
     highlightActiveLine(),
     drawSelection(),
     dropCursor(),
+    EditorState.allowMultipleSelections.of(true),
+    rectangularSelection(),
+    crosshairCursor(),
     history(),
     bracketMatching(),
+    closeBrackets(),
+    indentOnInput(),
     highlightSelectionMatches(),
     search({ top: true, createPanel: createYodSearchPanel }),
+    // ניווט בין שדות תבנית (snippet) — קודם ל-Tab של הזחה; מחזיר false כשאין שדה פעיל
+    Prec.highest(
+      keymap.of([
+        { key: "Tab", run: nextSnippetField },
+        { key: "Shift-Tab", run: prevSnippetField },
+        { key: "Escape", run: clearSnippet },
+      ])
+    ),
     ...yodOnly,
-    keymap.of([indentWithTab, ...defaultKeymap, ...historyKeymap, ...searchKeymap]),
+    keymap.of([
+      ...closeBracketsKeymap,
+      indentWithTab,
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...searchKeymap,
+    ]),
     EditorView.domEventHandlers({
       click(event, view) {
         if (!(event.ctrlKey || event.metaKey)) return false;
@@ -204,94 +396,6 @@ function buildExtensions(
     }),
     EditorView.editorAttributes.of({ dir, spellcheck: "false", lang }),
     EditorView.contentAttributes.of({ dir, lang }),
-    EditorView.theme(
-      {
-        "&": {
-          height: "100%",
-          width: "100%",
-          fontSize: `${fontSize}px`,
-          backgroundColor: yodPhpDarkColors.background,
-          color: yodPhpDarkColors.foreground,
-        },
-        "&.cm-ctrl-nav .cm-content": {
-          cursor: "pointer",
-        },
-        ".cm-scroller": {
-          overflow: "auto",
-          fontFamily: 'Consolas, "Courier New", "Noto Sans Hebrew", monospace',
-          direction: dir,
-        },
-        ".cm-content": {
-          direction: dir,
-          textAlign,
-          caretColor: yodPhpDarkColors.foreground,
-          padding: "8px 0",
-          color: yodPhpDarkColors.foreground,
-        },
-        ".cm-line": {
-          direction: dir,
-          textAlign,
-        },
-        ".cm-gutters": {
-          backgroundColor: yodPhpDarkColors.background,
-          color: yodPhpDarkColors.lineNumber,
-          border: "none",
-          ...(yodMode
-            ? { borderLeft: "1px solid #3c3c3c" }
-            : { borderRight: "1px solid #3c3c3c" }),
-        },
-        ".cm-diag-gutter": {
-          width: "14px",
-          minWidth: "14px",
-        },
-        ".cm-diag-mark": {
-          width: "8px",
-          height: "8px",
-          margin: "4px auto",
-          borderRadius: "0",
-        },
-        ".cm-diag-error": { backgroundColor: "#f14c4c" },
-        ".cm-diag-warning": { backgroundColor: "#cca700" },
-        ".cm-diag-info": { backgroundColor: "#3794ff" },
-        ".cm-diag-line-error": { backgroundColor: "rgba(241, 76, 76, 0.12)" },
-        ".cm-diag-line-warning": { backgroundColor: "rgba(204, 167, 0, 0.10)" },
-        ".cm-diag-line-info": { backgroundColor: "rgba(55, 148, 255, 0.08)" },
-        ".cm-panels.cm-panels-top": {
-          backgroundColor: "transparent",
-          borderBottom: "none",
-        },
-        ".cm-searchMatch": { backgroundColor: "rgba(234, 92, 0, 0.33)" },
-        ".cm-searchMatch.cm-searchMatch-selected": {
-          backgroundColor: "rgba(234, 92, 0, 0.55)",
-        },
-        ".cm-activeLineGutter": { backgroundColor: "#2a2d2e" },
-        // רקע חצי-שקוף כדי שצבע הסימון (selection) ייראה גם בשורה הפעילה
-        ".cm-activeLine": { backgroundColor: "rgba(255, 255, 255, 0.055)" },
-        ".cm-bookmark-gutter": {
-          width: "12px",
-          minWidth: "12px",
-        },
-        ".cm-bookmark-mark": {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-        },
-        ".cm-bookmark-mark::before": {
-          content: '""',
-          width: "7px",
-          height: "7px",
-          borderRadius: "50%",
-          backgroundColor: "#e0a33e",
-          boxShadow: "0 0 0 1px rgba(0,0,0,0.35)",
-        },
-        "&.cm-focused .cm-cursor": { borderLeftColor: yodPhpDarkColors.foreground },
-        "&.cm-focused .cm-selectionBackground, .cm-selectionBackground": {
-          backgroundColor: "#264f78 !important",
-        },
-      },
-      { dark: true }
-    ),
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         if (onDirty) onDirty(key);
@@ -362,7 +466,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
   const scrollRef = useRef<Map<string, StateEffect<unknown>>>(new Map());
   const bookmarkLinesRef = useRef<Map<string, number[]>>(new Map());
   const activeKeyRef = useRef<string | null>(null);
-  const fontSizeRef = useRef(BASE_FONT);
+  const settingsRef = useRef<Settings>(DEFAULT_SETTINGS);
+  const fontOffsetRef = useRef(0);
   const [contentDir, setContentDir] = useState<"rtl" | "ltr">("rtl");
   const dirtyFn = useRef(onDirty);
   const cursorFn = useRef(onCursor);
@@ -391,29 +496,16 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
     if (snap) view.dispatch({ effects: snap });
   };
 
-  const recreateActiveWithFont = (size: number) => {
-    const view = viewRef.current;
-    const key = activeKeyRef.current;
-    if (!view || !key) return;
-    const text = view.state.doc.toString();
-    const sel = view.state.selection;
-    saveScroll(key);
-    const state = EditorState.create({
-      doc: text,
-      selection: sel,
-      extensions: buildExtensions(
-        key,
-        size,
-        (k) => dirtyFn.current?.(k),
-        (l, c) => cursorFn.current?.(l, c),
-        (w) => gotoFn.current?.(w)
-      ),
+  /** מחיל מחדש מראה/טאב/גלישה על ה-view הפעיל בלי לבנות את המצב מחדש. */
+  const reconfigureView = (view: EditorView, key: string | null) => {
+    const s = settingsRef.current;
+    view.dispatch({
+      effects: [
+        appearanceCompartment.reconfigure(appearanceExtension(key ?? "__empty", s, fontOffsetRef.current)),
+        tabCompartment.reconfigure(tabExtension(s)),
+        wrapCompartment.reconfigure(wrapExtension(s)),
+      ],
     });
-    statesRef.current.set(key, state);
-    view.setState(state);
-    const bmLines = bookmarkLinesRef.current.get(key) ?? [];
-    view.dispatch({ effects: setBookmarkLinesEffect.of(bmLines) });
-    restoreScroll(key);
   };
 
   useEffect(() => {
@@ -422,7 +514,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       doc: "",
       extensions: buildExtensions(
         "__empty",
-        fontSizeRef.current,
+        settingsRef.current,
+        fontOffsetRef.current,
         (k) => dirtyFn.current?.(k),
         (l, c) => cursorFn.current?.(l, c),
         (w) => gotoFn.current?.(w)
@@ -461,7 +554,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
         doc: text,
         extensions: buildExtensions(
           key,
-          fontSizeRef.current,
+          settingsRef.current,
+          fontOffsetRef.current,
           (k) => dirtyFn.current?.(k),
           (l, c) => cursorFn.current?.(l, c),
           (w) => gotoFn.current?.(w)
@@ -489,7 +583,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
           doc: "",
           extensions: buildExtensions(
             key,
-            fontSizeRef.current,
+            settingsRef.current,
+            fontOffsetRef.current,
             (k) => dirtyFn.current?.(k),
             (l, c) => cursorFn.current?.(l, c),
             (w) => gotoFn.current?.(w)
@@ -499,6 +594,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       }
       view.setState(state);
       activeKeyRef.current = key;
+      // סנכרון מראה/טאב/גלישה להעדפות הנוכחיות (טאבים שנוצרו קודם עלולים להיות מיושנים)
+      reconfigureView(view, key);
       setLiveDocument(key, state.doc.toString());
       syncHostDir(key);
       view.focus();
@@ -517,7 +614,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
         viewRef.current?.setState(
           EditorState.create({
             doc: "",
-            extensions: buildExtensions("__empty", fontSizeRef.current),
+            extensions: buildExtensions("__empty", settingsRef.current, fontOffsetRef.current),
           })
         );
       }
@@ -539,7 +636,8 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
         doc: text,
         extensions: buildExtensions(
           key,
-          fontSizeRef.current,
+          settingsRef.current,
+          fontOffsetRef.current,
           (k) => dirtyFn.current?.(k),
           (l, c) => cursorFn.current?.(l, c),
           (w) => gotoFn.current?.(w)
@@ -614,16 +712,48 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       const v = viewRef.current;
       if (v) jumpToYodPair(v);
     },
+    foldCode() {
+      const v = viewRef.current;
+      if (v) {
+        foldCode(v);
+        v.focus();
+      }
+    },
+    unfoldCode() {
+      const v = viewRef.current;
+      if (v) {
+        unfoldCode(v);
+        v.focus();
+      }
+    },
+    foldAll() {
+      const v = viewRef.current;
+      if (v) {
+        foldAll(v);
+        v.focus();
+      }
+    },
+    unfoldAll() {
+      const v = viewRef.current;
+      if (v) {
+        unfoldAll(v);
+        v.focus();
+      }
+    },
     zoom(delta) {
-      fontSizeRef.current = Math.min(28, Math.max(10, fontSizeRef.current + delta));
-      recreateActiveWithFont(fontSizeRef.current);
+      const s = settingsRef.current;
+      const nextEff = effectiveFont(s, fontOffsetRef.current + delta);
+      fontOffsetRef.current = nextEff - s.fontSize;
+      const view = viewRef.current;
+      if (view) reconfigureView(view, activeKeyRef.current);
     },
     zoomReset() {
-      fontSizeRef.current = BASE_FONT;
-      recreateActiveWithFont(BASE_FONT);
+      fontOffsetRef.current = 0;
+      const view = viewRef.current;
+      if (view) reconfigureView(view, activeKeyRef.current);
     },
     getFontSize() {
-      return fontSizeRef.current;
+      return effectiveFont(settingsRef.current, fontOffsetRef.current);
     },
     setDiagnostics(diags) {
       const v = viewRef.current;
@@ -636,6 +766,11 @@ export const CodeEditor = forwardRef<CodeEditorHandle, Props>(function CodeEdito
       if (v && activeKeyRef.current === key) {
         v.dispatch({ effects: setBookmarkLinesEffect.of(lines) });
       }
+    },
+    applySettings(settings) {
+      settingsRef.current = settings;
+      const view = viewRef.current;
+      if (view) reconfigureView(view, activeKeyRef.current);
     },
   }));
 

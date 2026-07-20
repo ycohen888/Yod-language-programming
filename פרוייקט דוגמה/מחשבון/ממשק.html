@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>מחשבון · יוד</title>
+  <link rel="icon" href="app.ico" type="image/x-icon"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="סגנון.css"/>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="top">
+      <div class="brand">
+        <img class="brand-mark" src="לוגו.png" width="36" height="36" alt="מחשבון" decoding="async"/>
+        <div class="brand-text">
+          <strong>מחשבון</strong>
+          <span>יוד</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="ghost" id="btn-theme" title="החלף נושא" aria-label="החלף נושא">◐</button>
+        <button type="button" class="ghost" id="btn-history" title="היסטוריה" aria-label="היסטוריה">◷</button>
+      </div>
+    </header>
+
+    <section class="display" aria-live="polite">
+      <div class="expr" id="expr">&nbsp;</div>
+      <div class="value" id="value">0</div>
+    </section>
+
+    <aside class="history" id="history-panel" hidden>
+      <div class="history-head">
+        <span>היסטוריה</span>
+        <button type="button" class="ghost tiny" id="btn-clear-history">נקה</button>
+      </div>
+      <ul class="history-list" id="history-list"></ul>
+    </aside>
+
+    <main class="pad" id="pad">
+      <button type="button" class="key fn" data-k="%">%</button>
+      <button type="button" class="key fn" data-k="CE">CE</button>
+      <button type="button" class="key fn" data-k="C">C</button>
+      <button type="button" class="key fn" data-k="⌫">⌫</button>
+
+      <button type="button" class="key fn" data-k="1/x">¹⁄ₓ</button>
+      <button type="button" class="key fn" data-k="x²">x²</button>
+      <button type="button" class="key fn" data-k="√">√</button>
+      <button type="button" class="key op" data-k="÷">÷</button>
+
+      <button type="button" class="key" data-k="7">7</button>
+      <button type="button" class="key" data-k="8">8</button>
+      <button type="button" class="key" data-k="9">9</button>
+      <button type="button" class="key op" data-k="×">×</button>
+
+      <button type="button" class="key" data-k="4">4</button>
+      <button type="button" class="key" data-k="5">5</button>
+      <button type="button" class="key" data-k="6">6</button>
+      <button type="button" class="key op" data-k="−">−</button>
+
+      <button type="button" class="key" data-k="1">1</button>
+      <button type="button" class="key" data-k="2">2</button>
+      <button type="button" class="key" data-k="3">3</button>
+      <button type="button" class="key op" data-k="+">+</button>
+
+      <button type="button" class="key fn" data-k="±">±</button>
+      <button type="button" class="key" data-k="0">0</button>
+      <button type="button" class="key" data-k=".">.</button>
+      <button type="button" class="key eq" data-k="=">=</button>
+    </main>
+  </div>
+  <script src="מנוע.js"></script>
+</body>
+</html>

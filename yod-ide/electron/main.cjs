@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell, nativeTheme } = requir
 const path = require("node:path");
 const fs = require("node:fs/promises");
 const fssync = require("node:fs");
+const os = require("node:os");
 const { spawn } = require("node:child_process");
 const { fileURLToPath } = require("node:url");
 
@@ -68,6 +69,8 @@ function createWindow(openPath) {
     title: "יוד",
     show: false,
     autoHideMenuBar: true,
+    // כותרת מותאמת ב־HTML — frame:false כדי ש־-webkit-app-region:drag יעבוד לגרירת החלון
+    ...(process.platform === "win32" ? { frame: false } : {}),
     ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
@@ -96,7 +99,16 @@ function createWindow(openPath) {
     }
   });
 
+  const sendMaximized = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("win:maximized", mainWindow.isMaximized());
+    }
+  };
+  mainWindow.on("maximize", sendMaximized);
+  mainWindow.on("unmaximize", sendMaximized);
+
   mainWindow.on("closed", () => {
+    killAllTerminals();
     mainWindow = null;
   });
 }
@@ -409,6 +421,24 @@ ipcMain.handle("app:quit", async () => {
   return true;
 });
 
+ipcMain.handle("win:minimize", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+  return true;
+});
+ipcMain.handle("win:maximizeToggle", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+  return mainWindow.isMaximized();
+});
+ipcMain.handle("win:close", () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
+  return true;
+});
+ipcMain.handle("win:isMaximized", () => {
+  return !!(mainWindow && !mainWindow.isDestroyed() && mainWindow.isMaximized());
+});
+
 ipcMain.handle("yod:run", async (_e, args, cwd) => {
   const exe = resolveYodExe();
   return await runProcess(exe, args, cwd || path.dirname(exe));
@@ -437,3 +467,98 @@ function runProcess(exe, args, cwd) {
     });
   });
 }
+
+// ——— טרמינל משולב (מבוסס pipes; בלי מודול נייטיב) ———
+// לכל סשן תהליך shell (PowerShell/CMD) עם stdin/stdout צינוריים.
+/** @type {Map<string, import("node:child_process").ChildProcess>} */
+const terminals = new Map();
+
+function termSend(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
+function killAllTerminals() {
+  for (const child of terminals.values()) {
+    try {
+      child.kill();
+    } catch {
+      /* ignore */
+    }
+  }
+  terminals.clear();
+}
+
+ipcMain.handle("term:create", (_e, opts) => {
+  const { id, cwd, shell } = opts || {};
+  if (!id) return false;
+  if (terminals.has(id)) return true;
+  const isCmd = shell === "cmd";
+  const file = isCmd ? "cmd.exe" : "powershell.exe";
+  // PowerShell/CMD אינטראקטיביים הקוראים מ-stdin צינורי; אין echo → הרנדרר עושה local-echo.
+  const args = isCmd ? ["/Q"] : ["-NoLogo", "-NoProfile", "-NoExit", "-Command", "-"];
+  const workDir = cwd && fssync.existsSync(cwd) ? cwd : os.homedir();
+  let child;
+  try {
+    child = spawn(file, args, {
+      cwd: workDir,
+      windowsHide: true,
+      env: { ...process.env, PYTHONIOENCODING: "utf-8", TERM: "xterm-256color" },
+    });
+  } catch (err) {
+    termSend("term:data", { id, data: `\r\n[שגיאה בפתיחת טרמינל: ${String(err)}]\r\n` });
+    return false;
+  }
+  terminals.set(id, child);
+  // אתחול קידוד UTF-8 כדי שפלט עברית מיוד יוצג נכון
+  try {
+    if (isCmd) {
+      child.stdin.write("chcp 65001>nul\r\n");
+    } else {
+      child.stdin.write(
+        "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; $OutputEncoding=[System.Text.Encoding]::UTF8\r\n"
+      );
+    }
+  } catch {
+    /* ignore */
+  }
+  child.stdout?.on("data", (d) => termSend("term:data", { id, data: d.toString("utf8") }));
+  child.stderr?.on("data", (d) => termSend("term:data", { id, data: d.toString("utf8") }));
+  child.on("error", (err) =>
+    termSend("term:data", { id, data: `\r\n[שגיאת טרמינל: ${err.message}]\r\n` })
+  );
+  child.on("exit", (code) => {
+    terminals.delete(id);
+    termSend("term:exit", { id, code: code ?? 0 });
+  });
+  return true;
+});
+
+ipcMain.handle("term:input", (_e, { id, data }) => {
+  const child = terminals.get(id);
+  if (child && child.stdin && !child.stdin.destroyed) {
+    try {
+      child.stdin.write(data);
+    } catch {
+      /* ignore */
+    }
+  }
+  return true;
+});
+
+// אין PTY אמיתי — resize הוא no-op (xterm מנהל רק את התצוגה).
+ipcMain.handle("term:resize", () => true);
+
+ipcMain.handle("term:kill", (_e, { id }) => {
+  const child = terminals.get(id);
+  if (child) {
+    try {
+      child.kill();
+    } catch {
+      /* ignore */
+    }
+    terminals.delete(id);
+  }
+  return true;
+});

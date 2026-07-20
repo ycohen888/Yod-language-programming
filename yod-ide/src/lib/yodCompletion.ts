@@ -7,6 +7,7 @@ import {
 } from "@codemirror/autocomplete";
 import { keymap } from "@codemirror/view";
 import { YOD_BUILTINS, YOD_KEYWORDS } from "./yodKeywords";
+import { yodSnippets } from "./yodSnippets";
 import {
   extractSymbols,
   getMergedSymbols,
@@ -164,6 +165,14 @@ export function yodCompletionSource(ctx: CompletionContext): CompletionResult | 
     seen.add(label);
     options.push({ label, type, boost: scoreMatch(label, prefix, boost), detail });
   };
+
+  // תבניות קוד (snippets) — קודם, כדי שיתפסו את מילת המפתח (מניעת כפילות דרך seen)
+  for (const snip of yodSnippets) {
+    if (seen.has(snip.label)) continue;
+    if (!matchesPrefix(snip.label, prefix)) continue;
+    seen.add(snip.label);
+    options.push(snip);
+  }
 
   // קודם משתמש — עדיפות גבוהה
   for (const [name, meta] of merged) {

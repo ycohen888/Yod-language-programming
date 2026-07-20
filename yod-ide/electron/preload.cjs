@@ -20,7 +20,32 @@ contextBridge.exposeInMainWorld("yod", {
   openGuide: () => ipcRenderer.invoke("guide:open"),
   getPaths: () => ipcRenderer.invoke("app:getPaths"),
   quit: () => ipcRenderer.invoke("app:quit"),
+  windowMinimize: () => ipcRenderer.invoke("win:minimize"),
+  windowMaximizeToggle: () => ipcRenderer.invoke("win:maximizeToggle"),
+  windowClose: () => ipcRenderer.invoke("win:close"),
+  windowIsMaximized: () => ipcRenderer.invoke("win:isMaximized"),
+  onMaximized: (cb) => {
+    const handler = (_e, v) => cb(!!v);
+    ipcRenderer.on("win:maximized", handler);
+    return () => ipcRenderer.removeListener("win:maximized", handler);
+  },
   runYod: (args, cwd) => ipcRenderer.invoke("yod:run", args, cwd),
+  terminal: {
+    create: (opts) => ipcRenderer.invoke("term:create", opts),
+    write: (id, data) => ipcRenderer.invoke("term:input", { id, data }),
+    resize: (id, cols, rows) => ipcRenderer.invoke("term:resize", { id, cols, rows }),
+    kill: (id) => ipcRenderer.invoke("term:kill", { id }),
+    onData: (cb) => {
+      const handler = (_e, payload) => cb(payload);
+      ipcRenderer.on("term:data", handler);
+      return () => ipcRenderer.removeListener("term:data", handler);
+    },
+    onExit: (cb) => {
+      const handler = (_e, payload) => cb(payload);
+      ipcRenderer.on("term:exit", handler);
+      return () => ipcRenderer.removeListener("term:exit", handler);
+    },
+  },
   onOpenPath: (cb) => {
     const handler = (_e, p) => cb(p);
     ipcRenderer.on("yod:open-path", handler);

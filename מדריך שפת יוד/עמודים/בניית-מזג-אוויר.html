@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>מזג־אוויר — מדריך בניית תוכנה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מדריך בניית תוכנה</span><strong>מזג־אוויר</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1 id="top">בניית ווידג׳ט מזג־אוויר</h1>
+      <p class="lead">
+        דוגמה פתוחת קוד: חלון Windows רגיל עם ממשק מזג־אוויר —
+        על בסיס <code>פרוייקט דוגמה/מזג-אוויר/</code>.
+      </p>
+
+      <div class="callout tip">
+        <strong>הרצה:</strong>
+        <pre class="code-block">יוד הרץ "פרוייקט דוגמה\מזג-אוויר"</pre>
+        או פתחו את התיקייה בעורך יוד ולחצו F5. נדרשת גישה לרשת (Open-Meteo).
+      </div>
+
+      <h2 id="overview">1. מה בונים</h2>
+      <ul>
+        <li>חלון בלי מסגרת, מעוגל, תמיד מעל — כמו השעון.</li>
+        <li>טמפרטורה, «מרגיש כמו», רוח, לחות, סיכוי לגשם, מינ׳/מקס׳.</li>
+        <li>תחזית שעתית להיום + זריחה/שקיעה.</li>
+        <li>הגדרות: ערי ישראל, צלסיוס/פרנהייט, רענון אוטומטי.</li>
+        <li>⚙ ו־✕ נראים רק בריחוף; גרירה ולחצן ימני.</li>
+      </ul>
+
+      <h2 id="files">2. מפת קבצים</h2>
+      <table>
+        <thead><tr><th>קובץ</th><th>תפקיד</th></tr></thead>
+        <tbody>
+          <tr><td><code>התחל.יוד</code></td><td>נקודת כניסה — <code>יבא { הפעל_מזג_אוויר }</code></td></tr>
+          <tr><td><code>הפעלה.יוד</code></td><td>תיקיית הרצה + בניית החלון</td></tr>
+          <tr><td><code>ממשק.יוד</code></td><td>חלון, צורה, דפדפן, הודעות JS</td></tr>
+          <tr><td><code>ממשק.html</code> / CSS / JS</td><td>ממשק, תחזית והגדרות</td></tr>
+          <tr><td><code>לוגו.png</code> / <code>app.ico</code></td><td>לוגו ואייקון</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="data">3. מקור הנתונים</h2>
+      <p>
+        ה־JS קורא ל־<a href="https://open-meteo.com/" rel="noopener" target="_blank">Open-Meteo</a>
+        (ללא מפתח API) עם קואורדינטות קבועות לערים בישראל ואזור זמן
+        <code>Asia/Jerusalem</code>. קודי WMO מתורגמים לתיאור עברי ואייקון.
+      </p>
+
+      <h2 id="window">4. חלון מעוגל</h2>
+      <pre class="code-block">ח.קבע_בלי_מסגרת(אמת)
+ח.קבע_צורת_חלון("מעוגל")
+ח.קבע_תמיד_מעל(אמת)
+ח.קבע_גודל_קבוע(אמת)</pre>
+      <p>
+        אותו דפוס כמו בשעון: צורת חלון במקום Color Key; כפתורי ⚙/✕ מוסתרים עד ריחוף.
+      </p>
+
+      <h2 id="bridge">5. גשר JS ↔ יוד</h2>
+      <p>
+        הודעות: <code>יציאה</code>, <code>גרור</code>,
+        <code>תמיד_מעל:אמת/שקר</code>, <code>גודל:w,h</code>, <code>צורה:…</code>.
+      </p>
+
+      <h2 id="settings">6. הגדרות</h2>
+      <ul>
+        <li>ערים: תל אביב, ירושלים, חיפה, טבריה, אילת, באר שבע ועוד.</li>
+        <li>יחידה: צלסיוס או פרנהייט.</li>
+        <li>רענון אוטומטי כל 15 דקות (אופציונלי).</li>
+        <li>העדפות ב־<code>localStorage</code>.</li>
+      </ul>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

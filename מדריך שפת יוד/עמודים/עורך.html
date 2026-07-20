@@ -64,12 +64,99 @@ npm run dist</pre>
           <tr><td><code>Ctrl+Shift+O</code></td><td>פתיחת תיקיית פרויקט</td></tr>
           <tr><td><code>Ctrl+S</code></td><td>שמירה</td></tr>
           <tr><td><code>Ctrl+N</code></td><td>קובץ חדש</td></tr>
-          <tr><td><code>F5</code></td><td>הרצה</td></tr>
-          <tr><td><code>F6</code></td><td>מכונה</td></tr>
-          <tr><td><code>F7</code></td><td>בדיקה</td></tr>
+          <tr><td><code>F5</code></td><td>הרץ תוכנית — חלון Windows של התוכנה עולה (פלט בפאנל)</td></tr>
+          <tr><td><code>Shift+F5</code></td><td>הרץ בתוך הטרמינל המשולב</td></tr>
+          <tr><td><code>F6</code></td><td>הרץ תוכנית — מכונה/bytecode</td></tr>
+          <tr><td><code>F7</code></td><td>בדיקה (פאנל פלט)</td></tr>
+          <tr><td><code>Ctrl+`</code></td><td>הצג/מקד את הטרמינל המשולב</td></tr>
+          <tr><td><code>Ctrl+D</code></td><td>בחר את המופע הבא של אותה מילה (ריבוי סמנים)</td></tr>
+          <tr><td><code>Alt+לחיצה</code></td><td>הוספת סמן נוסף</td></tr>
+          <tr><td><code>Ctrl+Alt+[</code> / <code>Ctrl+Alt+]</code></td><td>כווץ / הרחב בלוק</td></tr>
+          <tr><td><code>Ctrl+B</code></td><td>קבע נקודה בקוד (לשונית «נקודות»)</td></tr>
+          <tr><td><code>Ctrl+,</code></td><td>פתיחת מסך הגדרות</td></tr>
           <tr><td><code>Ctrl+}</code> / <code>Ctrl+{</code> (או <code>Ctrl+]</code> / <code>Ctrl+[</code>)</td><td>מעבר לזוג תואם — <code>{ }</code> / פתיחת בלוק ↔ <code>סוף</code> (לא הזחה)</td></tr>
         </tbody>
       </table>
+
+      <h2>הגדרות והעדפות</h2>
+      <p>
+        <strong>תצוגה ← הגדרות…</strong> (או <code>Ctrl+,</code>) פותח מסך העדפות שנשמר אוטומטית
+        לכל המחשב. כל שינוי מוחל <strong>בזמן אמת</strong>:
+      </p>
+      <ul>
+        <li><strong>נושא</strong> — כהה / בהיר / ניגודיות גבוהה (משפיע על כל העורך ועל צבעי הקוד).</li>
+        <li><strong>משפחת גופן</strong> ו<strong>גודל גופן</strong> לעורך.</li>
+        <li><strong>גודל טאב</strong> (רוחב הזחה) ו<strong>גלישת שורות</strong>.</li>
+        <li><strong>שמירה אוטומטית</strong> — שומר קבצים עם נתיב שנייה אחרי הפסקת ההקלדה.</li>
+        <li><strong>סידור קוד בשמירה</strong> — מסדר קבצי יוד אוטומטית בכל שמירה.</li>
+      </ul>
+
+      <h2>נושאים (Themes)</h2>
+      <p>
+        שלוש ערכות: <strong>כהה</strong> (ברירת מחדל), <strong>בהיר</strong>,
+        ו<strong>ניגודיות גבוהה</strong>. החלפת נושא מיידית — כולל צבעי הדגשת התחביר —
+        בלי לאבד את מיקום הסמן, ההיסטוריה (בטל/בצע שוב) או הגלילה.
+      </p>
+
+      <h2>השוואה (Diff)</h2>
+      <p>
+        <strong>תצוגה ← «השוואה מול הדיסק…»</strong> פותחת תצוגה זה־לצד־זה בין
+        <strong>תוכן העורך הנוכחי</strong> (כולל שינויים לא־שמורים) לבין
+        <strong>הגרסה שעל הדיסק</strong>. הצד של העורך ניתן לעריכה, וליד כל הבדל יש
+        כפתור <strong>מיזוג/החזרה</strong> להחזרת אותו קטע לגרסת הדיסק. «החל שינויים»
+        מחזיר את התוצאה הערוכה לעורך. זמין רק לקובץ שמור, ומודיע אם אין הבדלים.
+      </p>
+
+      <h2>עריכה חכמה</h2>
+      <ul>
+        <li>
+          <strong>קטעי קוד (Snippets) בעברית</strong> — הקלד <code>פונקציה</code>,
+          <code>מחלקה</code>, <code>אם</code>, <code>עבור</code>, <code>כל_עוד</code>,
+          <code>נסה</code>, <code>בחר</code> ועוד, ובחר את התבנית מרשימת ההשלמה. התבנית נפתחת
+          מלאה, ו-<code>Tab</code> קופץ בין השדות (שם, פרמטרים, תנאי…). <code>Esc</code> יוצא.
+        </li>
+        <li>
+          <strong>קיפול קוד (Code folding)</strong> — כיווץ/הרחבה של בלוקים
+          (<code>{ }</code> או פותח…<code>סוף</code>) בעזרת הסימון בשוליים, או
+          <code>Ctrl+Alt+[</code> (כווץ) / <code>Ctrl+Alt+]</code> (הרחב). בתפריט «קוד»
+          יש גם «כווץ הכל» ו«הרחב הכל».
+        </li>
+        <li>
+          <strong>ריבוי סמנים (Multiple cursors)</strong> — <code>Alt+לחיצה</code> מוסיף
+          סמן במקום נוסף; <code>Ctrl+D</code> בוחר את המופע הבא של המילה המסומנת (עריכה
+          של כמה מקומות בבת אחת).
+        </li>
+        <li>
+          <strong>סגירת סוגריים והזחה חכמה</strong> — הקלדת <code>(</code>, <code>[</code>,
+          <code>{</code> או מרכאות סוגרת אוטומטית; <code>Enter</code> אחרי פותח בלוק מזיח
+          שורה פנימה, והקלדת <code>סוף</code>/<code>}</code> מיישרת את השורה החוצה.
+        </li>
+      </ul>
+
+      <h2>טרמינל משולב והרצה</h2>
+      <p>
+        בפאנל התחתון יש לשונית <strong>«טרמינל»</strong> (<code>Ctrl+`</code>) — טרמינל אמיתי
+        מבוסס <strong>xterm.js</strong> עם מעטפת <strong>PowerShell</strong> או <strong>CMD</strong>.
+        אפשר לפתוח כמה סשנים (כפתור <strong>+</strong>, והחץ לידו לבחירת מעטפת), לעבור ביניהם
+        בלשוניות, ולסגור כל אחד. הנושא והגופן של הטרמינל נגזרים מהגדרות העורך.
+      </p>
+      <ul>
+        <li><strong>הרצה מפעילה את התוכנית</strong> — <code>F5</code>/<code>F6</code> וכן «הרץ קובץ נוכחי»
+          מריצים דרך מנוע יוד: <strong>חלון הקונסול מוסתר</strong>, ו<strong>חלון התוכנה עצמה
+          (GUI של «חלונות») עולה</strong>. פלט ושגיאות מופיעים בפאנל «פלט».</li>
+        <li><strong>הרצה בתוך הטרמינל המשולב</strong> — <code>Shift+F5</code> (או תפריט «הרצה ← הרץ
+          בטרמינל המשולב») מריץ את התוכנית בתוך לשונית הטרמינל, למי שמעדיף פלט/קלט בתוך העורך.</li>
+        <li><strong>הרץ קובץ נוכחי</strong> — מריץ את הקובץ הפעיל (לא רק <code>התחל.יוד</code>).</li>
+        <li><strong>סרגל הרצה</strong> בסרגל הצד: הרץ ▶ · הרץ קובץ נוכחי · עצור (■, שולח
+          <code>Ctrl+C</code> לטרמינל) · טרמינל · בדיקה · ארוז.</li>
+        <li><strong>«בדוק»</strong> ו<strong>«ארוז»</strong> ממשיכים לרוץ בפאנל <strong>הפלט</strong>
+          עם ניתוח שגיאות ללשונית «בעיות».</li>
+      </ul>
+      <p class="note">
+        הערה: בסביבה ללא כלי בנייה של C++ ו־PTY נייטיב, הטרמינל פועל מעל
+        <strong>צינורות (pipes)</strong> עם echo מקומי — הרצת פקודות וקלט־שורה עובדים היטב,
+        אך תכונות TUI מלאות (עריכת שורה מתקדמת, היסטוריית חיצים ב־PowerShell) מוגבלות.
+      </p>
 
       <h2>ביצועים</h2>
       <ul>

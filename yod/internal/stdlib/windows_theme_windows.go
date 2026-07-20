@@ -15,11 +15,80 @@ import (
 var (
 	dwmapi               = syscall.NewLazyDLL("dwmapi.dll")
 	procDwmSetWindowAttr = dwmapi.NewProc("DwmSetWindowAttribute")
+	procDwmExtendFrame   = dwmapi.NewProc("DwmExtendFrameIntoClientArea")
 	uxtheme              = syscall.NewLazyDLL("uxtheme.dll")
 	procAllowDarkWindow  = uxtheme.NewProc("AllowDarkModeForWindow")
 	procSetPrefAppMode   = uxtheme.NewProc("SetPreferredAppMode")
 	procFlushTheme       = uxtheme.NewProc("FlushMenuThemes")
 )
+
+type dwmMargins struct {
+	CxLeftWidth    int32
+	CxRightWidth   int32
+	CyTopHeight    int32
+	CyBottomHeight int32
+}
+
+func extendFrameIntoClient(hwnd win.HWND) {
+	if hwnd == 0 || procDwmExtendFrame.Find() != nil {
+		return
+	}
+	m := dwmMargins{CxLeftWidth: -1, CxRightWidth: -1, CyTopHeight: -1, CyBottomHeight: -1}
+	_, _, _ = procDwmExtendFrame.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&m)))
+}
+
+func resetFrameIntoClient(hwnd win.HWND) {
+	if hwnd == 0 || procDwmExtendFrame.Find() != nil {
+		return
+	}
+	m := dwmMargins{}
+	_, _, _ = procDwmExtendFrame.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&m)))
+}
+
+const (
+	dwmwaWindowCornerPreference       = 33
+	dwmwcpDoNotRound                  = 1
+	dwmwaBorderColor                  = 34
+	dwmwaCaptionColor                 = 35
+	dwmwaColorNone                    = 0xFFFFFFFE
+	dwmwaVisibleFrameBorderThickness  = 37
+)
+
+// disableDwmChromeArtifacts — מבטל פינות מעוגלות/מסגרת DWM (מקור נפוץ לקווים לבנים).
+func disableDwmChromeArtifacts(hwnd win.HWND) {
+	if hwnd == 0 || procDwmSetWindowAttr.Find() != nil {
+		return
+	}
+	corner := int32(dwmwcpDoNotRound)
+	_, _, _ = procDwmSetWindowAttr.Call(
+		uintptr(hwnd),
+		dwmwaWindowCornerPreference,
+		uintptr(unsafe.Pointer(&corner)),
+		unsafe.Sizeof(corner),
+	)
+	// בלי קו מסגרת לבן (Win11)
+	border := uint32(dwmwaColorNone)
+	_, _, _ = procDwmSetWindowAttr.Call(
+		uintptr(hwnd),
+		dwmwaBorderColor,
+		uintptr(unsafe.Pointer(&border)),
+		unsafe.Sizeof(border),
+	)
+	caption := uint32(dwmwaColorNone)
+	_, _, _ = procDwmSetWindowAttr.Call(
+		uintptr(hwnd),
+		dwmwaCaptionColor,
+		uintptr(unsafe.Pointer(&caption)),
+		unsafe.Sizeof(caption),
+	)
+	var thickness int32 = 0
+	_, _, _ = procDwmSetWindowAttr.Call(
+		uintptr(hwnd),
+		dwmwaVisibleFrameBorderThickness,
+		uintptr(unsafe.Pointer(&thickness)),
+		unsafe.Sizeof(thickness),
+	)
+}
 
 const dwmwaUseImmersiveDarkMode = 20
 

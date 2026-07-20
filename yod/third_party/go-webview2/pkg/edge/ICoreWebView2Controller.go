@@ -119,6 +119,17 @@ func (i *ICoreWebView2Controller) NotifyParentWindowPositionChanged() error {
 	return nil
 }
 
+func (i *ICoreWebView2Controller) Close() error {
+	var err error
+	_, _, err = i.vtbl.Close.Call(
+		uintptr(unsafe.Pointer(i)),
+	)
+	if err != windows.ERROR_SUCCESS {
+		return err
+	}
+	return nil
+}
+
 func (i *ICoreWebView2Controller) MoveFocus(reason uintptr) error {
 	var err error
 	_, _, err = i.vtbl.MoveFocus.Call(

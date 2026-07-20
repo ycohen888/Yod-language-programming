@@ -988,13 +988,13 @@ func buildControlWidget(ch *controlState) Widget {
 	case "גרף":
 		return buildChartWidget(ch)
 	case "דפדפן", "וידאו":
+		// רקע כהה תואם לווידג׳ט — בלי לבן מאחורי WebView; בלי Color Key
 		return Composite{
 			AssignTo:      &ch.host,
 			StretchFactor: stretchOr(ch.stretchFactor, 2),
 			MinSize:       Size{Width: 200, Height: 120},
 			Layout:        VBox{MarginsZero: true, Spacing: 0},
-			// רקע כהה עד ש־WebView2 מצייר — מונע הבזק לבן ב־Composite המארח
-			Background: SolidColorBrush{Color: walk.RGB(14, 17, 22)},
+			Background:    SolidColorBrush{Color: walk.RGB(16, 26, 43)},
 		}
 	case "משטח_GPU":
 		return buildGPUSurfaceWidget(ch)

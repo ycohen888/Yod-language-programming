@@ -12,7 +12,10 @@ export type OpenTab = {
   modelUri: string;
 };
 
-export type PanelKind = "output" | "problems" | "search" | "bookmarks";
+export type PanelKind = "output" | "problems" | "search" | "bookmarks" | "terminal";
+
+/** סוג מעטפת לטרמינל המשולב. */
+export type ShellKind = "powershell" | "cmd";
 
 /** נקודה שמורה בקוד — קפיצה מהירה לטאב+שורה. */
 export type Bookmark = {
@@ -48,6 +51,20 @@ export type SessionState = {
   activeKey: string | null;
   /** מיקום שורת הסמן לכל קובץ */
   lines: Record<string, number>;
+};
+
+/** ערכת נושא לעורך ול-IDE. */
+export type ThemeName = "dark" | "light" | "high-contrast";
+
+/** העדפות המשתמש (מסך הגדרות). */
+export type Settings = {
+  theme: ThemeName;
+  fontFamily: string;
+  fontSize: number;
+  tabSize: number;
+  wordWrap: boolean;
+  autosave: boolean;
+  formatOnSave: boolean;
 };
 
 export type CommandItem = {
@@ -88,10 +105,23 @@ export type YodApi = {
     guideHtml: string;
   }>;
   quit: () => Promise<boolean>;
+  windowMinimize: () => Promise<boolean>;
+  windowMaximizeToggle: () => Promise<boolean>;
+  windowClose: () => Promise<boolean>;
+  windowIsMaximized: () => Promise<boolean>;
+  onMaximized: (cb: (maximized: boolean) => void) => () => void;
   runYod: (
     args: string[],
     cwd?: string
   ) => Promise<{ code: number; stdout: string; stderr: string; exe: string; args: string[] }>;
+  terminal: {
+    create: (opts: { id: string; cwd?: string; shell?: ShellKind }) => Promise<boolean>;
+    write: (id: string, data: string) => Promise<boolean>;
+    resize: (id: string, cols: number, rows: number) => Promise<boolean>;
+    kill: (id: string) => Promise<boolean>;
+    onData: (cb: (payload: { id: string; data: string }) => void) => () => void;
+    onExit: (cb: (payload: { id: string; code: number }) => void) => () => void;
+  };
   onOpenPath: (cb: (p: string) => void) => () => void;
   onMenu: (cb: (action: string) => void) => () => void;
 };

@@ -13,10 +13,12 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/jchv/go-webview2/pkg/edge"
 	"github.com/lxn/walk"
+	"github.com/lxn/win"
 
 	"yod/internal/object"
 )
@@ -27,6 +29,34 @@ var (
 	browserBridgeLast string
 	browserBridgeAt   time.Time
 )
+
+// stripHwndChrome — מסיר WS_BORDER / CLIENTEDGE וכו' (מקור נפוץ למסגרת לבנה סביב WebView).
+func stripHwndChrome(hwnd win.HWND) {
+	if hwnd == 0 {
+		return
+	}
+	style := win.GetWindowLong(hwnd, win.GWL_STYLE)
+	style &^= win.WS_BORDER | win.WS_DLGFRAME | win.WS_THICKFRAME
+	win.SetWindowLong(hwnd, win.GWL_STYLE, style)
+	ex := win.GetWindowLong(hwnd, win.GWL_EXSTYLE)
+	ex &^= win.WS_EX_CLIENTEDGE | win.WS_EX_WINDOWEDGE | win.WS_EX_STATICEDGE | win.WS_EX_DLGMODALFRAME | win.WS_EX_CLIENTEDGE
+	win.SetWindowLong(hwnd, win.GWL_EXSTYLE, ex)
+	disableDwmChromeArtifacts(hwnd)
+	win.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+		win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
+}
+
+func stripHwndChromeTree(root win.HWND) {
+	if root == 0 {
+		return
+	}
+	stripHwndChrome(root)
+	cb := syscall.NewCallback(func(hwnd win.HWND, _ uintptr) uintptr {
+		stripHwndChrome(hwnd)
+		return 1
+	})
+	win.EnumChildWindows(root, cb, 0)
+}
 
 func webviewAppDataPath() string {
 	base := os.Getenv("LOCALAPPDATA")
@@ -93,20 +123,40 @@ func localFileURL(path string) string {
 func attachWebView2(host walk.Window, initialURL, initialHTML string, winSt *windowState) (*edge.Chromium, error) {
 	cr := edge.NewChromium()
 	cr.DataPath = webviewAppDataPath()
+	cr.TransparentBackground = winSt != nil && winSt.transparent
 	cr.SetPermission(edge.CoreWebView2PermissionKindClipboardRead, edge.CoreWebView2PermissionStateAllow)
 
 	hwnd := uintptr(host.Handle())
 	if hwnd == 0 {
 		return nil, fmt.Errorf("אין חלון מארח לדפדפן")
 	}
+	// בלי בורדר/edge על ה־Composite המארח
+	stripHwndChrome(win.HWND(host.Handle()))
 	if !cr.Embed(hwnd) {
 		return nil, fmt.Errorf("WebView2 לא זמין — התקינו את Microsoft Edge WebView2 Runtime")
 	}
 	if settings, err := cr.GetSettings(); err == nil && settings != nil {
 		_ = settings.PutIsWebMessageEnabled(true)
-		_ = settings.PutAreDefaultContextMenusEnabled(true)
+		_ = settings.PutIsStatusBarEnabled(false)
+		_ = settings.PutIsZoomControlEnabled(false)
+		_ = settings.PutAreDefaultContextMenusEnabled(!(winSt != nil && winSt.transparent))
+		_ = settings.PutAreDevToolsEnabled(false)
 	}
-	_ = cr.SetDefaultBackgroundColor(255, 14, 17, 22)
+	if winSt != nil && winSt.transparent {
+		_ = cr.SetDefaultBackgroundColor(0, 0, 0, 0)
+		if host != nil {
+			if brush, err := walk.NewSolidColorBrush(widgetPanelBG); err == nil {
+				host.AsWindowBase().SetBackground(brush)
+			}
+		}
+	} else if winSt != nil && winSt.hasBg {
+		c := uint32(winSt.bgColor)
+		_ = cr.SetDefaultBackgroundColor(255, byte(c&0xff), byte((c>>8)&0xff), byte((c>>16)&0xff))
+	} else {
+		_ = cr.SetDefaultBackgroundColor(255, 14, 17, 22)
+	}
+	// הסרת בורדרים מחלון הילד של WebView2 (Chrome_WidgetWin_*)
+	stripHwndChromeTree(win.HWND(host.Handle()))
 	cr.Resize()
 
 	hasHTML := strings.TrimSpace(initialHTML) != ""
@@ -119,6 +169,10 @@ func attachWebView2(host walk.Window, initialURL, initialHTML string, winSt *win
 
 	firstPaintDone := false
 	revealWeb := func() {
+		if winSt != nil && winSt.transparent {
+			_ = cr.SetDefaultBackgroundColor(0, 0, 0, 0)
+			stripHwndChromeTree(win.HWND(host.Handle()))
+		}
 		cr.Resize()
 		_ = cr.Show()
 		_ = cr.NotifyParentWindowPositionChanged()
@@ -137,9 +191,7 @@ func attachWebView2(host walk.Window, initialURL, initialHTML string, winSt *win
 			}
 			return
 		}
-		cr.Resize()
-		_ = cr.Show()
-		_ = cr.NotifyParentWindowPositionChanged()
+		revealWeb()
 	}
 
 	host.SizeChanged().Attach(func() {
@@ -186,6 +238,17 @@ func wireBrowserBridge(st *controlState) {
 		if text == "" {
 			return
 		}
+		if len(text) >= 2 && text[0] == '"' && text[len(text)-1] == '"' {
+			var inner string
+			if err := json.Unmarshal([]byte(text), &inner); err == nil {
+				text = strings.TrimSpace(inner)
+			}
+		}
+		// גרירת חלון בלי מסגרת — מיד (SendMessage ממתין לחוט החלון)
+		if text == "גרור" && st.parentWin != nil {
+			winStartDrag(st.parentWin)
+			return
+		}
 		// חשיפת חלון שקוף כשמסך הטעינה מצויר
 		if st.parentWin != nil && st.parentWin.deferShow && messageIsSplashReady(text) {
 			revealDeferredMainWindow(st.parentWin)
@@ -195,7 +258,15 @@ func wireBrowserBridge(st *controlState) {
 			return
 		}
 		browserBridgeMu.Lock()
-		if text == browserBridgeLast && time.Since(browserBridgeAt) < 400*time.Millisecond {
+		skipDebounce := strings.HasPrefix(text, "הזז:") ||
+			strings.HasPrefix(text, "הזז ") ||
+			text == "יציאה" ||
+			text == "גרור" ||
+			strings.HasPrefix(text, "תמיד_מעל:") ||
+			strings.HasPrefix(text, "מיקום:") ||
+			strings.HasPrefix(text, "גודל:") ||
+			strings.HasPrefix(text, "צורה:")
+		if !skipDebounce && text == browserBridgeLast && time.Since(browserBridgeAt) < 400*time.Millisecond {
 			browserBridgeMu.Unlock()
 			return
 		}
@@ -271,15 +342,8 @@ func wireBrowserBridge(st *controlState) {
 	}
 
 	st.browser.MessageCallback = func(msg string) {
-		// חשיפת splash חייבת לעבוד גם כשיש גשר — הקליפה שולחת לפני מנוע.js
-		if messageIsSplashReady(msg) {
-			deliverBrowserMsg(msg)
-			return
-		}
-		// כשיש גשר localhost — לא לקבל גם postMessage רגיל (מונע כפילות)
-		if bridgeURL != "" {
-			return
-		}
+		// תמיד מעבירים postMessage — הגשר HTTP עלול להיחסם מ־file:// (CORS).
+		// כפילויות עם הגשר מטופלות ב־debounce ב־deliverBrowserMsg.
 		deliverBrowserMsg(msg)
 	}
 

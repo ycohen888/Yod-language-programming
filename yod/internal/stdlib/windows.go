@@ -27,6 +27,12 @@ type windowState struct {
 	title     string
 	width     int
 	height    int
+	fixedSize bool // קבע_גודל_קבוע — בלי גרירת מסגרת / מקסם
+	fixedSizeBusy bool
+	borderless  bool // קבע_בלי_מסגרת — בלי כותרת Windows
+	transparent bool // קבע_שקוף — WebView שקוף + DWM (בלי color-key)
+	windowShape string // קבע_צורת_חלון — עיגול / מעוגל / מלבן (SetWindowRgn)
+	topMost     bool // קבע_תמיד_מעל
 	children  []*controlState
 	timers    []windowTimer
 	onStart   object.Object
@@ -220,6 +226,27 @@ func winCreateWindow(args ...object.Object) object.Object {
 	}}
 	w.Attrs["קבע_גודל"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winSetSize(st, a...)
+	}}
+	w.Attrs["קבע_גודל_קבוע"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetFixedSize(st, a...)
+	}}
+	w.Attrs["קבע_בלי_מסגרת"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetBorderless(st, a...)
+	}}
+	w.Attrs["קבע_שקוף"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetTransparent(st, a...)
+	}}
+	w.Attrs["קבע_צורת_חלון"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetWindowShape(st, a...)
+	}}
+	w.Attrs["קבע_תמיד_מעל"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winSetTopMost(st, a...)
+	}}
+	w.Attrs["הזז"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winMoveBy(st, a...)
+	}}
+	w.Attrs["התחל_גרירה"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
+		return winStartDrag(st, a...)
 	}}
 	w.Attrs["קבע_מיקום"] = &object.Builtin{Fn: func(a ...object.Object) object.Object {
 		return winSetPosition(st, a...)
@@ -1051,8 +1078,325 @@ func winSetSize(st *windowState, args ...object.Object) object.Object {
 	}
 	if st.mw != nil {
 		applyWindowPlacement(st)
+		applyFixedWindowSize(st)
+		applyWindowShape(st)
 	}
 	return &object.Null{}
+}
+
+func winSetFixedSize(st *windowState, args ...object.Object) object.Object {
+	on, errObjVal := parseDarkBool("חלון.קבע_גודל_קבוע", args...)
+	if errObjVal != nil {
+		return errObjVal
+	}
+	st.fixedSize = on
+	if st.mw != nil {
+		applyFixedWindowSize(st)
+	}
+	return object.Nil
+}
+
+func winSetBorderless(st *windowState, args ...object.Object) object.Object {
+	on, errObjVal := parseDarkBool("חלון.קבע_בלי_מסגרת", args...)
+	if errObjVal != nil {
+		return errObjVal
+	}
+	st.borderless = on
+	if st.mw != nil {
+		applyBorderlessWindow(st)
+	}
+	return object.Nil
+}
+
+func winSetTransparent(st *windowState, args ...object.Object) object.Object {
+	on, errObjVal := parseDarkBool("חלון.קבע_שקוף", args...)
+	if errObjVal != nil {
+		return errObjVal
+	}
+	st.transparent = on
+	if on {
+		// רקע כהה מאחורי WebView A=0 — בלי Color Key (שובר לחיצות/גרירה)
+		st.bgColor = walk.RGB(16, 26, 43)
+		st.hasBg = true
+	}
+	if st.mw != nil {
+		if on {
+			applyTransparentWindow(st)
+		} else {
+			clearWindowLayered(st.mw.Handle())
+			resetFrameIntoClient(st.mw.Handle())
+		}
+		for _, ch := range st.children {
+			applyBrowserTransparency(ch, on)
+		}
+	}
+	return object.Nil
+}
+
+func winSetTopMost(st *windowState, args ...object.Object) object.Object {
+	on, errObjVal := parseDarkBool("חלון.קבע_תמיד_מעל", args...)
+	if errObjVal != nil {
+		return errObjVal
+	}
+	st.topMost = on
+	if st.mw != nil {
+		applyTopMostWindow(st)
+	}
+	return object.Nil
+}
+
+func winMoveBy(st *windowState, args ...object.Object) object.Object {
+	if len(args) != 2 {
+		return errObj("חלון.הזז מצפה ל־dx ו־dy")
+	}
+	dx, ok1 := args[0].(*object.Number)
+	dy, ok2 := args[1].(*object.Number)
+	if !ok1 || !ok2 {
+		return errObj("חלון.הזז מצפה למספרים")
+	}
+	if st.mw == nil {
+		return object.Nil
+	}
+	hwnd := st.mw.Handle()
+	if hwnd == 0 {
+		return object.Nil
+	}
+	var r win.RECT
+	if !win.GetWindowRect(hwnd, &r) {
+		return object.Nil
+	}
+	nx := r.Left + int32(dx.Value)
+	ny := r.Top + int32(dy.Value)
+	win.SetWindowPos(hwnd, 0, nx, ny, 0, 0,
+		win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE)
+	st.hasPos = true
+	st.center = false
+	st.posX = int(nx)
+	st.posY = int(ny)
+	return object.Nil
+}
+
+// winStartDrag — גרירת חלון בלי מסגרת כמו כותרת Windows (אמין עם WebView).
+func winStartDrag(st *windowState, _ ...object.Object) object.Object {
+	if st == nil || st.mw == nil {
+		return object.Nil
+	}
+	hwnd := st.mw.Handle()
+	if hwnd == 0 {
+		return object.Nil
+	}
+	win.ReleaseCapture()
+	win.SendMessage(hwnd, win.WM_NCLBUTTONDOWN, uintptr(win.HTCAPTION), 0)
+	return object.Nil
+}
+
+func applyBorderlessWindow(st *windowState) {
+	if st == nil || st.mw == nil || !st.borderless {
+		return
+	}
+	hwnd := st.mw.Handle()
+	if hwnd == 0 {
+		return
+	}
+	// WS_POPUP — בלי כותרת/מסגרת אמיתית (מונע שברי מסגרת לבנים)
+	style := win.GetWindowLong(hwnd, win.GWL_STYLE)
+	visible := style&win.WS_VISIBLE != 0
+	var popup uint32 = 0x80000000 // WS_POPUP
+	style = int32(popup | uint32(win.WS_CLIPCHILDREN) | uint32(win.WS_CLIPSIBLINGS))
+	if visible {
+		style |= win.WS_VISIBLE
+	}
+	win.SetWindowLong(hwnd, win.GWL_STYLE, style)
+
+	ex := win.GetWindowLong(hwnd, win.GWL_EXSTYLE)
+	ex |= win.WS_EX_TOOLWINDOW
+	ex &^= win.WS_EX_APPWINDOW | win.WS_EX_CLIENTEDGE | win.WS_EX_WINDOWEDGE | win.WS_EX_DLGMODALFRAME | win.WS_EX_STATICEDGE
+	if !st.transparent {
+		ex &^= win.WS_EX_LAYERED
+	}
+	win.SetWindowLong(hwnd, win.GWL_EXSTYLE, ex)
+
+	disableDwmChromeArtifacts(hwnd)
+	win.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+		win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
+	applyWindowPlacement(st)
+	if st.transparent {
+		applyTransparentWindow(st)
+	}
+}
+
+func transparentWindowMargins(st *windowState) Margins {
+	if st != nil && (st.transparent || st.borderless) {
+		return Margins{}
+	}
+	return Margins{Left: 2, Top: 0, Right: 2, Bottom: 0}
+}
+
+// widgetPanelBG — רקע כהה לווידג׳טים (תואם CSS #101a2b). בלי לבן מאחורי WebView.
+var widgetPanelBG = walk.RGB(16, 26, 43)
+
+func applyTransparentWindow(st *windowState) {
+	if st == nil || st.mw == nil || !st.transparent {
+		return
+	}
+	hwnd := st.mw.Handle()
+	if hwnd == 0 {
+		return
+	}
+	// חשוב: בלי LWA_COLORKEY — עם WebView2 זה שובר לחיצות וגרירה.
+	// WebView A=0 + רקע כהה לחלון/מארח + קבע_צורת_חלון = בלי מסגרת לבנה.
+	clearWindowLayered(hwnd)
+	disableDwmChromeArtifacts(hwnd)
+	resetFrameIntoClient(hwnd)
+	st.bgColor = widgetPanelBG
+	st.hasBg = true
+	if brush, err := walk.NewSolidColorBrush(widgetPanelBG); err == nil {
+		st.mw.SetBackground(brush)
+	}
+	paintTransparentHosts(st.children, widgetPanelBG)
+	stripHwndChrome(hwnd)
+	disableDwmChromeArtifacts(hwnd)
+}
+
+func paintTransparentHosts(children []*controlState, key walk.Color) {
+	for _, ch := range children {
+		if ch == nil {
+			continue
+		}
+		if ch.host != nil {
+			if brush, err := walk.NewSolidColorBrush(key); err == nil {
+				ch.host.SetBackground(brush)
+			}
+		}
+		paintTransparentHosts(ch.children, key)
+	}
+}
+
+func disposeWindowBrowsers(st *windowState) {
+	if st == nil {
+		return
+	}
+	var walkBrowsers func([]*controlState)
+	walkBrowsers = func(children []*controlState) {
+		for _, ch := range children {
+			if ch == nil {
+				continue
+			}
+			if ch.browser != nil {
+				ch.browser.Close()
+				ch.browser = nil
+			}
+			walkBrowsers(ch.children)
+		}
+	}
+	walkBrowsers(st.children)
+}
+
+func applyTopMostWindow(st *windowState) {
+	if st == nil || st.mw == nil {
+		return
+	}
+	hwnd := st.mw.Handle()
+	if hwnd == 0 {
+		return
+	}
+	insertAfter := win.HWND_NOTOPMOST
+	if st.topMost {
+		insertAfter = win.HWND_TOPMOST
+	}
+	win.SetWindowPos(hwnd, insertAfter, 0, 0, 0, 0,
+		win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOACTIVATE)
+}
+
+func applyBrowserTransparency(ch *controlState, on bool) {
+	if ch == nil {
+		return
+	}
+	if ch.kind == "דפדפן" && ch.browser != nil {
+		if ch.host != nil {
+			stripHwndChromeTree(ch.host.Handle())
+		}
+		if on {
+			_ = ch.browser.SetDefaultBackgroundColor(0, 0, 0, 0)
+			if settings, err := ch.browser.GetSettings(); err == nil && settings != nil {
+				_ = settings.PutAreDefaultContextMenusEnabled(false)
+				_ = settings.PutIsStatusBarEnabled(false)
+				_ = settings.PutIsZoomControlEnabled(false)
+			}
+			if ch.host != nil {
+				if brush, err := walk.NewSolidColorBrush(widgetPanelBG); err == nil {
+					ch.host.AsWindowBase().SetBackground(brush)
+				}
+			}
+		} else {
+			// רקע WebView כהה תואם לחלון — מונע פינות/מסגרת לבנות
+			r, g, b := byte(14), byte(17), byte(22)
+			if ch.parentWin != nil && ch.parentWin.hasBg {
+				c := uint32(ch.parentWin.bgColor)
+				r = byte(c & 0xff)
+				g = byte((c >> 8) & 0xff)
+				b = byte((c >> 16) & 0xff)
+			}
+			_ = ch.browser.SetDefaultBackgroundColor(255, r, g, b)
+		}
+	}
+	for _, kid := range ch.children {
+		applyBrowserTransparency(kid, on)
+	}
+}
+
+func applyFixedWindowSize(st *windowState) {
+	if st == nil || st.mw == nil || !st.fixedSize {
+		return
+	}
+	w, h := st.width, st.height
+	if w < 1 {
+		w = 1
+	}
+	if h < 1 {
+		h = 1
+	}
+	sz := walk.Size{Width: w, Height: h}
+	_ = st.mw.SetMinMaxSize(sz, sz)
+	_ = st.mw.SetSize(sz)
+
+	// walk מיישם רק PtMinTrackSize ב־WM_GETMINMAXINFO — בלי PtMaxTrackSize.
+	// לכן חייבים להסיר WS_THICKFRAME כדי למנוע שינוי גודל בפועל.
+	hwnd := st.mw.Handle()
+	if hwnd == 0 {
+		return
+	}
+	style := win.GetWindowLong(hwnd, win.GWL_STYLE)
+	newStyle := style &^ (win.WS_THICKFRAME | win.WS_MAXIMIZEBOX)
+	if newStyle != style {
+		win.SetWindowLong(hwnd, win.GWL_STYLE, newStyle)
+		win.SetWindowPos(hwnd, 0, 0, 0, 0, 0,
+			win.SWP_NOMOVE|win.SWP_NOSIZE|win.SWP_NOZORDER|win.SWP_NOACTIVATE|win.SWP_FRAMECHANGED)
+	}
+	// רענון כותרת אחרי שינוי מסגרת — מונע היעלמות כפתורי סגירה/מזעור
+	applyWindowTitleDir(st.mw)
+	if st.dark {
+		applyDarkChrome(hwnd)
+	}
+	if st.transparent {
+		applyTransparentWindow(st)
+	} else if st.borderless {
+		disableDwmChromeArtifacts(hwnd)
+	}
+	win.RedrawWindow(hwnd, nil, 0, win.RDW_FRAME|win.RDW_INVALIDATE|win.RDW_UPDATENOW)
+}
+
+func enforceFixedWindowSize(st *windowState) {
+	if st == nil || st.mw == nil || !st.fixedSize || st.fixedSizeBusy {
+		return
+	}
+	cur := st.mw.Size()
+	if cur.Width == st.width && cur.Height == st.height {
+		return
+	}
+	st.fixedSizeBusy = true
+	_ = st.mw.SetSize(walk.Size{Width: st.width, Height: st.height})
+	st.fixedSizeBusy = false
 }
 
 func winSetPosition(st *windowState, args ...object.Object) object.Object {
@@ -1298,14 +1642,23 @@ func winShow(st *windowState) object.Object {
 		}
 	}
 
+	minW, minH := min(st.width, 720), min(st.height, 480)
+	maxW, maxH := 0, 0
+	if st.fixedSize {
+		minW, minH = st.width, st.height
+		maxW, maxH = st.width, st.height
+	}
 	cfg := MainWindow{
-		AssignTo:  &mw,
-		Title:     st.title,
+		AssignTo:           &mw,
+		Title:              st.title,
 		// MinSize קטן מ־Size — אחרת חלון גדול עם תוכן גבוה ננעל ולא נכנס למסך
-		MinSize: Size{Width: min(st.width, 720), Height: min(st.height, 480)},
-		Size:     Size{Width: st.width, Height: st.height},
-		Layout:   VBox{Margins: Margins{Left: 2, Top: 0, Right: 2, Bottom: 0}, Spacing: 0},
-		Children: children,
+		MinSize:            Size{Width: minW, Height: minH},
+		MaxSize:            Size{Width: maxW, Height: maxH},
+		Size:               Size{Width: st.width, Height: st.height},
+		Layout:             VBox{Margins: transparentWindowMargins(st), Spacing: 0},
+		Children:           children,
+		RightToLeftLayout:  uiLayoutRTL(),
+		RightToLeftReading: uiLayoutRTL(),
 	}
 	if shouldDeferWindowShow(st) {
 		st.deferShow = true
@@ -1331,6 +1684,7 @@ func winShow(st *windowState) object.Object {
 
 	st.mw = mw
 	st.closed = false
+	applyWindowTitleDir(mw)
 	applyWindowPlacement(st)
 	setTimerUISync(func(fn func()) {
 		if st.mw != nil && !st.closed {
@@ -1360,17 +1714,56 @@ func winShow(st *windowState) object.Object {
 	}
 
 	mw.SizeChanged().Attach(func() {
+		enforceFixedWindowSize(st)
 		resizeBrowsersRecursive(st.children)
 		resizeGPUSurfacesRecursive(st.children)
 		for _, ch := range st.children {
 			wireSurfaceResize(ch)
 			syncSurfaceSizesRecursive(ch)
 		}
+		applyWindowShape(st)
+		if st.transparent {
+			applyTransparentWindow(st)
+		}
 	})
 
 	mw.Starting().Attach(func() {
 		if st.deferShow {
 			applySplashTransparent(st)
+		}
+		applyBorderlessWindow(st)
+		if st.transparent {
+			if st.mw != nil {
+				stripHwndChromeTree(st.mw.Handle())
+			}
+			applyTransparentWindow(st)
+		} else if st.mw != nil {
+			clearWindowLayered(st.mw.Handle())
+		}
+		applyTopMostWindow(st)
+		// אחרי שהחלון גלוי — נועלים מסגרת ומרעננים כותרת (כפתורי סגירה)
+		applyFixedWindowSize(st)
+		applyWindowShape(st)
+		if st.transparent {
+			applyTransparentWindow(st)
+			for _, ch := range st.children {
+				applyBrowserTransparency(ch, true)
+			}
+			if st.mw != nil {
+				stripHwndChromeTree(st.mw.Handle())
+				disableDwmChromeArtifacts(st.mw.Handle())
+			}
+		} else {
+			for _, ch := range st.children {
+				applyBrowserTransparency(ch, false)
+			}
+			// רק לווידג׳ט בלי מסגרת — לא לגעת בחלון רגיל (כותרת Windows)
+			if st.borderless && st.mw != nil {
+				clearWindowLayered(st.mw.Handle())
+				stripHwndChromeTree(st.mw.Handle())
+				disableDwmChromeArtifacts(st.mw.Handle())
+				applyWindowShape(st)
+			}
 		}
 		for _, ch := range st.children {
 			wireSurfaceResize(ch)

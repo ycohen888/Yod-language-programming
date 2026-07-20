@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>שעון — מדריך בניית תוכנה | מדריך יוד</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/guide.css" />
+</head>
+<body class="has-sidebar" data-guide-base="..">
+  <aside id="guide-sidebar" class="guide-sidebar" aria-label="תפריט מדריך"></aside>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <button type="button" class="sidebar-toggle">תפריט המדריך</button>
+  <div class="guide-main">
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand"><span class="eyebrow">מדריך בניית תוכנה</span><strong>שעון</strong></div>
+      <a class="nav-back" href="../מדריך שפת יוד.html">↑ לעמוד הראשי</a>
+    </div>
+    <article class="article">
+      <h1 id="top">בניית שעון שולחן־עבודה</h1>
+      <p class="lead">
+        דוגמה פתוחת קוד: שעון דיגיטלי עם כמה עיצובים, חלון בלי מסגרת —
+        על בסיס <code>פרוייקט דוגמה/שעון/</code>.
+      </p>
+
+      <div class="callout tip">
+        <strong>הרצה:</strong>
+        <pre class="code-block">יוד הרץ "פרוייקט דוגמה\שעון"</pre>
+        או פתחו את התיקייה בעורך יוד ולחצו F5.
+      </div>
+
+      <h2 id="overview">1. מה בונים</h2>
+      <ul>
+        <li>חלון בלי מסגרת עם צורה מעוגלת: <code>קבע_בלי_מסגרת</code> + <code>קבע_צורת_חלון</code> + <code>קבע_תמיד_מעל</code>.</li>
+        <li>שעון דיגיטלי עם כמה ערכות עיצוב (ניאון, LCD, מינימלי, שקיעה).</li>
+        <li>גרירה, ⚙/✕ בריחוף, לחצן ימני, שמירת העדפות.</li>
+      </ul>
+
+      <h2 id="files">2. מפת קבצים</h2>
+      <table>
+        <thead><tr><th>קובץ</th><th>תפקיד</th></tr></thead>
+        <tbody>
+          <tr><td><code>התחל.יוד</code></td><td>נקודת כניסה — <code>יבא { הפעל_שעון }</code></td></tr>
+          <tr><td><code>הפעלה.יוד</code></td><td>תיקיית הרצה + קריאה ל־<code>בנה_חלון_שעון</code></td></tr>
+          <tr><td><code>ממשק.יוד</code></td><td>חלון, צורה, דפדפן, הודעות JS</td></tr>
+          <tr><td><code>ממשק.html</code> / CSS / JS</td><td>השעון, התפריט וההגדרות</td></tr>
+          <tr><td><code>לוגו.png</code> / <code>app.ico</code></td><td>לוגו ואייקון</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="window">3. חלון מעוגל</h2>
+      <pre class="code-block">ח.קבע_בלי_מסגרת(אמת)
+ח.קבע_צורת_חלון("מעוגל")
+ח.קבע_תמיד_מעל(אמת)
+ח.קבע_גודל_קבוע(אמת)</pre>
+      <p>
+        <code>קבע_צורת_חלון</code> חותך את החלון — הדסקטופ נראה מסביב לכרטיס השעון.
+        כפתורי ⚙ ו־✕ מוסתרים ומופיעים בריחוף עכבר על השעון.
+      </p>
+
+      <h2 id="bridge">4. גשר JS ↔ יוד</h2>
+      <p>
+        מהממשק נשלחות הודעות: <code>יציאה</code>, <code>גרור</code>,
+        <code>תמיד_מעל:אמת/שקר</code>, <code>גודל:w,h</code>, <code>צורה:…</code>.
+        ב־יוד: <code>דפדפן.בהודעה</code> + <code>חלון.התחל_גרירה</code> / <code>סגור</code>.
+      </p>
+
+      <h2 id="tips">5. טיפים</h2>
+      <ul>
+        <li>עיצובים מתחלפים עם <code>data-theme</code> ב־CSS — בלי לטעון מחדש.</li>
+        <li>העדפות נשמרות ב־<code>localStorage</code> בדפדפן המובנה.</li>
+      </ul>
+    </article>
+  </div>
+  </div>
+  <script src="../js/guide-nav.js"></script>
+</body>
+</html>

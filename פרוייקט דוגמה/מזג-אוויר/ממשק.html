@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>מזג־אוויר · יוד</title>
+  <meta name="color-scheme" content="dark"/>
+  <link rel="icon" href="app.ico" type="image/x-icon"/>
+  <style>
+    html, body, #app, .view, .panel, .settings-view {
+      background: #101a2b !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    html, body, #app { width: 100%; height: 100%; overflow: hidden; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="סגנון.css"/>
+</head>
+<body>
+  <div id="app" class="app" data-unit="c">
+    <div id="weather-view" class="view">
+      <div id="panel" class="panel">
+        <button type="button" class="gear" data-gear title="הגדרות" aria-label="הגדרות">⚙</button>
+
+        <header class="wx-head">
+          <div class="city" id="city-name">תל אביב</div>
+          <div class="updated" id="updated">טוען…</div>
+        </header>
+
+        <div class="wx-now">
+          <div class="wx-icon" id="wx-icon" aria-hidden="true">⛅</div>
+          <div class="wx-temp-block">
+            <div class="temp" id="temp">--°</div>
+            <div class="feel" id="feel">מרגיש כמו --°</div>
+            <div class="desc" id="desc">—</div>
+          </div>
+        </div>
+
+        <div class="wx-stats">
+          <div class="stat">
+            <span class="stat-label">רוח</span>
+            <span class="stat-value" id="wind">--</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">לחות</span>
+            <span class="stat-value" id="humidity">--</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">גשם</span>
+            <span class="stat-value" id="rain-chance">--</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">מינ׳ / מקס׳</span>
+            <span class="stat-value" id="minmax">-- / --</span>
+          </div>
+        </div>
+
+        <section class="hours" aria-label="תחזית לפי שעה">
+          <h2>היום</h2>
+          <div class="hours-scroll" id="hours"></div>
+        </section>
+
+        <footer class="wx-foot">
+          <span id="sun">זריחה — · שקיעה —</span>
+          <button type="button" class="refresh" id="btn-refresh" title="רענון">↻</button>
+        </footer>
+      </div>
+    </div>
+
+    <div id="settings-view" class="view settings-view" hidden>
+      <div class="settings-card">
+        <header>
+          <img src="לוגו.png" width="24" height="24" alt=""/>
+          <strong>הגדרות</strong>
+          <button type="button" class="x" id="btn-close-settings" aria-label="סגור">×</button>
+        </header>
+        <label>עיר
+          <select id="set-city"></select>
+        </label>
+        <label>יחידת חום
+          <select id="set-unit">
+            <option value="c">צלסיוס (°C)</option>
+            <option value="f">פרנהייט (°F)</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="set-topmost" checked/> תמיד מעל</label>
+        <label class="check"><input type="checkbox" id="set-refresh" checked/> רענון אוטומטי (15 דק׳)</label>
+        <div class="settings-actions">
+          <button type="button" id="btn-exit" class="danger">יציאה</button>
+          <button type="button" id="btn-back" class="primary">חזרה</button>
+        </div>
+        <p class="credit">נתונים: Open-Meteo · ללא מפתח API</p>
+      </div>
+    </div>
+
+    <div id="menu" class="menu" hidden role="menu">
+      <button type="button" data-act="settings">הגדרות</button>
+      <button type="button" data-act="refresh">רענון</button>
+      <button type="button" data-act="topmost" id="btn-topmost">תמיד מעל ✓</button>
+      <hr/>
+      <button type="button" data-act="exit" class="danger">יציאה</button>
+    </div>
+  </div>
+  <script src="מנוע.js"></script>
+</body>
+</html>
